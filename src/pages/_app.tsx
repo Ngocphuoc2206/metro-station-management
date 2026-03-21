@@ -2,6 +2,7 @@ import type { AppProps } from "next/app";
 import type { NextPage } from "next";
 import { Provider } from "react-redux";
 import { PersistGate } from "redux-persist/integration/react";
+import { Toaster } from "react-hot-toast";
 
 import { store, persistor } from "@stores/index";
 
@@ -22,8 +23,10 @@ export default function MyApp({ Component, pageProps }: AppPropsWithLayout) {
   return (
     <Provider store={store}>
       <PersistGate loading={null} persistor={persistor}>
+        <Toaster position="top-center" toastOptions={{ duration: 4000 }} />
         {getLayout(<Component {...pageProps} />)}
       </PersistGate>
     </Provider>
   );
 }
+
