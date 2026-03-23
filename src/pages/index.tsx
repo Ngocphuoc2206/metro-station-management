@@ -11,7 +11,9 @@ const ROLE_PATHS: Record<string, string> = {
 
 export default function HomePage() {
   const router = useRouter();
-  const { isLoggedIn, role } = useSelector((state: RootState) => state.userReducer);
+  const { isLoggedIn, role } = useSelector(
+    (state: RootState) => state.userReducer,
+  );
 
   useEffect(() => {
     if (isLoggedIn && role && ROLE_PATHS[role]) {
@@ -23,5 +25,3 @@ export default function HomePage() {
 
   return null;
 }
-
-
