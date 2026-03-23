@@ -1,17 +1,27 @@
-import type { ReactElement } from "react";
-import UserLayout from "@components/templates/UserLayout";
+import { useEffect } from "react";
+import { useRouter } from "next/router";
+import { useSelector } from "react-redux";
+import type { RootState } from "@stores/index";
 
-function HomePage() {
-  return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold">MetroNext Frontend</h1>
-      <p>Project nền đã khởi tạo thành công.</p>
-    </div>
-  );
-}
-
-HomePage.getLayout = function getLayout(page: ReactElement) {
-  return <UserLayout title="Home">{page}</UserLayout>;
+const ROLE_PATHS: Record<string, string> = {
+  passenger: "/dashboard/passenger",
+  staff: "/dashboard/staff",
+  admin: "/dashboard/admin",
 };
 
-export default HomePage;
+export default function HomePage() {
+  const router = useRouter();
+  const { isLoggedIn, role } = useSelector((state: RootState) => state.userReducer);
+
+  useEffect(() => {
+    if (isLoggedIn && role && ROLE_PATHS[role]) {
+      router.replace(ROLE_PATHS[role]);
+    } else {
+      router.replace("/auth/login");
+    }
+  }, [isLoggedIn, role, router]);
+
+  return null;
+}
+
+

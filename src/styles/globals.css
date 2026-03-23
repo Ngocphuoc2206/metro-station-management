@@ -9,11 +9,15 @@ body,
 body {
   margin: 0;
   padding: 0;
-  font-family: Arial, sans-serif;
+  font-family: "Inter", Arial, sans-serif;
   background: #f8fafc;
   color: #111827;
 }
 
 * {
   box-sizing: border-box;
+}
+
+.font-display {
+  font-family: "Plus Jakarta Sans", sans-serif;
 }
