@@ -1,15 +1,16 @@
 import Link from "next/link";
- 
+import { Bell, CircleUserRound } from "lucide-react";
 
 const NAV_ITEMS = [
-  { label: "Tính năng", href: "#features" },
-  { label: "Bảng giá", href: "#pricing" },
-  { label: "Demo", href: "#demo" },
+  { label: "Trang chủ", href: "/" },
+  { label: "Lịch trình", href: "#" },
+  { label: "Bản đồ", href: "#" },
+  { label: "Tin tức", href: "#" },
 ];
 
-export const UserHeader = () => {
+export const MetroAuthHeader = () => {
   return (
-    <header className="w-full border-b border-slate-200 bg-neutral-100/80 backdrop-blur-[6px]">
+    <header className="w-full border-b border-slate-200 bg-white">
       <div className="mx-auto flex w-full max-w-[1200px] items-center justify-between gap-4 px-6 py-3 md:px-10">
         <div className="flex items-center gap-4">
           <div className="flex h-8 w-8 items-center justify-center overflow-hidden">
@@ -51,16 +52,22 @@ export const UserHeader = () => {
           </ul>
         </nav>
 
-        <Link
-          href="/login"
-          className="inline-flex h-10 min-w-24 items-center justify-center overflow-hidden rounded-3xl bg-blue-600 px-4 transition-colors hover:bg-blue-700"
-        >
-          <span className="inline-flex flex-col items-center justify-start overflow-hidden">
-            <span className="h-5 w-20 text-center text-sm font-bold leading-5 tracking-tight text-white">
-              Đăng nhập
-            </span>
-          </span>
-        </Link>
+        <div className="inline-flex items-center gap-2">
+          <button
+            type="button"
+            aria-label="Thông báo"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-200 text-neutral-900 transition-colors hover:bg-slate-300"
+          >
+            <Bell className="h-5 w-5" />
+          </button>
+          <button
+            type="button"
+            aria-label="Tài khoản"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-200 text-neutral-900 transition-colors hover:bg-slate-300"
+          >
+            <CircleUserRound className="h-5 w-5" />
+          </button>
+        </div>
       </div>
     </header>
   );

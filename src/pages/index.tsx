@@ -20,19 +20,4 @@ HomePage.getLayout = function getLayout(page: ReactElement) {
   return <UserLayout title="Home">{page}</UserLayout>;
 };
 
-export default function HomePage() {
-  const router = useRouter();
-  const { isLoggedIn, role } = useSelector(
-    (state: RootState) => state.userReducer,
-  );
-
-  useEffect(() => {
-    if (isLoggedIn && role && ROLE_PATHS[role]) {
-      router.replace(ROLE_PATHS[role]);
-    } else {
-      router.replace("/auth/login");
-    }
-  }, [isLoggedIn, role, router]);
-
-  return null;
-}
+export default HomePage;
