@@ -16,7 +16,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(value = Exception.class)
     ResponseEntity<ApiResponse<String>> handlingRuntimeException(Exception exception){
         ApiResponse<String> apiResponse = new ApiResponse<>();
-        apiResponse.setCode(1004);
+        apiResponse.setCode(9998);
         apiResponse.setMessage(exception.getMessage());
         return ResponseEntity.badRequest().body(apiResponse);
     }

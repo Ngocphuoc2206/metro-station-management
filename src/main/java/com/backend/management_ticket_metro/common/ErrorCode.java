@@ -17,14 +17,13 @@ public enum ErrorCode {
     EMAIL_FORMAT_INVALID(1009, "Email format is invalid"),
     EMAIL_INVALID(1010, "Email must not exceed 255 characters"),
     EMAIL_ALREADY_EXISTS(1011, "Email already exists"),
-    PHONE_INVALID(1012, "Phone length must be between 8 and 20 characters"),
-    PASSWORD_INVALID(1013, "Password must be at least 8 characters"),
-    PASSWORD_POLICY_VIOLATION(1014, "Password does not meet security requirements"),
-    ROLE_NOT_FOUND(1015, "Default role not found"),
-    VALIDATION_ERROR(1016, "Invalid request body"),
-
-
-    CONFIRM_PASSWORD_NOT_MATCH(1014, "Confirm password does not match"),
+    EMAIL_NOT_EXISTED(1012, "Email is not existed"),
+    PHONE_INVALID(1013, "Phone length must be between 8 and 20 characters"),
+    PASSWORD_INVALID(1014, "Password must be at least 8 characters"),
+    PASSWORD_POLICY_VIOLATION(1015, "Password does not meet security requirements"),
+    ROLE_NOT_FOUND(1016, "Default role not found"),
+    VALIDATION_ERROR(1017, "Invalid request body"),
+    CONFIRM_PASSWORD_NOT_MATCH(1018, "Confirm password does not match"),
 
     UNCATEGORIZED_EXCEPTION  (9999, "UNCATEGORIZED_EXCEPTION!")
     ;
