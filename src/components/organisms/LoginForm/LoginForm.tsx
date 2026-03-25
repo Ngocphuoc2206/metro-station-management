@@ -174,11 +174,14 @@ export default function LoginForm() {
         </Link>
       </p>
 
-      <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
-        <p className="text-xs text-blue-600 font-medium mb-0.5">Chế độ demo</p>
-        <p className="text-xs text-blue-500">
-          Đăng nhập bằng tài khoản đã đăng ký. Hệ thống sẽ tự động chuyển hướng theo vai trò.
-        </p>
+      <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 space-y-1">
+        <p className="text-xs text-amber-700 font-semibold">🧪 Mock Mode — chưa kết nối API</p>
+        <p className="text-xs text-amber-600">Dùng một trong các tài khoản sau (mật khẩu bất kỳ ≥ 6 ký tự):</p>
+        <ul className="text-xs text-amber-700 font-mono space-y-0.5 mt-1">
+          <li>• <strong>admin@test.vn</strong> → Quản trị viên</li>
+          <li>• <strong>staff@test.vn</strong> → Nhân viên ga</li>
+          <li>• <strong>passenger@test.vn</strong> → Hành khách</li>
+        </ul>
       </div>
     </form>
   );
