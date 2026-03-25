@@ -2,9 +2,7 @@ package com.backend.management_ticket_metro.service;
 
 import com.backend.management_ticket_metro.common.ErrorCode;
 import com.backend.management_ticket_metro.constant.PredefinedRole;
-import com.backend.management_ticket_metro.dto.request.LoginRequest;
 import com.backend.management_ticket_metro.dto.request.RegisterRequest;
-import com.backend.management_ticket_metro.dto.response.LoginResponse;
 import com.backend.management_ticket_metro.dto.response.UserResponse;
 import com.backend.management_ticket_metro.entity.Role;
 import com.backend.management_ticket_metro.entity.User;
@@ -17,11 +15,8 @@ import com.backend.management_ticket_metro.repository.UserRoleRepository;
 import com.backend.management_ticket_metro.validator.PasswordPolicyValidator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
-import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 
@@ -77,33 +72,6 @@ public class UserService {
         userRepository.save(user);
         log.info("User registered successfully with email={}", user.getEmail());
         return userMapper.toUserResponse(user);
-    }
-
-    //Login
-    public LoginResponse login(LoginRequest request){
-        PasswordEncoder passwordEncoder1 = new BCryptPasswordEncoder(10);
-
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new AppException(ErrorCode.EMAIL_NOT_EXISTED));
-
-        if (user.getStatus() != UserStatus.ACTIVE)
-            throw new AppException(ErrorCode.UNAUTHORIZED);
-
-        boolean matched = passwordEncoder1.matches(request.getPassword(), user.getPasswordHash());
-
-        if (!matched)
-            throw new AppException(ErrorCode.INVALID_CREDENTIALS);
-
-        String accessToken = authenticationService.generateAccessToken(user);
-        Long expiresIn = authenticationService.getAccessTokenExpirationSeconds();
-
-        return LoginResponse.builder()
-                .accessToken(accessToken)
-                .tokenType("Bearer")
-                .expiresIn(expiresIn)
-                .expiresAt(LocalDateTime.now().plusSeconds(expiresIn))
-                .user(userMapper.toUserResponse(user))
-                .build();
     }
 
     public List<UserResponse> getUsers(){
