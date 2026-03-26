@@ -9,7 +9,7 @@ const NAV_GROUPS = [
     heading: "QUẢN TRỊ",
     items: [
       { label: "Tổng quan", href: "/dashboard/admin", icon: DashboardIcon },
-      { label: "Ga", href: "#", icon: StationIcon },
+      { label: "Ga", href: "/dashboard/admin/stations", icon: StationIcon },
       { label: "Tuyến", href: "#", icon: RouteIcon },
       { label: "Loại vé", href: "#", icon: TicketIcon },
       { label: "Bảng giá", href: "#", icon: PriceIcon },
@@ -33,7 +33,6 @@ export default function AdminSidebar() {
   const { name, email } = useSelector((s: RootState) => s.userReducer);
 
   const handleLogout = () => {
-    localStorage.removeItem("authToken");
     dispatch(logout());
     router.push("/auth/login");
   };
@@ -71,11 +70,10 @@ export default function AdminSidebar() {
                     <li key={item.label}>
                       <a
                         href={item.href}
-                        className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
-                          active
+                        className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${active
                             ? "bg-blue-600 text-white font-medium"
                             : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                        }`}
+                          }`}
                       >
                         <Icon active={active} />
                         {item.label}
