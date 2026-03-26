@@ -12,7 +12,7 @@ const NAV_GROUPS = [
       { label: "Ga", href: "/dashboard/admin/stations", icon: StationIcon },
       { label: "Tuyến", href: "#", icon: RouteIcon },
       { label: "Loại vé", href: "#", icon: TicketIcon },
-      { label: "Bảng giá", href: "#", icon: PriceIcon },
+      { label: "Bảng giá", href: "/dashboard/admin/fares", icon: PriceIcon },
     ],
   },
   {
