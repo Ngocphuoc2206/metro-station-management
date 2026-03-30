@@ -18,7 +18,7 @@ const NAV_GROUPS = [
   {
     heading: "HỆ THỐNG",
     items: [
-      { label: "Người dùng", href: "#", icon: UsersIcon },
+      { label: "Người dùng", href: "/dashboard/admin/users", icon: UsersIcon },
       { label: "Phân quyền", href: "#", icon: ShieldIcon },
       { label: "Báo cáo", href: "#", icon: ReportIcon },
       { label: "Audit Logs", href: "#", icon: LogIcon },
