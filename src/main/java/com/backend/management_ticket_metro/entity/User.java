@@ -4,6 +4,7 @@ import com.backend.management_ticket_metro.enums.UserStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Set;
 
@@ -49,4 +50,7 @@ public class User {
             inverseJoinColumns = @JoinColumn(name = "role_id")
     )
     private Set<Role> roles;
+    //
+    private String address;
+    private LocalDate dob;
 }
