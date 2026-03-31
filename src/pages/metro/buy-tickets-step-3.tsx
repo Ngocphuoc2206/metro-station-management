@@ -97,7 +97,6 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
   const [step2State, setStep2State] = useState<Step2State>({});
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>("ewallet");
   const [promotionCode, setPromotionCode] = useState("");
-  const [isPaymentSuccess, setIsPaymentSuccess] = useState(false);
 
   useEffect(() => {
     const fromQuery = {
@@ -198,12 +197,18 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
     setPromotionCode(promotionCode.trim());
   };
 
-  const handleConfirmPayment = () => {
+  const handleConfirmPayment = async () => {
     if (!hasJourneyState) {
       return;
     }
 
-    setIsPaymentSuccess(true);
+    await router.push({
+      pathname: "/metro/payment-success",
+      query: {
+        ...router.query,
+        ticketType: selectedTicket.id,
+      },
+    });
   };
 
   return (
@@ -474,12 +479,6 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
                     <span className="text-2xl font-black text-blue-600">{formatCurrency(totalPrice)}</span>
                   </div>
                 </div>
-
-                {isPaymentSuccess ? (
-                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-                    Thanh toán mẫu thành công. Hệ thống chưa tích hợp cổng thanh toán thật.
-                  </div>
-                ) : null}
 
                 <div className="flex flex-col gap-3 pt-2">
                   <button
