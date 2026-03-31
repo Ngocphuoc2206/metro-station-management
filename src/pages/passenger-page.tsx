@@ -1,8 +1,12 @@
 import Head from "next/head";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import {
   Bell,
   CalendarClock,
+  CircleAlert,
+  Clock3,
+  X,
   ChevronRight,
   CreditCard,
   History,
@@ -117,7 +121,7 @@ const toneClass = {
 const navItems = [
   { label: "Dashboard", active: true, href: "/passenger-page", icon: LayoutDashboard },
   { label: "Mua vé", active: false, href: "/metro/buy-tickets-step-1", icon: Ticket },
-  { label: "Vé của tôi", active: false, href: "#", icon: QrCode },
+  { label: "Vé của tôi", active: false, href: "/passenger-page/my-tickets", icon: QrCode },
   { label: "Lịch sử chuyến", active: false, href: "/passenger-page/history", icon: History },
   { label: "Lịch tàu", active: false, href: "#", icon: TrainFront },
   { label: "Tài khoản", active: false, href: "#", icon: UserRound },
@@ -145,6 +149,24 @@ const tableRows = [
 ];
 
 export default function PassengerPage() {
+  const [selectedTicket, setSelectedTicket] = useState<TicketCard | null>(null);
+  const [remainingSeconds, setRemainingSeconds] = useState(119);
+
+  useEffect(() => {
+    if (!selectedTicket) {
+      return;
+    }
+
+    setRemainingSeconds(119);
+    const timer = setInterval(() => {
+      setRemainingSeconds((previous) => (previous > 0 ? previous - 1 : 0));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [selectedTicket]);
+
+  const countdown = `${String(Math.floor(remainingSeconds / 60)).padStart(2, "0")}:${String(remainingSeconds % 60).padStart(2, "0")}`;
+
   return (
     <>
       <Head>
@@ -288,6 +310,12 @@ export default function PassengerPage() {
                             <p className="mb-4 text-base font-bold leading-6 text-slate-900">{ticket.route}</p>
 
                             <button
+                              type="button"
+                              onClick={() => {
+                                if (!ticket.disabled) {
+                                  setSelectedTicket(ticket);
+                                }
+                              }}
                               className={`inline-flex w-full items-center justify-center gap-1 rounded-2xl py-2 text-xs font-bold ${
                                 ticket.disabled
                                   ? "border border-slate-300 text-slate-500"
@@ -397,6 +425,74 @@ export default function PassengerPage() {
             </section>
           </main>
         </div>
+
+        {selectedTicket ? (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-[2px]"
+            onClick={() => setSelectedTicket(null)}
+            role="presentation"
+          >
+            <div
+              className="w-full max-w-sm overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl"
+              onClick={(event) => event.stopPropagation()}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Mã QR vào cổng"
+            >
+              <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+                <h3 className="text-lg font-bold text-slate-900">Mã QR Vào cổng</h3>
+                <button
+                  type="button"
+                  onClick={() => setSelectedTicket(null)}
+                  className="rounded-2xl p-1 text-slate-400 transition hover:bg-slate-100"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="px-6 pb-6 pt-8">
+                <div className="mb-6 flex justify-center">
+                  <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
+                    <img
+                      src="https://placehold.co/192x192"
+                      alt="Ticket QR Code"
+                      className="h-48 w-48"
+                    />
+                  </div>
+                </div>
+
+                <div className="mb-6 text-center">
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Mã vé của bạn</p>
+                  <p className="text-2xl font-black text-blue-600">{selectedTicket.code}</p>
+                </div>
+
+                <div className="mb-6 flex items-center justify-center gap-2 rounded-xl border border-red-100 bg-red-50 px-4 py-3">
+                  <CircleAlert className="h-4 w-4 text-red-500" />
+                  <p className="text-sm font-bold text-red-600">
+                    Mã sẽ hết hạn sau: <span className="font-black">{countdown}</span>
+                  </p>
+                </div>
+
+                <p className="text-center text-sm leading-6 text-slate-500">
+                  Đưa mã này vào máy quét tại cổng để vào
+                  <br />
+                  ga
+                </p>
+              </div>
+
+              <div className="border-t border-slate-100 bg-slate-50 px-6 py-5">
+                <button
+                  type="button"
+                  onClick={() => setSelectedTicket(null)}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-base font-bold text-white shadow-[0px_10px_15px_-3px_rgba(19,127,236,0.20)]"
+                >
+                  <Clock3 className="h-4 w-4" />
+                  Đóng
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     </>
   );
