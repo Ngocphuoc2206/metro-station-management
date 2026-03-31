@@ -36,10 +36,10 @@ const BrandMark = ({ className = "h-8 w-8" }: { className?: string }) => (
 );
 
 const navItems = [
-  { label: "Dashboard", active: true, href: "/passenger-page", icon: LayoutDashboard },
+  { label: "Dashboard", active: false, href: "/passenger-page", icon: LayoutDashboard },
   { label: "Mua vé", active: false, href: "/metro/buy-tickets-step-1" },
   { label: "Vé của tôi", active: false, href: "#", icon: QrCode },
-  { label: "Lịch sử chuyến", active: false, href: "#", icon: History },
+  { label: "Lịch sử chuyến", active: false, href: "/passenger-page/history", icon: History },
   { label: "Lịch tàu", active: false, href: "#", icon: TrainFront },
   { label: "Tài khoản", active: false, href: "#", icon: UserRound },
 ];
@@ -175,7 +175,9 @@ export default function RecentTicketsPage() {
                     <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
                       <div className="flex items-center justify-between border-b border-slate-100 px-6 pb-4 pt-3.5">
                         <h2 className="text-lg font-bold text-neutral-900">Lịch sử chuyến đi</h2>
-                        <button className="text-sm font-medium text-blue-600">Xem tất cả</button>
+                        <Link href="/passenger-page/history" className="text-sm font-medium text-blue-600">
+                          Xem tất cả
+                        </Link>
                       </div>
 
                       <div className="overflow-hidden pb-12">
