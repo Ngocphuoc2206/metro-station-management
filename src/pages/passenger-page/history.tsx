@@ -102,7 +102,7 @@ const navItems = [
   { label: "Mua vé", active: false, href: "/metro/buy-tickets-step-1", icon: Ticket },
   { label: "Vé của tôi", active: false, href: "/passenger-page/my-tickets", icon: Ticket },
   { label: "Lịch sử chuyến", active: true, href: "/passenger-page/history", icon: History },
-  { label: "Lịch tàu", active: false, href: "#", icon: TrainFront },
+  { label: "Lịch tàu", active: false, href: "/passenger-page/schedule", icon: TrainFront },
   { label: "Tài khoản", active: false, href: "#", icon: UserRound },
 ];
 
