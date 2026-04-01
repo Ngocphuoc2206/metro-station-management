@@ -36,14 +36,14 @@ public class UserController {
                 .build();
     }
 
-    @GetMapping("/me-profile")
+    @GetMapping("/me")
     public ApiResponse<UserResponse> getMyProfile() {
         return ApiResponse.<UserResponse>builder()
                 .results(userService.getMyInfo())
                 .build();
     }
 
-    @PutMapping("/me-profile")
+    @PutMapping("/me")
     public ApiResponse<UserResponse> updateMyProfile(@RequestBody UserUpdateRequest request){
         return ApiResponse.<UserResponse>builder()
                 .results(userService.updateProfile(request))
