@@ -3,6 +3,7 @@ package com.backend.management_ticket_metro.service;
 import com.backend.management_ticket_metro.common.ErrorCode;
 import com.backend.management_ticket_metro.constant.PredefinedRole;
 import com.backend.management_ticket_metro.dto.request.RegisterRequest;
+import com.backend.management_ticket_metro.dto.request.UserUpdateRequest;
 import com.backend.management_ticket_metro.dto.response.UserResponse;
 import com.backend.management_ticket_metro.entity.Role;
 import com.backend.management_ticket_metro.entity.User;
@@ -15,10 +16,14 @@ import com.backend.management_ticket_metro.repository.UserRoleRepository;
 import com.backend.management_ticket_metro.validator.PasswordPolicyValidator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @Slf4j
@@ -65,7 +70,8 @@ public class UserService {
         //Set roles for user
         user.setRoles(new HashSet<>());
         user.getRoles().add(defaultRole);
-
+        user.setAddress(request.getAddress());
+        user.setDob(request.getDob());
         //Set Status
         user.setStatus(UserStatus.ACTIVE);
 
@@ -73,9 +79,43 @@ public class UserService {
         log.info("User registered successfully with email={}", user.getEmail());
         return userMapper.toUserResponse(user);
     }
-
+    @PreAuthorize("hasRole('ADMIN')")
     public List<UserResponse> getUsers(){
         log.info("Get user ....");
         return userRepository.findAll().stream().map(userMapper::toUserResponse).toList();
+    }
+
+    public UserResponse getMyInfo() {
+        var context = SecurityContextHolder.getContext();
+        String name  = Objects.requireNonNull(context.getAuthentication()).getName();
+
+        User user = userRepository.findByEmail(name).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        return userMapper.toUserResponse(user);
+    }
+
+    public UserResponse updateProfile(UserUpdateRequest request ){
+        var context = SecurityContextHolder.getContext();
+        String email = Objects.requireNonNull(context.getAuthentication()).getName();
+
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        user.setFullName(request.getFullName());
+        user.setPhone(request.getPhone());
+        user.setAddress(request.getAddress());
+        user.setDob(request.getDob());
+
+        return userMapper.toUserResponse(userRepository.save(user));
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    public UserResponse getUserById(String id){
+        return userMapper.toUserResponse(userRepository.findById(id).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND)));
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    public UserResponse changeStatus(String id, UserStatus status){
+        User user = userRepository.findById(id).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        user.setStatus(status);
+        return userMapper.toUserResponse(userRepository.save(user));
     }
 }

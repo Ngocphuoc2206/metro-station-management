@@ -2,11 +2,14 @@ package com.backend.management_ticket_metro.dto.request;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.time.LocalDate;
 
 @Data
 @NoArgsConstructor
@@ -32,4 +35,11 @@ public class RegisterRequest {
 
     @NotBlank(message = "Confirm password must not be blank")
     private String confirmPassword;
+
+    @NotBlank(message = "Address must not be blank")
+    @Size(max = 255, message = "ADDRESS_INVALID")
+    private String address;
+
+    @NotNull(message = "Date of birth must not be null")
+    private LocalDate dob;
 }

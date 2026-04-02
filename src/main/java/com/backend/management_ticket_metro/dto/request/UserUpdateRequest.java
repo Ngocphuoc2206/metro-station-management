@@ -1,4 +1,4 @@
-package com.backend.management_ticket_metro.dto.response;
+package com.backend.management_ticket_metro.dto.request;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -6,21 +6,14 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
-import java.util.Set;
 
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-public class UserResponse {
-    private String userId;
+public class UserUpdateRequest {
     private String fullName;
-    private String email;
     private String phone;
-    private String status;
-    private Set<RoleResponse> roles;
-    private LocalDate createdAt;
-
     private String address;
     private LocalDate dob;
 }
