@@ -10,6 +10,7 @@ import { loginUser } from "@features/auth/authApi";
 import { loginSuccess } from "@stores/slices/userSlice";
 import { type AppDispatch } from "@stores/index";
 import EyeIcon from "@components/parts/EyeIcon/EyeIcon";
+import { ROLE_PATHS } from "@/const/Role";
 
 export default function LoginForm() {
   const router = useRouter();
@@ -28,12 +29,6 @@ export default function LoginForm() {
     defaultValues: { email: "", password: "" },
   });
 
-  const ROLE_PATHS: Record<string, string> = {
-    passenger: "/dashboard/passenger",
-    staff: "/dashboard/staff",
-    admin: "/dashboard/admin",
-  };
-
   const onSubmit = async (data: LoginFormValues) => {
     setApiError(null);
     setIsLoading(true);
@@ -47,17 +42,24 @@ export default function LoginForm() {
             email: response.data.email,
             role: response.data.role,
             token: response.data.token,
-          })
+          }),
         );
         router.push(ROLE_PATHS[response.data.role] ?? "/auth/login");
         return;
       }
-      const message = response.message || "Đăng nhập thất bại. Vui lòng thử lại.";
+      const message =
+        response.message || "Đăng nhập thất bại. Vui lòng thử lại.";
       setApiError(message);
       setError("password", { type: "manual", message });
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } }; message?: string };
-      const message = err.response?.data?.message || err.message || "Sai email hoặc mật khẩu.";
+      const err = error as {
+        response?: { data?: { message?: string } };
+        message?: string;
+      };
+      const message =
+        err.response?.data?.message ||
+        err.message ||
+        "Sai email hoặc mật khẩu.";
       setApiError(message);
       setError("password", { type: "manual", message });
     } finally {
@@ -65,15 +67,20 @@ export default function LoginForm() {
     }
   };
 
-  const inputBase = "w-full px-4 py-3 border rounded-xl text-sm focus:outline-none focus:ring-2 transition-all duration-200";
-  const inputValid = "border-gray-200 bg-white focus:ring-blue-500 focus:border-blue-400";
-  const inputError = "border-red-400 bg-red-50 focus:ring-red-400 focus:border-red-400";
+  const inputBase =
+    "w-full px-4 py-3 border rounded-xl text-sm focus:outline-none focus:ring-2 transition-all duration-200";
+  const inputValid =
+    "border-gray-200 bg-white focus:ring-blue-500 focus:border-blue-400";
+  const inputError =
+    "border-red-400 bg-red-50 focus:ring-red-400 focus:border-red-400";
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
       {/* Email */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+          Email
+        </label>
         <input
           {...register("email")}
           type="email"
@@ -91,7 +98,9 @@ export default function LoginForm() {
       {/* Password */}
       <div>
         <div className="flex items-center justify-between mb-1.5">
-          <label className="block text-sm font-medium text-gray-700">Mật khẩu</label>
+          <label className="block text-sm font-medium text-gray-700">
+            Mật khẩu
+          </label>
           <Link
             href="/auth/forgot-password"
             className="text-xs text-blue-600 hover:text-blue-700 hover:underline transition-colors"
@@ -141,20 +150,35 @@ export default function LoginForm() {
 
       <p className="text-center text-sm text-gray-500">
         Chưa có tài khoản?{" "}
-        <Link href="/auth/signup" className="text-blue-600 font-medium hover:text-blue-700 hover:underline transition-colors">
+        <Link
+          href="/auth/signup"
+          className="text-blue-600 font-medium hover:text-blue-700 hover:underline transition-colors"
+        >
           Đăng ký ngay
         </Link>
       </p>
 
       {process.env.NEXT_PUBLIC_USE_MOCK_AUTH === "true" && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 space-y-1">
-          <p className="text-xs text-amber-700 font-semibold">🧪 Mock Mode — backend chưa kết nối</p>
-          <p className="text-xs text-amber-600">Dùng một trong các tài khoản sau (mật khẩu ≥ 6 ký tự):</p>
+          <p className="text-xs text-amber-700 font-semibold">
+            🧪 Mock Mode — backend chưa kết nối
+          </p>
+          <p className="text-xs text-amber-600">
+            Dùng một trong các tài khoản sau (mật khẩu ≥ 6 ký tự):
+          </p>
           <ul className="text-xs text-amber-700 font-mono space-y-0.5 mt-1">
-            <li>• <strong>admin@test.vn</strong> → Quản trị viên</li>
-            <li>• <strong>staff@test.vn</strong> → Nhân viên ga</li>
-            <li>• <strong>passenger@test.vn</strong> → Hành khách</li>
-            <li>• <strong>scanner@test.vn</strong> → Gate Scanner</li>
+            <li>
+              • <strong>admin@test.vn</strong> → Quản trị viên
+            </li>
+            <li>
+              • <strong>staff@test.vn</strong> → Nhân viên ga
+            </li>
+            <li>
+              • <strong>passenger@test.vn</strong> → Hành khách
+            </li>
+            <li>
+              • <strong>scanner@test.vn</strong> → Gate Scanner
+            </li>
           </ul>
         </div>
       )}
