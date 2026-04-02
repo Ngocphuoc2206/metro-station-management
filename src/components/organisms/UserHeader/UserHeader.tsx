@@ -30,12 +30,18 @@ export const UserHeader = () => {
             </svg>
           </div>
 
-          <Link href="/" className="text-xl font-bold leading-6 text-neutral-900">
+          <Link
+            href="/"
+            className="text-xl font-bold leading-6 text-neutral-900"
+          >
             MetroNext
           </Link>
         </div>
 
-        <nav aria-label="Main navigation" className="hidden flex-1 justify-center md:flex">
+        <nav
+          aria-label="Main navigation"
+          className="hidden flex-1 justify-center md:flex"
+        >
           <ul className="flex items-center gap-9">
             {NAV_ITEMS.map((item) => (
               <li key={item.label}>
@@ -51,7 +57,7 @@ export const UserHeader = () => {
         </nav>
 
         <Link
-          href="/login"
+          href="/auth/login"
           className="inline-flex h-10 min-w-24 items-center justify-center overflow-hidden rounded-3xl bg-blue-600 px-4 transition-colors hover:bg-blue-700"
         >
           <span className="inline-flex flex-col items-center justify-start overflow-hidden">
