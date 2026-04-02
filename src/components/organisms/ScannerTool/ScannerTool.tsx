@@ -22,6 +22,7 @@ export default function ScannerTool() {
   const [scanStatus, setScanStatus] = useState<ScanStatus>("idle");
 
   const handleLogout = () => {
+    localStorage.removeItem("authToken");
     dispatch(logout());
     router.push("/auth/login");
   };
