@@ -1,81 +1,88 @@
-import { User } from "./userTypes";
+import { User, UserRole } from "./userTypes";
+import { apiClient } from "@features/httpClient/ApiClient";
 
-let fakeUsers: User[] = [
-  {
-    id: "u_1",
-    name: "Nguyễn Văn A",
-    email: "admin@metronext.vn",
-    role: "admin",
-    status: "active",
-    lastLogin: "08:15, 24/10/2024",
-    assignedStationName: "Toàn hệ thống",
-  },
-  {
-    id: "u_2",
-    name: "Trần Minh",
-    email: "tranminh.staff@metronext.vn",
-    role: "staff",
-    status: "active",
-    lastLogin: "Vừa xong",
-    assignedStationId: "sta1",
-    assignedStationName: "Ga Bến Thành",
-  },
-  {
-    id: "u_3",
-    name: "Lê Hoa",
-    email: "lehoa.passenger@gmail.com",
-    role: "passenger",
-    status: "inactive",
-    lastLogin: "3 ngày trước",
-  },
-  {
-    id: "u_4",
-    name: "Phạm Quét",
-    email: "pham.scanner@metronext.vn",
-    role: "scanner",
-    status: "active",
-    lastLogin: "Hôm qua",
-    assignedStationId: "sta2",
-    assignedStationName: "Ga Nhà Hát",
-  },
-];
+// Type returned from backend
+export interface BackendUser {
+  userId: string;
+  fullName: string;
+  email: string;
+  phone?: string;
+  status: "ACTIVE" | "INACTIVE";
+  roles: { roleId: string; roleName: string }[];
+  address?: string;
+  dob?: string;
+}
 
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+export interface ApiResponse<T> {
+  code: number;
+  results: T;
+}
+
+// Convert Backend => UI
+function mapBackendUserToUI(b: BackendUser): User {
+  let role: UserRole = "passenger";
+  if (b.roles && b.roles.length > 0) {
+    const roleName = b.roles[0].roleName.toLowerCase();
+    if (roleName.includes("admin")) role = "admin";
+    else if (roleName.includes("staff")) role = "staff";
+    else if (roleName.includes("scanner")) role = "scanner";
+  }
+
+  return {
+    id: b.userId,
+    name: b.fullName || "Chưa cập nhật",
+    email: b.email || "",
+    role: role,
+    status: b.status.toLowerCase() as "active" | "inactive",
+    lastLogin: undefined,
+  };
+}
 
 export const userApi = {
   getUsers: async (): Promise<User[]> => {
-    await delay(600);
-    return [...fakeUsers];
+    const res = await apiClient.get<ApiResponse<BackendUser[]>>("/users");
+    const data = res.data.results || [];
+    return data.map(mapBackendUserToUI);
   },
 
-  createUser: async (data: Omit<User, "id">): Promise<User> => {
-    await delay(800);
-    const newUser: User = {
-      ...data,
-      id: `u_${Date.now()}`,
-      lastLogin: "Chưa đăng nhập",
+  createUser: async (data: any): Promise<User> => {
+    // Backend hiện chưa có API tạo từ Admin
+    console.warn("Chưa có API POST /users, fake data...");
+    return {
+      id: `u${Date.now()}`,
+      name: data.name,
+      email: data.email,
+      role: data.role,
+      status: data.status || "active",
     };
-    fakeUsers.push(newUser);
-    return newUser;
   },
 
   updateUser: async (id: string, updates: Partial<User>): Promise<User> => {
-    await delay(800);
-    const index = fakeUsers.findIndex((u) => u.id === id);
-    if (index === -1) throw new Error("Not found");
-    
-    // Nếu chuyển role không phải staff/scanner thì xóa trạm gán
-    if (updates.role && ["admin", "passenger"].includes(updates.role)) {
-      updates.assignedStationId = undefined;
-      updates.assignedStationName = updates.role === "admin" ? "Toàn hệ thống" : undefined;
+    // Admin update status
+    if (updates.status) {
+      const statusToUpdate = updates.status.toUpperCase() as "ACTIVE" | "INACTIVE";
+      const res = await apiClient.patch<ApiResponse<BackendUser>>(
+        `/users/${id}/status?status=${statusToUpdate}`
+      );
+      return mapBackendUserToUI(res.data.results);
     }
-    
-    fakeUsers[index] = { ...fakeUsers[index], ...updates };
-    return fakeUsers[index];
+    throw new Error("API Backend hiện chỉ hỗ trợ cập nhật Trạng thái (Khoá/Mở).");
   },
 
   deleteUser: async (id: string): Promise<void> => {
-    await delay(800);
-    fakeUsers = fakeUsers.filter((u) => u.id !== id);
-  },
+    throw new Error("Backend chưa hỗ trợ xoá người dùng hoàn toàn, chỉ được khoá (Inactive).");
+  }
 };
+
+// ==========================================
+// API DÀNH CHO CÁ NHÂN (MY-PROFILE)
+// ==========================================
+export async function getMyProfile() {
+  const res = await apiClient.get<ApiResponse<BackendUser>>("/users/my-profile");
+  return res.data.results;
+}
+
+export async function updateMyProfile(data: any) {
+  const res = await apiClient.put<ApiResponse<BackendUser>>("/users/my-profile", data);
+  return res.data.results;
+}
