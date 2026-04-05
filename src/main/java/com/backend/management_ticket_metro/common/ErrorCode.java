@@ -25,7 +25,10 @@ public enum ErrorCode {
     VALIDATION_ERROR(1017, "Invalid request body"),
     CONFIRM_PASSWORD_NOT_MATCH(1018, "Confirm password does not match"),
 
-    UNCATEGORIZED_EXCEPTION  (9999, "UNCATEGORIZED_EXCEPTION!")
+    STATION_NOT_FOUND(2001, "Station not found"),
+
+    ROUTE_NOT_FOUND(3001, "Route not found"),
+
     ;
     ErrorCode(int code, String message){
         this.code = code;
