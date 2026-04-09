@@ -25,6 +25,17 @@ public enum ErrorCode {
     VALIDATION_ERROR(1017, "Invalid request body"),
     CONFIRM_PASSWORD_NOT_MATCH(1018, "Confirm password does not match"),
 
+    STATION_NOT_FOUND(1019, "Station not found"),
+    ROUTE_NOT_FOUND(1020, "Route not found"),
+    ROUTE_NAME_INVALID_SIZE(1021, "Route name is invalid"),
+    STATION_ID_REQUIRE(1022, "Station ID is required and cannot be empty or blank"),
+    TRAVEL_TIME_INVALID(1023, "Travel time to the next station must be 0 or greater"),
+    DISTANCE_REQUIRED(1024, "Distance to the next station is required and cannot be null"),
+    DISTANCE_INVALID(1025, "Distance must be a positive number or zero"),
+    STATION_NAME_INVALID_SIZE(1026, "Station name must be between 3 and 100 characters"),
+    LATITUDE_INVALID(1027, "Latitude must be a valid coordinate between -90.0 and 90.0 degrees"),
+    LONGITUDE_INVALID(1028, "Longitude must be a valid coordinate between -180.0 and 180.0 degrees"),
+
     UNCATEGORIZED_EXCEPTION  (9999, "UNCATEGORIZED_EXCEPTION!")
     ;
     ErrorCode(int code, String message){
