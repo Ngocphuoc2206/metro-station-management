@@ -5,9 +5,10 @@
 import type {
   SignupRequest,
   SignupResponse,
-  CheckEmailResponse,
   LoginRequest,
   LoginResponse,
+  LoginApiResponse,
+  RegisterApiResponse,
 } from "./types";
 
 function delay(ms: number) {

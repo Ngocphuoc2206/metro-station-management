@@ -25,6 +25,7 @@ export default function StaffDashboard() {
   const { name, email } = useSelector((state: RootState) => state.userReducer);
 
   const handleLogout = () => {
+    localStorage.removeItem("authToken");
     dispatch(logout());
     router.push("/auth/login");
   };
