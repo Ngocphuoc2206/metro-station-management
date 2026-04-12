@@ -123,7 +123,7 @@ const navItems = [
   { label: "Mua vé", active: false, href: "/metro/buy-tickets-step-1", icon: Ticket },
   { label: "Vé của tôi", active: false, href: "/passenger-page/my-tickets", icon: QrCode },
   { label: "Lịch sử chuyến", active: false, href: "/passenger-page/history", icon: History },
-  { label: "Lịch tàu", active: false, href: "#", icon: TrainFront },
+  { label: "Lịch tàu", active: false, href: "/passenger-page/schedule", icon: TrainFront },
   { label: "Tài khoản", active: false, href: "#", icon: UserRound },
 ];
 
@@ -393,13 +393,16 @@ export default function PassengerPage() {
                           <ChevronRight className="h-4 w-4" />
                         </button>
 
-                        <button className="flex w-full items-center justify-between rounded-3xl bg-slate-100 p-4 text-slate-700">
+                        <Link
+                          href="/passenger-page/schedule"
+                          className="flex w-full items-center justify-between rounded-3xl bg-slate-100 p-4 text-slate-700"
+                        >
                           <div className="flex items-center gap-3">
                             <TrainFront className="h-5 w-5" />
                             <span className="text-base font-bold">Xem lịch tàu</span>
                           </div>
                           <ChevronRight className="h-4 w-4" />
-                        </button>
+                        </Link>
                       </div>
                     </section>
 
