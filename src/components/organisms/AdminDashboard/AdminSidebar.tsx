@@ -11,7 +11,7 @@ const NAV_GROUPS = [
       { label: "Tổng quan", href: "/dashboard/admin", icon: DashboardIcon },
       { label: "Ga", href: "/dashboard/admin/stations", icon: StationIcon },
       { label: "Tuyến", href: "/dashboard/admin/routes", icon: RouteIcon },
-      { label: "Loại vé", href: "#", icon: TicketIcon },
+      { label: "Loại vé", href: "/dashboard/admin/ticket-types", icon: TicketIcon },
       { label: "Bảng giá", href: "/dashboard/admin/fares", icon: PriceIcon },
     ],
   },
