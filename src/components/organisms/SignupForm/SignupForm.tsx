@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/router";
@@ -6,20 +6,15 @@ import Link from "next/link";
 import toast from "react-hot-toast";
 
 import { signupSchema, type SignupFormValues } from "@features/auth/validations";
-import { registerUser, checkEmailExists } from "@features/auth/authApi";
+import { registerUser } from "@features/auth/authApi";
 import EyeIcon from "@components/parts/EyeIcon/EyeIcon";
 import PasswordStrengthIndicator from "@components/parts/PasswordStrengthIndicator/PasswordStrengthIndicator";
-
-const DEBOUNCE_DELAY = 500;
 
 export default function SignupForm() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isCheckingEmail, setIsCheckingEmail] = useState(false);
-  const [emailExists, setEmailExists] = useState<boolean | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const {
     register,
@@ -40,45 +35,8 @@ export default function SignupForm() {
   });
 
   const watchedPassword = watch("password");
-  const watchedEmail = watch("email");
-
-  const checkEmail = useCallback((email: string) => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setEmailExists(null);
-      setIsCheckingEmail(false);
-      return;
-    }
-
-    setIsCheckingEmail(true);
-    debounceRef.current = setTimeout(async () => {
-      try {
-        const result = await checkEmailExists(email);
-        setEmailExists(result.exists);
-      } catch {
-        setEmailExists(null);
-      } finally {
-        setIsCheckingEmail(false);
-      }
-    }, DEBOUNCE_DELAY);
-  }, []);
-
-  useEffect(() => {
-    checkEmail(watchedEmail);
-  }, [watchedEmail, checkEmail]);
-
-  useEffect(() => {
-    if (emailExists === true) {
-      setError("email", { type: "manual", message: "Email này đã được đăng ký" });
-    }
-  }, [emailExists, setError]);
 
   const onSubmit = async (data: SignupFormValues) => {
-    if (emailExists) {
-      setError("email", { type: "manual", message: "Email này đã được đăng ký" });
-      return;
-    }
     setIsLoading(true);
     try {
       const response = await registerUser({
@@ -138,18 +96,8 @@ export default function SignupForm() {
             type="email"
             placeholder="example@email.com"
             autoComplete="email"
-            className={`${inputBase} ${errors.email ? inputError : inputValid} pr-11`}
+            className={`${inputBase} ${errors.email ? inputError : inputValid}`}
           />
-          <div className="absolute right-3 top-1/2 -translate-y-1/2">
-            {isCheckingEmail && (
-              <div className="h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-            )}
-            {!isCheckingEmail && emailExists === false && watchedEmail && (
-              <svg className="w-5 h-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-            )}
-          </div>
         </div>
         {errors.email && (
           <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">

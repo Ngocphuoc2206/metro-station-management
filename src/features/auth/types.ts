@@ -54,8 +54,3 @@ export type LoginResponse = {
   };
 };
 
-// ─── Check Email ─────────────────────────────────────────────────────────────
-
-export type CheckEmailResponse = {
-  exists: boolean;
-};
