@@ -19,7 +19,7 @@ const NAV_GROUPS = [
     heading: "HỆ THỐNG",
     items: [
       { label: "Người dùng", href: "/dashboard/admin/users", icon: UsersIcon },
-      { label: "Phân quyền", href: "#", icon: ShieldIcon },
+      { label: "Phân quyền", href: "/dashboard/admin/permissions", icon: ShieldIcon },
       { label: "Báo cáo", href: "#", icon: ReportIcon },
       { label: "Audit Logs", href: "#", icon: LogIcon },
       { label: "Cài đặt", href: "#", icon: SettingsIcon },
