@@ -9,20 +9,20 @@ const NAV_GROUPS = [
     heading: "QUẢN TRỊ",
     items: [
       { label: "Tổng quan", href: "/dashboard/admin", icon: DashboardIcon },
-      { label: "Ga", href: "#", icon: StationIcon },
-      { label: "Tuyến", href: "#", icon: RouteIcon },
-      { label: "Loại vé", href: "#", icon: TicketIcon },
-      { label: "Bảng giá", href: "#", icon: PriceIcon },
+      { label: "Ga", href: "/dashboard/admin/stations", icon: StationIcon },
+      { label: "Tuyến", href: "/dashboard/admin/routes", icon: RouteIcon },
+      { label: "Loại vé", href: "/dashboard/admin/ticket-types", icon: TicketIcon },
+      { label: "Bảng giá", href: "/dashboard/admin/fares", icon: PriceIcon },
     ],
   },
   {
     heading: "HỆ THỐNG",
     items: [
-      { label: "Người dùng", href: "#", icon: UsersIcon },
-      { label: "Phân quyền", href: "#", icon: ShieldIcon },
-      { label: "Báo cáo", href: "#", icon: ReportIcon },
-      { label: "Audit Logs", href: "#", icon: LogIcon },
-      { label: "Cài đặt", href: "#", icon: SettingsIcon },
+      { label: "Người dùng", href: "/dashboard/admin/users", icon: UsersIcon },
+      { label: "Phân quyền", href: "/dashboard/admin/permissions", icon: ShieldIcon },
+      { label: "Báo cáo", href: "/dashboard/admin/reports", icon: ReportIcon },
+      { label: "Audit Logs", href: "/dashboard/admin/audit-logs", icon: LogIcon },
+      { label: "Cài đặt", href: "/dashboard/admin/settings", icon: SettingsIcon },
     ],
   },
 ];
@@ -70,11 +70,10 @@ export default function AdminSidebar() {
                     <li key={item.label}>
                       <a
                         href={item.href}
-                        className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
-                          active
+                        className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${active
                             ? "bg-blue-600 text-white font-medium"
                             : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                        }`}
+                          }`}
                       >
                         <Icon active={active} />
                         {item.label}
