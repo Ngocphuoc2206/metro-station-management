@@ -8,13 +8,16 @@ export const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
-  const sessionId =
-    typeof window !== "undefined"
-      ? window.sessionStorage.getItem("sessionId")
-      : null;
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("authToken");
+    if (token) {
+      config.headers["Authorization"] = `Bearer ${token}`;
+    }
 
-  if (sessionId) {
-    config.headers["X-Session-Id"] = sessionId;
+    const sessionId = sessionStorage.getItem("sessionId");
+    if (sessionId) {
+      config.headers["X-Session-Id"] = sessionId;
+    }
   }
 
   return config;

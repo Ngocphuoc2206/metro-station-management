@@ -11,21 +11,12 @@ import { loginSuccess } from "@stores/slices/userSlice";
 import { type AppDispatch } from "@stores/index";
 import EyeIcon from "@components/parts/EyeIcon/EyeIcon";
 
-const ROLES = [
-  { key: "passenger", label: "Hành khách" },
-  { key: "staff", label: "Nhân viên ga" },
-  { key: "admin", label: "Quản trị viên" },
-] as const;
-
-type RoleKey = (typeof ROLES)[number]["key"];
-
 export default function LoginForm() {
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
   const [showPassword, setShowPassword] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<RoleKey>("passenger");
 
   const {
     register,
@@ -49,11 +40,13 @@ export default function LoginForm() {
     try {
       const response = await loginUser(data);
       if (response.success && response.data) {
+        localStorage.setItem("authToken", response.data.token);
         dispatch(
           loginSuccess({
             name: response.data.name,
             email: response.data.email,
             role: response.data.role,
+            token: response.data.token,
           })
         );
         router.push(ROLE_PATHS[response.data.role] ?? "/auth/login");
@@ -78,27 +71,6 @@ export default function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
-      {/* Role selector */}
-      <div>
-        <p className="text-xs font-medium text-gray-500 mb-2">Đăng nhập với tư cách</p>
-        <div className="flex bg-gray-100 rounded-xl p-1 gap-1">
-          {ROLES.map((role) => (
-            <button
-              key={role.key}
-              type="button"
-              onClick={() => setSelectedRole(role.key)}
-              className={`flex-1 text-xs py-2 px-1 rounded-lg font-medium transition-all duration-200 ${
-                selectedRole === role.key
-                  ? "bg-white text-blue-600 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              {role.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Email */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
@@ -174,12 +146,18 @@ export default function LoginForm() {
         </Link>
       </p>
 
-      <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
-        <p className="text-xs text-blue-600 font-medium mb-0.5">Chế độ demo</p>
-        <p className="text-xs text-blue-500">
-          Đăng nhập bằng tài khoản đã đăng ký. Hệ thống sẽ tự động chuyển hướng theo vai trò.
-        </p>
-      </div>
+      {process.env.NEXT_PUBLIC_USE_MOCK_AUTH === "true" && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 space-y-1">
+          <p className="text-xs text-amber-700 font-semibold">🧪 Mock Mode — backend chưa kết nối</p>
+          <p className="text-xs text-amber-600">Dùng một trong các tài khoản sau (mật khẩu ≥ 6 ký tự):</p>
+          <ul className="text-xs text-amber-700 font-mono space-y-0.5 mt-1">
+            <li>• <strong>admin@test.vn</strong> → Quản trị viên</li>
+            <li>• <strong>staff@test.vn</strong> → Nhân viên ga</li>
+            <li>• <strong>passenger@test.vn</strong> → Hành khách</li>
+            <li>• <strong>scanner@test.vn</strong> → Gate Scanner</li>
+          </ul>
+        </div>
+      )}
     </form>
   );
 }

@@ -82,10 +82,11 @@ export default function SignupForm() {
     setIsLoading(true);
     try {
       const response = await registerUser({
-        name: data.name,
+        fullName: data.name,
         email: data.email,
         phone: data.phone,
         password: data.password,
+        confirmPassword: data.confirmPassword,
       });
 
       if (response.success) {
