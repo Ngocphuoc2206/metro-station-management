@@ -115,12 +115,12 @@ const toneClass = {
 };
 
 const navItems = [
-  { label: "Dashboard", active: true, icon: LayoutDashboard },
-  { label: "Mua vé", active: false, icon: Ticket },
-  { label: "Vé của tôi", active: false, icon: QrCode },
-  { label: "Lịch sử chuyến", active: false, icon: History },
-  { label: "Lịch tàu", active: false, icon: TrainFront },
-  { label: "Tài khoản", active: false, icon: UserRound },
+  { label: "Dashboard", active: true, href: "/passenger-page", icon: LayoutDashboard },
+  { label: "Mua vé", active: false, href: "/metro/buy-tickets-step-1", icon: Ticket },
+  { label: "Vé của tôi", active: false, href: "#", icon: QrCode },
+  { label: "Lịch sử chuyến", active: false, href: "/passenger-page/history", icon: History },
+  { label: "Lịch tàu", active: false, href: "#", icon: TrainFront },
+  { label: "Tài khoản", active: false, href: "#", icon: UserRound },
 ];
 
 const tableRows = [
@@ -167,8 +167,9 @@ export default function PassengerPage() {
               {navItems.map((item) => {
                 const Icon = item.icon;
                 return (
-                  <button
+                  <Link
                     key={item.label}
+                    href={item.href}
                     className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition ${
                       item.active
                         ? "bg-blue-600/10 text-blue-600"
@@ -177,7 +178,7 @@ export default function PassengerPage() {
                   >
                     <Icon className={`h-4 w-4 ${item.active ? "text-blue-600" : "text-slate-500"}`} />
                     <span className={`text-sm ${item.active ? "font-semibold" : "font-medium"}`}>{item.label}</span>
-                  </button>
+                  </Link>
                 );
               })}
             </nav>
