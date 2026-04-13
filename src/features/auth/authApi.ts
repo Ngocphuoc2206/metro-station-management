@@ -2,11 +2,27 @@ import { apiClient } from "@features/httpClient/ApiClient";
 import type {
   SignupRequest,
   SignupResponse,
+  CheckEmailResponse,
   LoginRequest,
   LoginResponse,
   LoginApiResponse,
   RegisterApiResponse,
 } from "./types";
+
+// ─── Flag môi trường ──────────────────────────────────────────────────────────
+// Đặt NEXT_PUBLIC_USE_MOCK_AUTH=true trong .env.local khi backend chưa chạy
+const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK_AUTH === "true";
+
+// ─── Mock data cho phát triển UI ─────────────────────────────────────────────
+const MOCK_ACCOUNTS: Record<
+  string,
+  { name: string; role: "admin" | "staff" | "passenger" | "scanner" }
+> = {
+  "admin@test.vn": { name: "Admin User", role: "admin" },
+  "staff@test.vn": { name: "Nguyễn Nhân Viên", role: "staff" },
+  "passenger@test.vn": { name: "Trần Hành Khách", role: "passenger" },
+  "scanner@test.vn": { name: "Nhân Viên Quét", role: "scanner" },
+};
 
 // ─── Map roleName → app role ──────────────────────────────────────────────────
 function mapRole(
@@ -28,6 +44,29 @@ function mapRole(
 // ─── Login ────────────────────────────────────────────────────────────────────
 
 export async function loginUser(data: LoginRequest): Promise<LoginResponse> {
+  // MOCK MODE
+  if (USE_MOCK) {
+    await new Promise((r) => setTimeout(r, 600));
+    const account = MOCK_ACCOUNTS[data.email.toLowerCase()];
+    if (!account || data.password.length < 6) {
+      return {
+        success: false,
+        message:
+          "Mock: Dùng admin@test.vn / staff@test.vn / passenger@test.vn / scanner@test.vn (mật khẩu ≥ 6 ký tự)",
+      };
+    }
+    return {
+      success: true,
+      data: {
+        token: "mock-token-dev",
+        name: account.name,
+        email: data.email,
+        role: account.role,
+      },
+    };
+  }
+
+  // REAL API
   try {
     const res = await apiClient.post<LoginApiResponse>("/auth/login", data);
     const { results } = res.data;
@@ -57,6 +96,13 @@ export async function loginUser(data: LoginRequest): Promise<LoginResponse> {
 export async function registerUser(
   data: SignupRequest
 ): Promise<SignupResponse> {
+  // MOCK MODE
+  if (USE_MOCK) {
+    await new Promise((r) => setTimeout(r, 600));
+    return { success: true };
+  }
+
+  // REAL API
   try {
     await apiClient.post<RegisterApiResponse>("/users", data);
     return { success: true };
@@ -69,4 +115,11 @@ export async function registerUser(
       err.response?.data?.message || err.message || "Đăng ký thất bại.";
     return { success: false, message };
   }
+}
+
+// ─── Check Email ──────────────────────────────────────────────────────────────
+export async function checkEmailExists(
+  _email: string
+): Promise<CheckEmailResponse> {
+  return { exists: false };
 }

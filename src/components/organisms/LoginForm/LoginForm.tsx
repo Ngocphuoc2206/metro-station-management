@@ -158,30 +158,15 @@ export default function LoginForm() {
         </Link>
       </p>
 
-      {process.env.NEXT_PUBLIC_USE_MOCK_AUTH === "true" && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 space-y-1">
-          <p className="text-xs text-amber-700 font-semibold">
-            🧪 Mock Mode — backend chưa kết nối
-          </p>
-          <p className="text-xs text-amber-600">
-            Dùng một trong các tài khoản sau (mật khẩu ≥ 6 ký tự):
-          </p>
-          <ul className="text-xs text-amber-700 font-mono space-y-0.5 mt-1">
-            <li>
-              • <strong>admin@test.vn</strong> → Quản trị viên
-            </li>
-            <li>
-              • <strong>staff@test.vn</strong> → Nhân viên ga
-            </li>
-            <li>
-              • <strong>passenger@test.vn</strong> → Hành khách
-            </li>
-            <li>
-              • <strong>scanner@test.vn</strong> → Gate Scanner
-            </li>
-          </ul>
-        </div>
-      )}
+      <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 space-y-1">
+        <p className="text-xs text-amber-700 font-semibold">🧪 Mock Mode — chưa kết nối API</p>
+        <p className="text-xs text-amber-600">Dùng một trong các tài khoản sau (mật khẩu bất kỳ ≥ 6 ký tự):</p>
+        <ul className="text-xs text-amber-700 font-mono space-y-0.5 mt-1">
+          <li>• <strong>admin@test.vn</strong> → Quản trị viên</li>
+          <li>• <strong>staff@test.vn</strong> → Nhân viên ga</li>
+          <li>• <strong>passenger@test.vn</strong> → Hành khách</li>
+        </ul>
+      </div>
     </form>
   );
 }
