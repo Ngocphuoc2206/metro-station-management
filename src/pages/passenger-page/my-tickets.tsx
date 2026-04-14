@@ -49,7 +49,7 @@ type TicketItem = {
 
 const navItems = [
   { label: "Dashboard", active: false, href: "/passenger-page", icon: LayoutDashboard },
-  { label: "Mua vé", active: false, href: "/metro/buy-tickets-step-1", icon: Ticket },
+  { label: "Mua vé", active: false, href: "/passenger-page/buy-tickets-step-1", icon: Ticket },
   { label: "Vé của tôi", active: true, href: "/passenger-page/my-tickets", icon: QrCode },
   { label: "Lịch sử chuyến", active: false, href: "/passenger-page/history", icon: History },
   { label: "Lịch tàu", active: false, href: "/passenger-page/schedule", icon: TrainFront },
@@ -129,7 +129,7 @@ export default function MyTicketsPage() {
         <title>Vé của tôi | MetroNext</title>
       </Head>
 
-      <div className="min-h-screen w-full bg-neutral-100">
+      <div className="min-h-screen w-full bg-[linear-gradient(180deg,#f8fafc_0%,#eef2ff_45%,#f8fafc_100%)]">
         <div className="flex min-h-screen w-full">
           <aside className="hidden w-64 shrink-0 border-r border-slate-200 bg-white lg:flex lg:flex-col">
             <div className="flex items-center gap-3 p-6">
@@ -179,7 +179,7 @@ export default function MyTicketsPage() {
           </aside>
 
           <main className="flex min-w-0 flex-1 flex-col">
-            <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 sm:px-8">
+            <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-slate-200/80 bg-white/80 px-4 backdrop-blur sm:px-8">
               <div className="relative w-full max-w-md">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input

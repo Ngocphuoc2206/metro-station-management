@@ -1,20 +1,16 @@
 import type { NextPage } from "next";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
-import { MetroAuthHeader } from "@components/organisms/MetroAuthHeader/MetroAuthHeader";
+import PassengerShell from "@components/templates/PassengerShell";
 import {
   ArrowLeft,
   ArrowRight,
-  Bell,
   Check,
   CreditCard,
-  History,
   MapPin,
   QrCode,
-  Settings,
   ShieldCheck,
   Ticket,
-  User,
   Wallet,
 } from "lucide-react";
 
@@ -182,7 +178,7 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
 
   const goBackToStep2 = async () => {
     await router.push({
-      pathname: "/metro/buy-tickets-step-2",
+      pathname: "/passenger-page/buy-tickets-step-2",
       query: {
         ...router.query,
       },
@@ -203,7 +199,7 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
     }
 
     await router.push({
-      pathname: "/metro/payment-success",
+      pathname: "/passenger-page/payment-success",
       query: {
         ...router.query,
         ticketType: selectedTicket.id,
@@ -212,62 +208,8 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <MetroAuthHeader />
-
-      <main className="mx-auto grid w-full max-w-[1200px] grid-cols-1 gap-8 px-6 py-8 md:px-10 xl:grid-cols-[260px_minmax(0,1fr)]">
-        <aside className="w-full">
-          <div className="flex flex-col gap-6 rounded-xl bg-white p-4 outline outline-1 outline-slate-200">
-            <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600/10">
-                <User className="h-4 w-4 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-base leading-6 font-medium text-neutral-900">Hành khách</p>
-                <p className="text-sm leading-5 font-normal text-slate-500">ID: 12345</p>
-              </div>
-            </div>
-
-            <nav className="flex flex-col gap-2" aria-label="Passenger navigation">
-              <button
-                type="button"
-                className="inline-flex items-center gap-3 rounded-xl bg-blue-600/10 px-3 py-2 text-sm font-semibold text-blue-600"
-              >
-                <Ticket className="h-4 w-5" />
-                Mua vé
-              </button>
-              <button
-                type="button"
-                className="inline-flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-neutral-900 hover:bg-slate-100"
-              >
-                <History className="h-4 w-4" />
-                Lịch sử giao dịch
-              </button>
-              <button
-                type="button"
-                className="inline-flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-neutral-900 hover:bg-slate-100"
-              >
-                <Wallet className="h-4 w-5" />
-                Ví của tôi
-              </button>
-              <button
-                type="button"
-                className="inline-flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-neutral-900 hover:bg-slate-100"
-              >
-                <Bell className="h-4 w-4" />
-                Thông báo
-              </button>
-              <button
-                type="button"
-                className="inline-flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-neutral-900 hover:bg-slate-100"
-              >
-                <Settings className="h-5 w-5" />
-                Cài đặt
-              </button>
-            </nav>
-          </div>
-        </aside>
-
+    <PassengerShell>
+      <div className="mx-auto w-full max-w-[1200px]">
         <section className="flex min-w-0 flex-col gap-6">
           <div className="flex flex-col gap-4">
             <h1 className="text-4xl leading-10 font-black text-neutral-900">Mua vé</h1>
@@ -506,8 +448,8 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
             </aside>
           </div>
         </section>
-      </main>
-    </div>
+      </div>
+    </PassengerShell>
   );
 };
 
