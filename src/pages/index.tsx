@@ -5,8 +5,8 @@ import type { RootState } from "@stores/index";
 
 const ROLE_PATHS: Record<string, string> = {
   passenger: "/dashboard/passenger",
-  staff: "/dashboard/staff",
-  admin: "/dashboard/admin",
+  staff: "/staff",
+  admin: "/admin",
 };
 
 export default function HomePage() {
