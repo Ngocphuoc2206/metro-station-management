@@ -5,6 +5,7 @@ import com.backend.management_ticket_metro.constant.PredefinedRole;
 import com.backend.management_ticket_metro.entity.Role;
 import com.backend.management_ticket_metro.entity.User;
 import com.backend.management_ticket_metro.enums.UserStatus;
+import com.backend.management_ticket_metro.repository.PermissionRepository;
 import com.backend.management_ticket_metro.repository.RoleRepository;
 import com.backend.management_ticket_metro.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,9 @@ public class ApplicationInitConfig {
 
     private final PasswordEncoder passwordEncoder;
     private final RoleRepository roleRepository;
+    private final PermissionRepository permissionRepository;
+
+
 
     @Bean
     @ConditionalOnProperty(
@@ -37,6 +41,18 @@ public class ApplicationInitConfig {
         log.info("Initializing application....");
 
         return args -> {
+            if (permissionRepository.count() == 0) {
+                permissionRepository.save(com.backend.management_ticket_metro.entity.Permission.builder()
+                        .name("CREATE_STATION").description("Cho phép tạo trạm").build());
+                permissionRepository.save(com.backend.management_ticket_metro.entity.Permission.builder()
+                        .name("UPDATE_STATION").description("Cho phép cập nhập").build());
+                permissionRepository.save(com.backend.management_ticket_metro.entity.Permission.builder()
+                        .name("DELETE_STATION").description("Cho phép xóa trạm").build());
+                permissionRepository.save(com.backend.management_ticket_metro.entity.Permission.builder()
+                        .name("VIEW_STATION").description("Cho phép xem trạm").build());
+            }
+            permissionRepository.findAll();
+
             if (userRepository.findByEmail(PredefinedAccount.ADMIN_USER_NAME).isEmpty()) {
 
                 Role passengerRole = roleRepository.findByRoleName(PredefinedRole.USER_ROLE)
