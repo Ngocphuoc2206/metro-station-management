@@ -22,7 +22,7 @@ const NAV_GROUPS = [
       { label: "Phân quyền", href: "/dashboard/admin/permissions", icon: ShieldIcon },
       { label: "Báo cáo", href: "/dashboard/admin/reports", icon: ReportIcon },
       { label: "Audit Logs", href: "/dashboard/admin/audit-logs", icon: LogIcon },
-      { label: "Cài đặt", href: "#", icon: SettingsIcon },
+      { label: "Cài đặt", href: "/dashboard/admin/settings", icon: SettingsIcon },
     ],
   },
 ];

@@ -5,14 +5,12 @@ interface Props {
 }
 
 export default function GateActivityChart({ data }: Props) {
-  if (!data || data.length === 0) return null;
-
   const max = Math.max(...data.map((d) => d.passengers));
 
   return (
     <div className="space-y-3 py-2">
       {data.map((gate, i) => {
-        const pct = (gate.passengers / (max || 1)) * 100;
+        const pct = (gate.passengers / max) * 100;
         return (
           <div key={i}>
             <div className="flex items-center justify-between mb-1">
