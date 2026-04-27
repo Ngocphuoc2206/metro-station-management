@@ -8,7 +8,7 @@ import Link from "next/link";
 const STAFF_NAV = [
   { label: "Tổng quan", href: "/staff", icon: DashboardIcon },
   { label: "Thiết bị", href: "#equipment", icon: EquipmentIcon },
-  { label: "Sự cố", href: "#incidents", icon: IncidentIcon },
+  { label: "Sự cố", href: "/staff/incidents", icon: IncidentIcon },
   { label: "Nhật ký soát vé", href: "/dashboard/scanner", icon: TicketLogIcon },
   { label: "Hồ sơ ca trực", href: "/staff/shift-profile", icon: ShiftProfileIcon },
 ];
@@ -85,7 +85,7 @@ export default function StaffSidebar() {
           onClick={handleLogout}
           className="w-full text-xs font-semibold text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg py-2 mt-2 transition-colors border border-transparent hover:border-red-100"
         >
-          Trích xuất (Đăng xuất)
+          Đăng xuất
         </button>
       </div>
     </aside>
