@@ -9,7 +9,13 @@ import { RootState } from "@/stores";
 import { useSelector } from "react-redux";
 import { ROLE_PATHS } from "@/const/Role";
 
-function HomePage() {
+const ROLE_PATHS: Record<string, string> = {
+  passenger: "/dashboard/passenger",
+  staff: "/staff",
+  admin: "/admin",
+};
+
+export default function HomePage() {
   const router = useRouter();
   const { isLoggedIn, role } = useSelector(
     (state: RootState) => state.userReducer,
