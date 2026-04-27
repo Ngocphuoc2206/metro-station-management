@@ -140,7 +140,11 @@ public class AuthenticationService {
         StringJoiner stringJoiner = new StringJoiner(" ");
 
         if (user.getRoles() != null && !user.getRoles().isEmpty()){
-            user.getRoles().forEach(role -> stringJoiner.add("ROLE_" + role.getRoleName()));
+            user.getRoles().forEach(role -> { stringJoiner.add("ROLE_" + role.getRoleName());
+            if(role.getPermissions() != null && !role.getPermissions().isEmpty()){
+                role.getPermissions().forEach(p -> stringJoiner.add(p.getName()));
+            }
+            });
         }
         return stringJoiner.toString();
     }
