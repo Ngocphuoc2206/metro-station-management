@@ -38,3 +38,20 @@ export interface IncidentFilterParams {
   deviceType?: string;
   severity?: IncidentSeverity;
 }
+
+export type TimelineEventType = "comment" | "status_change" | "assigned" | "escalated";
+
+export interface IncidentTimelineEvent {
+  id: string;
+  type: TimelineEventType;
+  actorName: string;
+  timestamp: string; // "14:35 - Hôm nay"
+  content: string; // Nội dung comment hoặc mô tả thay đổi trạng thái
+  oldStatus?: IncidentStatus;
+  newStatus?: IncidentStatus;
+}
+
+export interface IncidentDetailRecord extends IncidentRecord {
+  timeline: IncidentTimelineEvent[];
+  slaMinutes?: number; // Ví dụ 45 phút còn lại
+}
