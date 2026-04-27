@@ -6,7 +6,7 @@ export default function FareMatrix() {
   const [data, setData] = useState<FareMatrixData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  
+
   // State for matrix editing
   const [isEditing, setIsEditing] = useState(false);
   const [matrixState, setMatrixState] = useState<Record<string, string>>({});
@@ -56,7 +56,7 @@ export default function FareMatrix() {
   const validateMatrix = (): boolean => {
     const newErrors: Record<string, boolean> = {};
     let isValid = true;
-    
+
     if (!data) return false;
 
     data.zones.forEach((row) => {
@@ -64,7 +64,7 @@ export default function FareMatrix() {
         if (row.id === col.id) return; // Diagonal is always 0
         const key = `${row.id}-${col.id}`;
         const valStr = matrixState[key];
-        
+
         // Remove dots to parse
         const num = Number(valStr?.replace(/\./g, ""));
         if (isNaN(num) || valStr === "" || num < 0) {
@@ -113,10 +113,10 @@ export default function FareMatrix() {
     try {
       const newZoneId = `z${data.zones.length + 1}`;
       const newZoneName = `Zone ${data.zones.length + 1}`;
-      
+
       const updatedZones = [...data.zones, { id: newZoneId, name: newZoneName, order: data.zones.length + 1 }];
       const newRules = [...data.rules];
-       
+
       // Create new rules cross-referencing all existing zones
       data.zones.forEach((exZone) => {
         newRules.push({ id: `rule-${exZone.id}-${newZoneId}`, fromZoneId: exZone.id, toZoneId: newZoneId, price: 0 });
@@ -130,7 +130,7 @@ export default function FareMatrix() {
         zones: updatedZones,
         rules: newRules
       });
-      
+
       setData(updatedData);
       initMatrixState(updatedData);
       setIsEditing(true); // Tự động mở edit để nhập dữ liệu cho zone mới
@@ -172,11 +172,11 @@ export default function FareMatrix() {
               <button
                 type="button"
                 onClick={() => {
-                   if (isEditing) {
-                     // Want to cancel editing, re-init state
-                     initMatrixState(data);
-                   }
-                   setIsEditing(!isEditing);
+                  if (isEditing) {
+                    // Want to cancel editing, re-init state
+                    initMatrixState(data);
+                  }
+                  setIsEditing(!isEditing);
                 }}
                 className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${isEditing ? "bg-blue-600" : "bg-gray-200"}`}
               >
@@ -225,11 +225,10 @@ export default function FareMatrix() {
                             type="text"
                             value={matrixState[key] || ""}
                             onChange={(e) => handleCellChange(row.id, col.id, e.target.value)}
-                            className={`w-full h-10 text-center font-medium rounded-xl border focus:outline-none focus:ring-2 transition-colors ${
-                              hasError
-                                ? "border-red-400 bg-red-50 text-red-700 focus:ring-red-200"
-                                : "border-gray-200 text-gray-700 focus:border-blue-400 focus:ring-blue-100"
-                            }`}
+                            className={`w-full h-10 text-center font-medium rounded-xl border focus:outline-none focus:ring-2 transition-colors ${hasError
+                              ? "border-red-400 bg-red-50 text-red-700 focus:ring-red-200"
+                              : "border-gray-200 text-gray-700 focus:border-blue-400 focus:ring-blue-100"
+                              }`}
                           />
                         ) : (
                           <div className="h-10 w-full flex items-center justify-center font-medium text-gray-700 border border-gray-100 rounded-xl bg-gray-50">
@@ -288,7 +287,7 @@ export default function FareMatrix() {
           <p className="text-sm text-gray-600 mb-5 leading-relaxed">
             Bảng giá zone-to-zone được cấu hình dựa trên khoảng cách địa lý và mật độ các trạm trong zone đó.
           </p>
-          
+
           <div className="space-y-4">
             <div className="flex gap-3">
               <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 font-bold text-xs flex items-center justify-center shrink-0">ONE</div>

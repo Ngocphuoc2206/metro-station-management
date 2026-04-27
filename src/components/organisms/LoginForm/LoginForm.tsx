@@ -30,7 +30,7 @@ export default function LoginForm() {
 
   const ROLE_PATHS: Record<string, string> = {
     passenger: "/dashboard/passenger",
-    staff: "/dashboard/staff",
+    staff: "/staff",
     admin: "/dashboard/admin",
   };
 
