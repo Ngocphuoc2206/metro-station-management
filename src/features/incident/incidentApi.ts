@@ -6,6 +6,7 @@ let MOCK_INCIDENTS: IncidentRecord[] = [
     id: "INC-2024-001",
     title: "Lỗi quét mã QR tại Cổng 04",
     stationId: "G-STN-001",
+    deviceId: "GATE-04",
     deviceType: "gate",
     severity: "critical",
     status: "Open",
@@ -16,6 +17,7 @@ let MOCK_INCIDENTS: IncidentRecord[] = [
     id: "INC-2024-002",
     title: "Mất kết nối Máy bán vé TVM-03",
     stationId: "T-STN-003",
+    deviceId: "TVM-03",
     deviceType: "tvm",
     severity: "critical",
     status: "InProgress",
@@ -27,6 +29,7 @@ let MOCK_INCIDENTS: IncidentRecord[] = [
     id: "INC-2024-003",
     title: "Màn hình hiển thị LED cổng 02 mờ",
     stationId: "G-STN-002",
+    deviceId: "LED-02",
     deviceType: "led",
     severity: "low",
     status: "Resolved",
@@ -38,8 +41,9 @@ let MOCK_INCIDENTS: IncidentRecord[] = [
     id: "INC-2024-004",
     title: "Kẹt thẻ tại Cổng 01",
     stationId: "G-STN-010",
+    deviceId: "GATE-01",
     deviceType: "gate",
-    severity: "warning",
+    severity: "high",
     status: "Open",
     assigneeName: "Trần Minh",
     createdAt: "13:50",
@@ -66,6 +70,32 @@ export const incidentApi = {
 
         resolve(results);
       }, 500); // Đội lag một xíu ngầm định call network
+    });
+  },
+
+  createIncident: async (data: IncidentFormData): Promise<IncidentRecord> => {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        // Mock infer deviceType from deviceId prefix
+        let cType = "gate";
+        if (data.deviceId.startsWith("TVM")) cType = "tvm";
+        if (data.deviceId.startsWith("LED")) cType = "led";
+
+        const newInc: IncidentRecord = {
+          id: `INC-2024-00${MOCK_INCIDENTS.length + 1}`,
+          title: data.title,
+          stationId: "G-STN-001", // Mặc định ga hiện tại
+          deviceId: data.deviceId,
+          deviceType: cType,
+          severity: data.severity,
+          status: "Open",
+          description: data.description,
+          createdAt: new Date().toLocaleTimeString("vi-VN", { hour: '2-digit', minute: '2-digit' }),
+          updatedAt: new Date().toLocaleTimeString("vi-VN", { hour: '2-digit', minute: '2-digit' })
+        };
+        MOCK_INCIDENTS.unshift(newInc);
+        resolve(newInc);
+      }, 800);
     });
   },
 

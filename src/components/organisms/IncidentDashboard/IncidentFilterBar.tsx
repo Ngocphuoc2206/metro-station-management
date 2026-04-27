@@ -6,9 +6,10 @@ interface Props {
   onChangeView: (mode: "kanban" | "table") => void;
   filters: IncidentFilterParams;
   onFilterChange: (filters: IncidentFilterParams) => void;
+  onOpenCreate: () => void;
 }
 
-export default function IncidentFilterBar({ viewMode, onChangeView, filters, onFilterChange }: Props) {
+export default function IncidentFilterBar({ viewMode, onChangeView, filters, onFilterChange, onOpenCreate }: Props) {
   return (
     <div className="space-y-6">
       {/* Top Header: Title + Toggle + Create Btn */}
@@ -55,7 +56,7 @@ export default function IncidentFilterBar({ viewMode, onChangeView, filters, onF
          </div>
 
          <button 
-           onClick={() => alert("Chức năng Tạo sự cố đang được phát triển!")}
+           onClick={onOpenCreate}
            className="bg-blue-600 text-white flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-sm shadow-blue-200"
          >
            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
@@ -103,8 +104,9 @@ export default function IncidentFilterBar({ viewMode, onChangeView, filters, onF
                 className="w-full bg-gray-50 border border-gray-100 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block p-2.5 font-medium outline-none"
               >
                 <option value="all">Tất cả mức độ</option>
-                <option value="critical">Nguy cấp</option>
-                <option value="warning">Cảnh báo</option>
+                <option value="critical">Nghiêm trọng</option>
+                <option value="high">Cao</option>
+                <option value="medium">Trung bình</option>
                 <option value="low">Thấp</option>
               </select>
             </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import IncidentFilterBar from "./IncidentFilterBar";
 import IncidentKanbanView from "./IncidentKanbanView";
 import IncidentTableView from "./IncidentTableView";
+import CreateIncidentModal from "./CreateIncidentModal";
 import { incidentApi } from "@features/incident/incidentApi";
 import type { IncidentFilterParams, IncidentRecord, IncidentStatus } from "@features/incident/incidentTypes";
 
@@ -15,6 +16,8 @@ export default function IncidentDashboard() {
   
   const [incidents, setIncidents] = useState<IncidentRecord[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   useEffect(() => {
     loadIncidents();
@@ -54,6 +57,7 @@ export default function IncidentDashboard() {
           onChangeView={setViewMode}
           filters={filters}
           onFilterChange={setFilters}
+          onOpenCreate={() => setIsCreateOpen(true)}
         />
       </div>
 
@@ -74,6 +78,12 @@ export default function IncidentDashboard() {
           />
         )}
       </div>
+
+      <CreateIncidentModal 
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        onSuccess={loadIncidents}
+      />
     </div>
   );
 }
