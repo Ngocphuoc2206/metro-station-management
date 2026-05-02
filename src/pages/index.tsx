@@ -7,13 +7,7 @@ import { UserRoleShowcase } from "@components/organisms/UserRoleShowcase/UserRol
 import { useRouter } from "next/router";
 import { RootState } from "@/stores";
 import { useSelector } from "react-redux";
-import { ROLE_PATHS } from "@/const/Role";
-
-const ROLE_PATHS: Record<string, string> = {
-  passenger: "/dashboard/passenger",
-  staff: "/staff",
-  admin: "/admin",
-};
+import { ROLE_PATHS } from "@/const/Role"; // ✅ dùng cái này, không khai báo lại
 
 export default function HomePage() {
   const router = useRouter();
@@ -42,5 +36,3 @@ export default function HomePage() {
 HomePage.getLayout = function getLayout(page: ReactElement) {
   return <UserLayout title="Home">{page}</UserLayout>;
 };
-
-export default HomePage;
