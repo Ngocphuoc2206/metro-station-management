@@ -29,11 +29,11 @@ type StaffPortalShellProps = {
     page?: string;
   };
   headerTitle?: string;
-  headerMode?: "breadcrumb" | "title" | "search";
+  headerMode?: "breadcrumb" | "title" | "search" | "stacked";
   searchPlaceholder?: string;
   systemStatus?: {
     label: string;
-    tone: "green" | "amber" | "red";
+    tone: "green" | "amber" | "red" | "blue";
   };
 };
 
@@ -42,6 +42,11 @@ const toneClass = {
     container: "bg-green-100",
     dot: "bg-green-500",
     text: "text-green-600",
+  },
+  blue: {
+    container: "bg-blue-50 outline outline-1 outline-offset-[-1px] outline-blue-600/20",
+    dot: "bg-blue-600",
+    text: "text-blue-600",
   },
   amber: {
     container: "bg-amber-100",
@@ -157,6 +162,19 @@ export default function StaffPortalShell({
                   className="w-64 rounded-xl bg-transparent px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-gray-500"
                   placeholder={searchPlaceholder}
                 />
+              </div>
+            ) : headerMode === "stacked" ? (
+              <div className="flex flex-col">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold uppercase leading-4 tracking-wide text-slate-400">
+                    {sectionLabel}
+                  </span>
+                  <span className="h-1.5 w-1 rounded-full bg-slate-400" aria-hidden="true" />
+                  <span className="text-[10px] font-bold uppercase leading-4 tracking-wide text-blue-600">
+                    {pageLabel}
+                  </span>
+                </div>
+                <div className="text-lg font-bold leading-6 text-slate-800">{headerTitle}</div>
               </div>
             ) : headerMode === "title" ? (
               <div className="text-lg font-bold leading-7 text-slate-800">{headerTitle}</div>
