@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { useRouter } from "next/router";
 import type { ReactNode } from "react";
-import { Bell, LayoutDashboard, QrCode, ScrollText, Settings2 } from "lucide-react";
+import { Bell, LayoutDashboard, QrCode, ScrollText, Search, Settings2 } from "lucide-react";
 
 const BrandMark = ({ className = "h-5 w-5" }: { className?: string }) => (
   <svg
@@ -28,6 +28,9 @@ type StaffPortalShellProps = {
     section?: string;
     page?: string;
   };
+  headerTitle?: string;
+  headerMode?: "breadcrumb" | "title" | "search";
+  searchPlaceholder?: string;
   systemStatus?: {
     label: string;
     tone: "green" | "amber" | "red";
@@ -55,6 +58,9 @@ const toneClass = {
 export default function StaffPortalShell({
   children,
   breadcrumb,
+  headerTitle,
+  headerMode = "breadcrumb",
+  searchPlaceholder = "Tìm kiếm giao dịch, ticket code...",
   systemStatus = { label: "SYSTEM NORMAL", tone: "green" },
 }: StaffPortalShellProps) {
   const router = useRouter();
@@ -68,15 +74,15 @@ export default function StaffPortalShell({
     },
     {
       label: "Quét vé",
-      href: "/dashboard/scanner",
+      href: "/staff/scan",
       icon: QrCode,
-      active: router.pathname === "/dashboard/scanner",
+      active: router.pathname === "/staff/scan",
     },
     {
-      label: "Nhật ký cổng",
-      href: "/staff/gate-logs",
+      label: "Nhật ký giao dịch",
+      href: "/staff/transaction-logs",
       icon: ScrollText,
-      active: router.pathname === "/staff/gate-logs",
+      active: router.pathname === "/staff/transaction-logs",
     },
     {
       label: "Cấu hình thiết bị",
@@ -144,11 +150,23 @@ export default function StaffPortalShell({
 
         <main className="flex min-w-0 flex-1 flex-col">
           <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-8">
-            <div className="flex items-center gap-2 text-sm leading-5">
-              <span className="text-slate-400">{sectionLabel}</span>
-              <span className="h-1.5 w-1 rounded-full bg-slate-300" aria-hidden="true" />
-              <span className="font-semibold text-slate-600">{pageLabel}</span>
-            </div>
+            {headerMode === "search" ? (
+              <div className="flex items-center gap-2">
+                <Search className="h-4 w-4 text-slate-400" aria-hidden="true" />
+                <input
+                  className="w-64 rounded-xl bg-transparent px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-gray-500"
+                  placeholder={searchPlaceholder}
+                />
+              </div>
+            ) : headerMode === "title" ? (
+              <div className="text-lg font-bold leading-7 text-slate-800">{headerTitle}</div>
+            ) : (
+              <div className="flex items-center gap-2 text-sm leading-5">
+                <span className="text-slate-400">{sectionLabel}</span>
+                <span className="h-1.5 w-1 rounded-full bg-slate-300" aria-hidden="true" />
+                <span className="font-semibold text-slate-600">{pageLabel}</span>
+              </div>
+            )}
 
             <div className="flex items-center gap-4">
               <div
@@ -173,6 +191,16 @@ export default function StaffPortalShell({
                 <Bell className="h-5 w-5" />
                 <span className="absolute right-[6px] top-[6px] h-2 w-2 rounded-full border-2 border-white bg-red-500" />
               </button>
+
+              {headerMode === "search" ? (
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center rounded-full p-2 text-slate-500 hover:bg-slate-50"
+                  aria-label="Settings"
+                >
+                  <Settings2 className="h-5 w-5" />
+                </button>
+              ) : null}
             </div>
           </header>
 
