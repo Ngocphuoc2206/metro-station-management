@@ -31,6 +31,8 @@ type StaffPortalShellProps = {
   headerTitle?: string;
   headerMode?: "breadcrumb" | "title" | "search" | "stacked";
   searchPlaceholder?: string;
+  searchValue?: string;
+  onSearchChange?: (value: string) => void;
   systemStatus?: {
     label: string;
     tone: "green" | "amber" | "red" | "blue";
@@ -66,6 +68,8 @@ export default function StaffPortalShell({
   headerTitle,
   headerMode = "breadcrumb",
   searchPlaceholder = "Tìm kiếm giao dịch, ticket code...",
+  searchValue,
+  onSearchChange,
   systemStatus = { label: "SYSTEM NORMAL", tone: "green" },
 }: StaffPortalShellProps) {
   const router = useRouter();
@@ -161,6 +165,8 @@ export default function StaffPortalShell({
                 <input
                   className="w-64 rounded-xl bg-transparent px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-gray-500"
                   placeholder={searchPlaceholder}
+                  value={searchValue}
+                  onChange={(e) => onSearchChange?.(e.target.value)}
                 />
               </div>
             ) : headerMode === "stacked" ? (

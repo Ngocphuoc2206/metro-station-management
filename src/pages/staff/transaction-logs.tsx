@@ -2,9 +2,9 @@ import { useMemo, useState } from "react";
 import StaffPortalShell from "@/components/templates/StaffPortalShell";
 
 type TransactionRow = {
-  time: string;
+  timestamp: string;
   station: string;
-  gate: string;
+  device: string;
   action: "Tap-In" | "Tap-Out";
   ticketCode: string;
   result: "Success" | "Rejected";
@@ -19,51 +19,51 @@ type TransactionDetail = {
 
 const sampleRows: TransactionRow[] = [
   {
-    time: "24/05/2024 14:22:15",
+    timestamp: "24/05/2024 14:22:15",
     station: "Ga Bến Thành",
-    gate: "A-01",
+    device: "Gate A-01",
     action: "Tap-In",
     ticketCode: "MN-8849-2041",
     result: "Success",
   },
   {
-    time: "24/05/2024 14:21:40",
+    timestamp: "24/05/2024 14:21:40",
     station: "Ga Bến Thành",
-    gate: "A-01",
+    device: "Gate A-01",
     action: "Tap-Out",
     ticketCode: "MN-7721-1002",
     result: "Success",
   },
   {
-    time: "24/05/2024 14:19:02",
+    timestamp: "24/05/2024 14:19:02",
     station: "Ga Suối Tiên",
-    gate: "A-02",
+    device: "Gate A-02",
     action: "Tap-In",
     ticketCode: "MN-1102-5534",
     result: "Rejected",
     reason: "Vé hết hạn sử dụng",
   },
   {
-    time: "24/05/2024 14:18:15",
+    timestamp: "24/05/2024 14:18:15",
     station: "Ga Bến Thành",
-    gate: "A-01",
+    device: "Gate A-01",
     action: "Tap-In",
     ticketCode: "MN-9923-4122",
     result: "Success",
   },
   {
-    time: "24/05/2024 14:15:33",
+    timestamp: "24/05/2024 14:15:33",
     station: "Ga Tân Cảng",
-    gate: "B-01",
+    device: "Gate B-01",
     action: "Tap-In",
     ticketCode: "MN-4402-9912",
     result: "Rejected",
     reason: "Thẻ chưa kích hoạt",
   },
   {
-    time: "24/05/2024 14:12:05",
+    timestamp: "24/05/2024 14:12:05",
     station: "Ga Bến Thành",
-    gate: "A-02",
+    device: "Gate A-02",
     action: "Tap-In",
     ticketCode: "MN-3310-8821",
     result: "Success",
@@ -83,20 +83,71 @@ const resultBadgeClass: Record<TransactionRow["result"], string> = {
 export default function TransactionLogsPage() {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [selectedDetail, setSelectedDetail] = useState<TransactionDetail | null>(null);
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
 
   const [rangeLabel] = useState("24/05/2024 - 25/05/2024");
   const [station, setStation] = useState("all");
-  const [gate, setGate] = useState("all");
+  const [device, setDevice] = useState("all");
   const [result, setResult] = useState("all");
 
-  const rows = useMemo(() => sampleRows, []);
+  const rows = useMemo(() => {
+    // Expand sample into a bigger list for pagination demo
+    const base = sampleRows;
+    const expanded: TransactionRow[] = [];
+    for (let i = 0; i < 30; i += 1) {
+      const row = base[i % base.length];
+      const minuteOffset = i;
+      const [datePart, timePart] = row.timestamp.split(" ");
+      const [hh, mm, ss] = timePart.split(":").map((v) => Number(v));
+      const totalSeconds = hh * 3600 + mm * 60 + ss - minuteOffset * 17;
+      const clamped = ((totalSeconds % 86400) + 86400) % 86400;
+      const nh = String(Math.floor(clamped / 3600)).padStart(2, "0");
+      const nm = String(Math.floor((clamped % 3600) / 60)).padStart(2, "0");
+      const ns = String(clamped % 60).padStart(2, "0");
+      expanded.push({
+        ...row,
+        timestamp: `${datePart} ${nh}:${nm}:${ns}`,
+        ticketCode: row.ticketCode.replace(/\d{4}$/, String(1000 + ((i * 73) % 9000))),
+      });
+    }
+    return expanded;
+  }, []);
+
+  const filteredRows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return rows.filter((row) => {
+      const stationOk = station === "all" ? true : row.station === station;
+      const deviceOk = device === "all" ? true : row.device === device;
+      const resultOk = result === "all" ? true : row.result.toLowerCase() === result;
+      const searchOk =
+        q.length === 0
+          ? true
+          : `${row.timestamp} ${row.station} ${row.device} ${row.ticketCode} ${row.result} ${row.action}`
+              .toLowerCase()
+              .includes(q);
+      return stationOk && deviceOk && resultOk && searchOk;
+    });
+  }, [device, result, rows, search, station]);
+
+  const pageSize = 6;
+  const totalRows = 1240;
+  const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const pageRows = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return filteredRows.slice(start, start + pageSize);
+  }, [filteredRows, safePage]);
+
+  const showingFrom = (safePage - 1) * pageSize + 1;
+  const showingTo = (safePage - 1) * pageSize + pageRows.length;
 
   const openDetail = (row: TransactionRow) => {
     const id = `TXN_${Math.floor(100000000000 + Math.random() * 900000000000)}`;
 
     const payload = {
       timestamp: "2024-05-24T14:22:15.827Z",
-      gate_id: row.gate,
+      device: row.device,
       station_id: row.station
         .toUpperCase()
         .normalize("NFD")
@@ -167,6 +218,11 @@ export default function TransactionLogsPage() {
       headerMode="search"
       systemStatus={{ label: "SYSTEM LIVE", tone: "green" }}
       searchPlaceholder="Tìm kiếm giao dịch, ticket code..."
+      searchValue={search}
+      onSearchChange={(value) => {
+        setSearch(value);
+        setPage(1);
+      }}
     >
       <div className="w-full max-w-[1400px] space-y-6">
         <div className="flex items-end justify-between gap-6">
@@ -233,21 +289,23 @@ export default function TransactionLogsPage() {
                 className="w-full appearance-none rounded-xl bg-slate-50 px-4 py-2 text-sm leading-5 text-slate-900 outline outline-1 outline-offset-[-1px] outline-slate-200"
               >
                 <option value="all">Tất cả các ga</option>
-                <option value="ben-thanh">Ga Bến Thành</option>
-                <option value="suoi-tien">Ga Suối Tiên</option>
+                <option value="Ga Bến Thành">Ga Bến Thành</option>
+                <option value="Ga Suối Tiên">Ga Suối Tiên</option>
+                <option value="Ga Tân Cảng">Ga Tân Cảng</option>
               </select>
             </div>
 
             <div className="min-w-[9rem] space-y-1.5">
-              <div className="text-[10px] font-bold uppercase leading-4 text-slate-400">Cổng (Gate ID)</div>
+              <div className="text-[10px] font-bold uppercase leading-4 text-slate-400">Thiết bị</div>
               <select
-                value={gate}
-                onChange={(e) => setGate(e.target.value)}
+                value={device}
+                onChange={(e) => setDevice(e.target.value)}
                 className="w-full appearance-none rounded-xl bg-slate-50 px-4 py-2 text-sm leading-5 text-slate-900 outline outline-1 outline-offset-[-1px] outline-slate-200"
               >
-                <option value="all">Tất cả cổng</option>
-                <option value="A-01">A-01</option>
-                <option value="A-02">A-02</option>
+                <option value="all">Tất cả thiết bị</option>
+                <option value="Gate A-01">Gate A-01</option>
+                <option value="Gate A-02">Gate A-02</option>
+                <option value="Gate B-01">Gate B-01</option>
               </select>
             </div>
 
@@ -277,7 +335,7 @@ export default function TransactionLogsPage() {
 
         <div className="overflow-hidden rounded-xl bg-white outline outline-1 outline-offset-[-1px] outline-slate-200 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
           <div className="bg-slate-50 border-b border-slate-200">
-            <div className="grid grid-cols-[12rem_7rem_5rem_7rem_9rem_8rem_1fr] items-center gap-6 px-6 py-4">
+            <div className="grid grid-cols-[12rem_10rem_9rem_7rem_9rem_8rem_1fr] items-center gap-6 px-6 py-4">
               <div className="flex items-center gap-1">
                 <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Thời gian</span>
                 <span className="h-2 w-1 rounded bg-slate-300" aria-hidden="true" />
@@ -287,7 +345,7 @@ export default function TransactionLogsPage() {
                 <span className="h-2 w-1 rounded bg-slate-300" aria-hidden="true" />
               </div>
               <div className="flex items-center gap-1">
-                <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Cổng</span>
+                <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Thiết bị</span>
                 <span className="h-2 w-1 rounded bg-slate-300" aria-hidden="true" />
               </div>
               <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Hành động</div>
@@ -298,16 +356,16 @@ export default function TransactionLogsPage() {
           </div>
 
           <div>
-            {rows.map((row, index) => (
+            {pageRows.map((row, index) => (
               <button
-                key={`${row.ticketCode}-${index}`}
+                key={`${row.ticketCode}-${row.timestamp}-${index}`}
                 type="button"
                 onClick={() => openDetail(row)}
-                className={`grid w-full grid-cols-[12rem_7rem_5rem_7rem_9rem_8rem_1fr] items-start gap-6 px-6 py-4 text-left transition hover:bg-slate-50 ${
+                className={`grid w-full grid-cols-[12rem_10rem_9rem_7rem_9rem_8rem_1fr] items-start gap-6 px-6 py-4 text-left transition hover:bg-slate-50 ${
                   index === 0 ? "" : "border-t border-slate-100"
                 }`}
               >
-                <div className="text-sm leading-5 text-slate-600">{row.time}</div>
+                <div className="text-sm leading-5 text-slate-600">{row.timestamp}</div>
                 <div className="text-sm font-medium leading-5 text-slate-900">
                   {row.station.includes(" ") ? (
                     <span>
@@ -319,7 +377,7 @@ export default function TransactionLogsPage() {
                     row.station
                   )}
                 </div>
-                <div className="text-sm font-medium leading-5 text-slate-900">{row.gate}</div>
+                <div className="text-sm font-medium leading-5 text-slate-900">{row.device}</div>
 
                 <div>
                   <span
@@ -362,7 +420,7 @@ export default function TransactionLogsPage() {
 
           <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-6 py-4">
             <div className="text-xs font-medium leading-4 text-slate-500">
-              Showing 1 to 6 of 1,240 transactions
+              Showing {showingFrom} to {showingTo} of {totalRows} transactions
             </div>
 
             <div className="flex items-center gap-2">
@@ -370,28 +428,39 @@ export default function TransactionLogsPage() {
                 type="button"
                 className="inline-flex items-center justify-center rounded-md p-1.5 outline outline-1 outline-offset-[-1px] outline-slate-200"
                 aria-label="Previous page"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
               >
                 <span className="h-1.5 w-1 rounded bg-slate-500" aria-hidden="true" />
               </button>
 
-              <button type="button" className="h-8 w-8 rounded-md bg-blue-600 text-xs font-bold text-white">
-                1
-              </button>
-              <button type="button" className="h-8 w-8 rounded-md text-xs font-bold text-slate-600">
-                2
-              </button>
-              <button type="button" className="h-8 w-8 rounded-md text-xs font-bold text-slate-600">
-                3
-              </button>
+              {[1, 2, 3].map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setPage(p)}
+                  className={`h-8 w-8 rounded-md text-xs font-bold ${
+                    safePage === p ? "bg-blue-600 text-white" : "text-slate-600"
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
               <span className="px-1 text-base leading-6 text-slate-400">...</span>
-              <button type="button" className="h-8 w-8 rounded-md text-xs font-bold text-slate-600">
-                42
+              <button
+                type="button"
+                onClick={() => setPage(totalPages)}
+                className={`h-8 w-8 rounded-md text-xs font-bold ${
+                  safePage === totalPages ? "bg-blue-600 text-white" : "text-slate-600"
+                }`}
+              >
+                {totalPages}
               </button>
 
               <button
                 type="button"
                 className="inline-flex items-center justify-center rounded-md p-1.5 outline outline-1 outline-offset-[-1px] outline-slate-200"
                 aria-label="Next page"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               >
                 <span className="h-1.5 w-1 rounded bg-slate-500" aria-hidden="true" />
               </button>
