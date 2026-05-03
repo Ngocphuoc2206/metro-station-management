@@ -55,10 +55,13 @@ public class MyProfileController {
     @PostMapping("/avatar")
     public ApiResponse<MyProfileResponse> uploadAvatar(@RequestParam("file") MultipartFile file) {
         try {
-            String physicalPath = "C:\\Users\\Lenovo\\Desktop\\metro-station-management\\Upload\\";
+            String uploadDir = "uploads";
+            File directory = new File(uploadDir);
+            if (!directory.exists()) {
+                directory.mkdirs();
+            }
             String fileName = file.getOriginalFilename();
-
-            File destFile = new File(physicalPath + fileName);
+            File destFile = new File(directory.getAbsolutePath() + File.separator + fileName);
             file.transferTo(destFile);
 
             String databasePath = "/uploads/" + fileName;

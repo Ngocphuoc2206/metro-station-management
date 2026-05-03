@@ -8,10 +8,10 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ChangePasswordRequest {
-    @NotBlank(message = "PASSWORD_INVALID")
+    @NotBlank(message = "oldPassword must not be blank")
     private String oldPassword;
 
-    @NotBlank(message = "PASSWORD_INVALID")
+    @NotBlank(message = "newPassword must not be blank")
     @Size(min = 8, message = "PASSWORD_INVALID")
     private String newPassword;
 

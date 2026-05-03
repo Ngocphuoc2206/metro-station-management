@@ -10,11 +10,11 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 public class PassengerUpdateRequest {
-    @NotBlank(message = "USERNAME_INVALID")
+    @NotBlank(message = "Full name must not be blank")
     @Size(min = 3, max = 100, message = "USERNAME_INVALID")
     private String fullName;
 
-    @NotBlank(message = "EMAIL_FORMAT_INVALID")
+    @NotBlank(message = "Email must not be blank")
     @Email(message = "EMAIL_FORMAT_INVALID")
     @Size(max = 255, message = "EMAIL_INVALID")
     private String email;
