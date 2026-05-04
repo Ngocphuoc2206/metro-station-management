@@ -53,4 +53,16 @@ public class User {
     //
     private String address;
     private LocalDate dob;
+
+    //passenger
+    @Column(name = "avatar_url")
+    private String avatarUrl;
+
+    @Column(name = "email_notification")
+    @Builder.Default
+    private Boolean emailNotification = true;
+
+    @Column(name = "sms_notification")
+    @Builder.Default
+    private Boolean smsNotification = false;
 }
