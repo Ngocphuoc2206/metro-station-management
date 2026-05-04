@@ -35,6 +35,9 @@ public enum ErrorCode {
     STATION_NAME_INVALID_SIZE(1026, "Station name must be between 3 and 100 characters"),
     LATITUDE_INVALID(1027, "Latitude must be a valid coordinate between -90.0 and 90.0 degrees"),
     LONGITUDE_INVALID(1028, "Longitude must be a valid coordinate between -180.0 and 180.0 degrees"),
+    TICKET_TYPE_INVALID(1029, "Ticket type not found"),
+    FARE_INVALID(1030, "Fare not found"),
+
 
     UNCATEGORIZED_EXCEPTION  (9999, "UNCATEGORIZED_EXCEPTION!")
     ;
