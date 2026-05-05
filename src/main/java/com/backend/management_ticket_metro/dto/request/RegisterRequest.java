@@ -36,10 +36,8 @@ public class RegisterRequest {
     @NotBlank(message = "Confirm password must not be blank")
     private String confirmPassword;
 
-    @NotBlank(message = "Address must not be blank")
     @Size(max = 255, message = "ADDRESS_INVALID")
     private String address;
 
-    @NotNull(message = "Date of birth must not be null")
     private LocalDate dob;
 }
