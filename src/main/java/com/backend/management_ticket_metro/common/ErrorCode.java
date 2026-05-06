@@ -36,6 +36,12 @@ public enum ErrorCode {
     LATITUDE_INVALID(1027, "Latitude must be a valid coordinate between -90.0 and 90.0 degrees"),
     LONGITUDE_INVALID(1028, "Longitude must be a valid coordinate between -180.0 and 180.0 degrees"),
 
+    ORDER_NOT_FOUND(1029, "Order not found"),
+    ORDER_EXPIRED(1030, "Order has expired"),
+    ORDER_ALREADY_PAID(1031, "Order has already been paid"),
+    INVALID_ORDER_STATUS(1032, "Invalid order status for this action"),
+    ORDER_ITEM_EMPTY(1033, "Order must contain at least one item"),
+
     UNCATEGORIZED_EXCEPTION  (9999, "UNCATEGORIZED_EXCEPTION!")
     ;
     ErrorCode(int code, String message){
