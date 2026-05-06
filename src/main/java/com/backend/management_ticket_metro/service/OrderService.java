@@ -33,6 +33,7 @@ public class OrderService {
     private final OrderMapper orderMapper;
     private final StationRepository stationRepository;
     private final StationMapper stationMapper;
+    public static final double TICKET_PRICE = 10000.0;
 
     @Transactional(readOnly = true)
     public OrderResponse previewOrder(OrderRequest request) {
@@ -46,11 +47,11 @@ public class OrderService {
             Station toStation = stationRepository.findById(orderItemRequest.getToStationId())
                     .orElseThrow(() -> new AppException(ErrorCode.STATION_NOT_FOUND));
 
-            double price = 10000.0;
+
             return OrderItemResponse.builder()
                     .ticketTypeId(orderItemRequest.getTicketTypeId())
                     .quantity(orderItemRequest.getQuantity())
-                    .unitprice(price)
+                    .unitprice(TICKET_PRICE)
                     .fromStation(stationMapper.toStationResponse(fromStation))
                     .toStation(stationMapper.toStationResponse(toStation))
                     .build();
@@ -87,12 +88,12 @@ public class OrderService {
             Station toStation = stationRepository.findById(itemReq.getToStationId())
                     .orElseThrow(() -> new AppException(ErrorCode.STATION_NOT_FOUND));
 
-            double mockPrice = 10000.0;
+
             return OrderItem.builder()
                     .order(order)
                     .ticketTypeId(itemReq.getTicketTypeId())
                     .quantity(itemReq.getQuantity())
-                    .unitprice(mockPrice)
+                    .unitprice(TICKET_PRICE)
                     .fromStation(fromStation)
                     .toStation(toStation)
                     .build();
@@ -114,5 +115,13 @@ public class OrderService {
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
         return orderMapper.toOrderResponse(order);
+    }
+    @Transactional(readOnly = true)
+    public List<OrderResponse> getOrdersByStatus(OrderStatus status) {
+        List<Order> orders = orderRepository.findByStatus(status);
+
+        return orders.stream()
+                .map(orderMapper::toOrderResponse)
+                .collect(Collectors.toList());
     }
 }

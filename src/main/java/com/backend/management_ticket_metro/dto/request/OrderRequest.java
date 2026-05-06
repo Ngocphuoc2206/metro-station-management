@@ -10,6 +10,5 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class OrderRequest {
-    @NotEmpty(message = "Items list cannot be empty")
     private List<OrderItemRequest> items;
 }

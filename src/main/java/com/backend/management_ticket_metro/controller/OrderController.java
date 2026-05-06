@@ -4,10 +4,13 @@ import com.backend.management_ticket_metro.common.ApiResponse;
 import com.backend.management_ticket_metro.dto.request.OrderRequest;
 import com.backend.management_ticket_metro.dto.response.OrderResponse;
 import com.backend.management_ticket_metro.entity.Order;
+import com.backend.management_ticket_metro.enums.OrderStatus;
 import com.backend.management_ticket_metro.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/orders")
@@ -32,5 +35,11 @@ public class OrderController {
         return ApiResponse.<OrderResponse>builder()
                 .results(orderService.getOrderById(id))
                         .build();
+    }
+    @GetMapping("/status")
+    public ApiResponse<List<OrderResponse>> getOrdersByStatus(@RequestParam OrderStatus status){
+        return ApiResponse.<List<OrderResponse>>builder()
+                .results(orderService.getOrdersByStatus(status))
+                .build();
     }
 }
