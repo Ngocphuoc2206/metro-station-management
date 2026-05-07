@@ -40,9 +40,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files — ignore tất cả .env*, ngoại trừ file mẫu
+# env files
 .env*
-!.env-sample
+!.env.development
 
 # vercel
 .vercel

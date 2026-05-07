@@ -9,7 +9,7 @@ const STAFF_NAV = [
   { label: "Tổng quan", href: "/staff", icon: DashboardIcon },
   { label: "Thiết bị", href: "/staff/devices", icon: EquipmentIcon },
   { label: "Sự cố", href: "/staff/incidents", icon: IncidentIcon },
-  { label: "Nhật ký soát vé", href: "/dashboard/scanner", icon: TicketLogIcon },
+  { label: "Nhật ký soát vé", href: "/staff/ticket-log", icon: TicketLogIcon },
   { label: "Hồ sơ ca trực", href: "/staff/shift-profile", icon: ShiftProfileIcon },
 ];
 
