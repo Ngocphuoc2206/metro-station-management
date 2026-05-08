@@ -1,6 +1,7 @@
 import Head from "next/head";
 import { useMemo, useState } from "react";
 import StaffPortalShell from "@components/templates/StaffPortalShell";
+import { CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
 
 type TapMode = "TAP-IN" | "TAP-OUT";
 
@@ -9,7 +10,8 @@ type ScanLogRow = {
   gateId: string;
   ticketId: string;
   action: TapMode;
-  result: "SUCCESS" | "EXPIRED";
+  result: "SUCCESS" | "INVALID" | "EXPIRED" | "USED" | "NOT_ALLOWED";
+  message: string;
 };
 
 const stations = ["Ga Bến Thành", "Ga Ba Son", "Ga Văn Thánh"];
@@ -22,6 +24,7 @@ const initialLog: ScanLogRow[] = [
     ticketId: "MN-8849-2041",
     action: "TAP-IN",
     result: "SUCCESS",
+    message: "ACCEPTED",
   },
   {
     time: "14:21:40",
@@ -29,6 +32,7 @@ const initialLog: ScanLogRow[] = [
     ticketId: "MN-7721-1002",
     action: "TAP-OUT",
     result: "SUCCESS",
+    message: "ACCEPTED",
   },
   {
     time: "14:19:02",
@@ -36,6 +40,7 @@ const initialLog: ScanLogRow[] = [
     ticketId: "MN-1102-5534",
     action: "TAP-IN",
     result: "EXPIRED",
+    message: "Vé hết hạn sử dụng",
   },
   {
     time: "14:18:15",
@@ -43,6 +48,7 @@ const initialLog: ScanLogRow[] = [
     ticketId: "MN-9923-4122",
     action: "TAP-IN",
     result: "SUCCESS",
+    message: "ACCEPTED",
   },
   {
     time: "14:15:33",
@@ -50,8 +56,96 @@ const initialLog: ScanLogRow[] = [
     ticketId: "MN-4402-9912",
     action: "TAP-IN",
     result: "SUCCESS",
+    message: "ACCEPTED",
   },
 ];
+
+type ValidationResult = {
+  status: ScanLogRow["result"];
+  title: string;
+  subtitle: string;
+  message: string;
+  tone: "green" | "red" | "amber";
+};
+
+function validateScan(params: {
+  rawToken: string;
+  gateLabel: string;
+  stationLabel: string;
+  mode: TapMode;
+}): { ticketId: string; gateId: string; validation: ValidationResult } {
+  const trimmed = params.rawToken.trim();
+  const ticketId = trimmed.length > 0 ? trimmed.slice(0, 12).toUpperCase() : "";
+  const gateId = params.gateLabel.replace("Gate ", "");
+
+  if (trimmed.length === 0) {
+    return {
+      ticketId: "(empty)",
+      gateId,
+      validation: {
+        status: "INVALID",
+        title: "Từ chối",
+        subtitle: "Token không hợp lệ",
+        message: "Thiếu dữ liệu token QR",
+        tone: "red",
+      },
+    };
+  }
+
+  if (ticketId.includes("1102")) {
+    return {
+      ticketId,
+      gateId,
+      validation: {
+        status: "EXPIRED",
+        title: "Từ chối",
+        subtitle: "Vé đã hết hạn",
+        message: "Vé hết hạn sử dụng",
+        tone: "red",
+      },
+    };
+  }
+
+  if (ticketId.includes("7721")) {
+    return {
+      ticketId,
+      gateId,
+      validation: {
+        status: "USED",
+        title: "Từ chối",
+        subtitle: "Vé đã được sử dụng",
+        message: "Vé đã qua cổng trước đó",
+        tone: "red",
+      },
+    };
+  }
+
+  if (params.mode === "TAP-OUT" && ticketId.includes("4402")) {
+    return {
+      ticketId,
+      gateId,
+      validation: {
+        status: "NOT_ALLOWED",
+        title: "Từ chối",
+        subtitle: "Không đúng luồng",
+        message: `Không cho phép Tap-Out tại ${params.stationLabel}`,
+        tone: "amber",
+      },
+    };
+  }
+
+  return {
+    ticketId,
+    gateId,
+    validation: {
+      status: "SUCCESS",
+      title: "Chấp nhận",
+      subtitle: "Giao dịch thành công - Mở cổng",
+      message: "ACCEPTED",
+      tone: "green",
+    },
+  };
+}
 
 function formatTodayVi() {
   const now = new Date();
@@ -70,6 +164,13 @@ export default function StaffScanPage() {
   const [token, setToken] = useState("");
   const [mode, setMode] = useState<TapMode>("TAP-IN");
   const [log, setLog] = useState<ScanLogRow[]>(initialLog);
+  const [lastValidation, setLastValidation] = useState<ValidationResult>({
+    status: "SUCCESS",
+    title: "Chấp nhận",
+    subtitle: "Giao dịch thành công - Mở cổng",
+    message: "ACCEPTED",
+    tone: "green",
+  });
 
   const todayLabel = useMemo(() => formatTodayVi(), []);
 
@@ -160,9 +261,16 @@ export default function StaffScanPage() {
                   type="button"
                   className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-6 py-3 text-base font-bold leading-6 text-white"
                   onClick={() => {
-                    const ticketId = token.trim() ? token.trim().slice(0, 12).toUpperCase() : "MN-8849-2041";
-                    const gateId = gate.replace("Gate ", "");
                     const time = new Date().toLocaleTimeString("vi-VN", { hour12: false });
+
+                    const { ticketId, gateId, validation } = validateScan({
+                      rawToken: token,
+                      gateLabel: gate,
+                      stationLabel: station,
+                      mode,
+                    });
+
+                    setLastValidation(validation);
 
                     setLog((prev) => [
                       {
@@ -170,7 +278,8 @@ export default function StaffScanPage() {
                         gateId,
                         ticketId,
                         action: mode,
-                        result: ticketId.includes("1102") ? "EXPIRED" : "SUCCESS",
+                        result: validation.status,
+                        message: validation.message,
                       },
                       ...prev,
                     ].slice(0, 10));
@@ -234,37 +343,51 @@ export default function StaffScanPage() {
               </section>
 
               {/* Right panel */}
-              <section className="rounded-3xl bg-green-500 p-8 shadow-[0px_4px_6px_-4px_rgba(0,0,0,0.10)] shadow-lg">
+              <section
+                className={`rounded-3xl p-8 shadow-[0px_4px_6px_-4px_rgba(0,0,0,0.10)] shadow-lg ${
+                  lastValidation.tone === "green"
+                    ? "bg-green-500"
+                    : lastValidation.tone === "amber"
+                      ? "bg-amber-500"
+                      : "bg-red-500"
+                }`}
+              >
                 <div className="relative overflow-hidden">
                   <div className="pointer-events-none absolute -right-4 -top-10">
-                    <div className="h-40 w-40 rounded-full bg-green-400/20" />
+                    <div className="h-40 w-40 rounded-full bg-white/15" />
                   </div>
 
                   <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-white/20 backdrop-blur-[2px]">
-                    <div className="h-12 w-12 rounded bg-white" aria-hidden="true" />
+                    {lastValidation.tone === "green" ? (
+                      <CheckCircle2 className="h-12 w-12 text-white" aria-hidden="true" />
+                    ) : lastValidation.tone === "amber" ? (
+                      <AlertTriangle className="h-12 w-12 text-white" aria-hidden="true" />
+                    ) : (
+                      <XCircle className="h-12 w-12 text-white" aria-hidden="true" />
+                    )}
                   </div>
 
                   <div className="mt-4 text-center">
                     <div className="text-4xl font-black uppercase leading-10 tracking-[3.60px] text-white">
-                      Chấp nhận
+                      {lastValidation.title}
                     </div>
-                    <div className="mt-1 text-base font-medium leading-6 text-green-100">
-                      Giao dịch thành công - Mở cổng
+                    <div className="mt-1 text-base font-medium leading-6 text-white/90">
+                      {lastValidation.subtitle}
                     </div>
                   </div>
 
                   <div className="mt-8 grid gap-3 sm:grid-cols-2">
                     {[
-                      { label: "Ticket ID", value: "MN-8849-2041" },
-                      { label: "Passenger", value: "Nguyen Van A" },
+                      { label: "Ticket ID", value: log[0]?.ticketId ?? "-" },
+                      { label: "Gate", value: gate },
                       { label: "Time", value: new Date().toLocaleTimeString("vi-VN", { hour12: false }) },
-                      { label: "Station", value: "Bến Thành (L1)" },
+                      { label: "Station", value: station },
                     ].map((item) => (
                       <div
                         key={item.label}
                         className="rounded-2xl bg-white/10 p-4 backdrop-blur-[6px]"
                       >
-                        <div className="text-[10px] font-bold uppercase leading-4 text-green-200">
+                        <div className="text-[10px] font-bold uppercase leading-4 text-white/80">
                           {item.label}
                         </div>
                         <div className="mt-0.5 text-base font-bold leading-6 text-white">
@@ -340,11 +463,14 @@ export default function StaffScanPage() {
                           className={`inline-flex rounded-lg px-2 py-0.5 text-xs font-bold ${
                             row.result === "SUCCESS"
                               ? "bg-green-100 text-green-700"
-                              : "bg-red-100 text-red-700"
+                              : row.result === "NOT_ALLOWED"
+                                ? "bg-amber-100 text-amber-700"
+                                : "bg-red-100 text-red-700"
                           }`}
                         >
                           {row.result}
                         </span>
+                        <div className="mt-1 text-xs font-medium leading-4 text-slate-500">{row.message}</div>
                       </div>
                     </div>
                   ))}

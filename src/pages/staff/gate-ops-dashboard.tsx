@@ -1,5 +1,7 @@
 import Head from "next/head";
 import StaffPortalShell from "@components/templates/StaffPortalShell";
+import { useEffect, useMemo, useState } from "react";
+import { RefreshCw, Filter } from "lucide-react";
 
 type GateStatus = {
   gate: string;
@@ -20,6 +22,15 @@ type Incident = {
     label: string;
     tone: "blue" | "slate" | "green";
   };
+};
+
+type RecentTxn = {
+  time: string;
+  station: string;
+  device: string;
+  ticketRef: string;
+  result: "ACCEPTED" | "REJECTED";
+  reason?: string;
 };
 
 const gateStatuses: GateStatus[] = [
@@ -59,6 +70,46 @@ const incidents: Incident[] = [
   },
 ];
 
+const recentTransactions: RecentTxn[] = [
+  {
+    time: "15:44:02",
+    station: "Ga Bến Thành",
+    device: "Gate A-01",
+    ticketRef: "MN-8849-2041",
+    result: "ACCEPTED",
+  },
+  {
+    time: "15:43:17",
+    station: "Ga Bến Thành",
+    device: "Gate A-02",
+    ticketRef: "MN-1102-5534",
+    result: "REJECTED",
+    reason: "Vé hết hạn",
+  },
+  {
+    time: "15:42:55",
+    station: "Ga Bến Thành",
+    device: "Gate B-01",
+    ticketRef: "MN-4402-9912",
+    result: "REJECTED",
+    reason: "Thẻ chưa kích hoạt",
+  },
+  {
+    time: "15:41:10",
+    station: "Ga Văn Thánh",
+    device: "Gate A-05",
+    ticketRef: "MN-7721-1002",
+    result: "ACCEPTED",
+  },
+  {
+    time: "15:40:09",
+    station: "Ga Ba Son",
+    device: "Gate C-02",
+    ticketRef: "MN-3310-8821",
+    result: "ACCEPTED",
+  },
+];
+
 const tonePills = {
   severity: {
     orange: "bg-orange-100 text-orange-700",
@@ -72,6 +123,38 @@ const tonePills = {
 } as const;
 
 export default function GateOpsDashboardPage() {
+  const [stationFilter, setStationFilter] = useState("all");
+  const [deviceFilter, setDeviceFilter] = useState("all");
+  const [timeWindow, setTimeWindow] = useState<"15m" | "1h" | "24h">("1h");
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState(() =>
+    new Date().toLocaleTimeString("vi-VN", { hour12: false }),
+  );
+
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const id = window.setInterval(() => {
+      setLastUpdatedAt(new Date().toLocaleTimeString("vi-VN", { hour12: false }));
+    }, 15000);
+    return () => window.clearInterval(id);
+  }, [autoRefresh]);
+
+  const filteredTxns = useMemo(() => {
+    return recentTransactions.filter((t) => {
+      const stationOk = stationFilter === "all" ? true : t.station === stationFilter;
+      const deviceOk = deviceFilter === "all" ? true : t.device === deviceFilter;
+      return stationOk && deviceOk;
+    });
+  }, [deviceFilter, stationFilter]);
+
+  const deviceHealth = useMemo(() => {
+    // Mocked summary: reusing gateStatuses + a fixed alert/offline assumption.
+    const online = gateStatuses.filter((g) => g.status === "ONLINE").length;
+    const offline = gateStatuses.filter((g) => g.status === "OFFLINE").length;
+    const alert = 1;
+    return { online, offline, alert, total: online + offline + alert };
+  }, []);
+
   return (
     <>
       <Head>
@@ -85,6 +168,75 @@ export default function GateOpsDashboardPage() {
             <p className="text-sm font-normal leading-5 text-slate-500">
               Dữ liệu thời gian thực từ hệ thống Ga Bến Thành (L1)
             </p>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-white p-4 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] outline outline-1 outline-offset-[-1px] outline-slate-200">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="inline-flex items-center gap-2 rounded-2xl bg-slate-50 px-3 py-2 outline outline-1 outline-offset-[-1px] outline-slate-200">
+                <Filter className="h-4 w-4 text-slate-500" aria-hidden="true" />
+                <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Bộ lọc</span>
+              </div>
+
+              <select
+                value={stationFilter}
+                onChange={(e) => setStationFilter(e.target.value)}
+                className="h-10 w-44 appearance-none rounded-2xl bg-slate-50 px-4 text-sm text-slate-900 outline outline-1 outline-offset-[-1px] outline-slate-200"
+              >
+                <option value="all">Tất cả ga</option>
+                <option value="Ga Bến Thành">Ga Bến Thành</option>
+                <option value="Ga Ba Son">Ga Ba Son</option>
+                <option value="Ga Văn Thánh">Ga Văn Thánh</option>
+              </select>
+
+              <select
+                value={deviceFilter}
+                onChange={(e) => setDeviceFilter(e.target.value)}
+                className="h-10 w-44 appearance-none rounded-2xl bg-slate-50 px-4 text-sm text-slate-900 outline outline-1 outline-offset-[-1px] outline-slate-200"
+              >
+                <option value="all">Tất cả thiết bị</option>
+                <option value="Gate A-01">Gate A-01</option>
+                <option value="Gate A-02">Gate A-02</option>
+                <option value="Gate B-01">Gate B-01</option>
+                <option value="Gate A-05">Gate A-05</option>
+              </select>
+
+              <select
+                value={timeWindow}
+                onChange={(e) => setTimeWindow(e.target.value as "15m" | "1h" | "24h")}
+                className="h-10 w-32 appearance-none rounded-2xl bg-slate-50 px-4 text-sm text-slate-900 outline outline-1 outline-offset-[-1px] outline-slate-200"
+              >
+                <option value="15m">15 phút</option>
+                <option value="1h">1 giờ</option>
+                <option value="24h">24 giờ</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="text-xs font-medium text-slate-500">Cập nhật: {lastUpdatedAt}</div>
+              <div className="flex items-center gap-2 rounded-2xl bg-slate-50 px-3 py-2 outline outline-1 outline-offset-[-1px] outline-slate-200">
+                <span className="text-sm font-semibold leading-5 text-slate-700">Auto</span>
+                <button
+                  type="button"
+                  onClick={() => setAutoRefresh((v) => !v)}
+                  className={`relative h-6 w-10 rounded-full transition ${autoRefresh ? "bg-blue-600" : "bg-slate-200"}`}
+                  aria-label="Toggle auto refresh"
+                >
+                  <span
+                    className={`absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-white shadow transition ${
+                      autoRefresh ? "left-[18px]" : "left-[2px]"
+                    }`}
+                  />
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => setLastUpdatedAt(new Date().toLocaleTimeString("vi-VN", { hour12: false }))}
+                className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-4 py-2 text-sm font-bold leading-5 text-white"
+              >
+                <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                Refresh
+              </button>
+            </div>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-4">
@@ -240,6 +392,21 @@ export default function GateOpsDashboardPage() {
                 </button>
               </div>
 
+              <div className="mb-6 grid grid-cols-3 gap-3 rounded-3xl bg-slate-50 p-4 outline outline-1 outline-offset-[-1px] outline-slate-100">
+                <div className="rounded-2xl bg-white p-3 outline outline-1 outline-offset-[-1px] outline-slate-200">
+                  <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Online</div>
+                  <div className="mt-1 text-xl font-black text-slate-900">{deviceHealth.online}</div>
+                </div>
+                <div className="rounded-2xl bg-white p-3 outline outline-1 outline-offset-[-1px] outline-slate-200">
+                  <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Offline</div>
+                  <div className="mt-1 text-xl font-black text-slate-900">{deviceHealth.offline}</div>
+                </div>
+                <div className="rounded-2xl bg-white p-3 outline outline-1 outline-offset-[-1px] outline-slate-200">
+                  <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Alerts</div>
+                  <div className="mt-1 text-xl font-black text-slate-900">{deviceHealth.alert}</div>
+                </div>
+              </div>
+
               <div className="flex max-h-64 flex-col gap-4 overflow-hidden pr-2">
                 {gateStatuses.map((gate) => (
                   <div
@@ -281,6 +448,54 @@ export default function GateOpsDashboardPage() {
               </div>
             </section>
           </div>
+
+          <section className="overflow-hidden rounded-3xl bg-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] outline outline-1 outline-offset-[-1px] outline-slate-200">
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+              <div>
+                <h2 className="text-base font-bold leading-6 text-slate-800">Giao dịch gần đây</h2>
+                <p className="text-xs font-medium leading-4 text-slate-500">Time window: {timeWindow}</p>
+              </div>
+              <button type="button" className="text-sm font-semibold leading-5 text-blue-600">
+                Xem chi tiết
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <div className="min-w-[944px]">
+                <div className="grid grid-cols-[128px_224px_224px_208px_160px] bg-slate-50">
+                  <div className="px-6 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-500">Thời gian</div>
+                  <div className="px-6 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-500">Ga</div>
+                  <div className="px-6 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-500">Thiết bị</div>
+                  <div className="px-6 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-500">Ticket ref</div>
+                  <div className="px-6 py-3 text-right text-[10px] font-bold uppercase tracking-wide text-slate-500">Kết quả</div>
+                </div>
+
+                {filteredTxns.map((txn, index) => (
+                  <div
+                    key={`${txn.time}-${txn.ticketRef}-${index}`}
+                    className={`grid grid-cols-[128px_224px_224px_208px_160px] ${index === 0 ? "" : "border-t border-slate-100"}`}
+                  >
+                    <div className="px-6 py-4 text-sm font-medium leading-5 text-slate-600">{txn.time}</div>
+                    <div className="px-6 py-4 text-sm font-semibold leading-5 text-slate-900">{txn.station}</div>
+                    <div className="px-6 py-4 text-sm font-medium leading-5 text-slate-700">{txn.device}</div>
+                    <div className="px-6 py-4 font-mono text-sm leading-5 text-blue-600">{txn.ticketRef}</div>
+                    <div className="px-6 py-4 text-right">
+                      <span
+                        className={`inline-flex rounded-xl px-2 py-0.5 text-[10px] font-bold uppercase ${
+                          txn.result === "ACCEPTED" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                        }`}
+                      >
+                        {txn.result}
+                      </span>
+                      {txn.reason ? (
+                        <div className="mt-1 text-xs font-medium leading-4 text-slate-500">{txn.reason}</div>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
 
           <section className="overflow-hidden rounded-3xl bg-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] outline outline-1 outline-offset-[-1px] outline-slate-200">
             <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
