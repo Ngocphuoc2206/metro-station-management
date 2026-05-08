@@ -1,6 +1,22 @@
 server:
   port: 8080
 
+app:
+  upload:
+    max-file-size: 5MB
+    allowed-image-types:
+      - image/jpeg
+      - image/png
+      - image/webp
+
+storage:
+  s3:
+    bucket: ${S3_BUCKET:metro-management-ticket}
+    access-key: ${S3_ACCESS_KEY:''}
+    secret-key: ${S3_SECRET_KEY:''}
+    region: ${S3_REGION:ap-southeast-2}
+    public-base-url: ${S3_PUBLIC_BASE_URL:https://metro-management-ticket.s3.ap-southeast-2.amazonaws.com}
+
 spring:
   datasource:
     url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:managementMetro_db}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
