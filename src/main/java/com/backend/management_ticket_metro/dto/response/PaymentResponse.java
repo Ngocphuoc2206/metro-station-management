@@ -20,4 +20,5 @@ public class PaymentResponse {
     private String provider;
     private String providerTransactionId;
     private String status;
+    private String orderStatus;
 }

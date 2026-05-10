@@ -45,6 +45,7 @@ public enum ErrorCode {
     INVALID_ORDER_STATUS(1032, "Invalid order status for this action"),
     ORDER_ITEM_EMPTY(1033, "Order must contain at least one item"),
 
+    PAYMENT_NOT_FOUND(1034, "Payment not found"),
     UNCATEGORIZED_EXCEPTION  (9999, "UNCATEGORIZED_EXCEPTION!")
     ;
     ErrorCode(int code, String message){

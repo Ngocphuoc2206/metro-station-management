@@ -20,11 +20,10 @@ public class PaymentController {
                 .build();
     }
 
-    @PostMapping("/callback")
-    public ApiResponse<String> callback(@RequestParam String paymentId, @RequestParam String transactionId, @RequestParam boolean isSuccess) {
-        paymentService.processCallback(paymentId,transactionId,isSuccess);
-        return ApiResponse.<String>builder()
-                .results("Cập nhập trạng thái thành công!")
+    @PutMapping ("/callback")
+    public ApiResponse<PaymentResponse> callback(@RequestParam String paymentId, @RequestParam String transactionId, @RequestParam boolean isSuccess) {
+        return ApiResponse.<PaymentResponse>builder()
+                .results(paymentService.processCallback(paymentId,transactionId,isSuccess))
                 .build();
     }
     @GetMapping("/{id}")

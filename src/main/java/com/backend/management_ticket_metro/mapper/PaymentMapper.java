@@ -11,5 +11,6 @@ public interface PaymentMapper {
     @Mapping(source = "order.orderId", target = "orderId")
     @Mapping(source = "expiredAt", target = "expiredAt")
     @Mapping(source = "transactionId", target = "providerTransactionId")
+    @Mapping(source = "order.status", target = "orderStatus")
     PaymentResponse toPaymentResponse(Payment payment);
 }
