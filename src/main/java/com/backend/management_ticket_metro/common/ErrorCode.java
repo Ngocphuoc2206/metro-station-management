@@ -53,6 +53,7 @@ public enum ErrorCode {
 
 
 
+    PAYMENT_NOT_FOUND(1034, "Payment not found"),
     UNCATEGORIZED_EXCEPTION  (9999, "UNCATEGORIZED_EXCEPTION!")
     ;
     ErrorCode(int code, String message){
