@@ -46,6 +46,16 @@ public enum ErrorCode {
     ORDER_ITEM_EMPTY(1033, "Order must contain at least one item"),
 
     PAYMENT_NOT_FOUND(1034, "Payment not found"),
+
+    DEVICE_NOT_FOUND(1035, "Device not found"),
+    DEVICE_TYPE_INVALID(1036, "Invalid or unsupported device type in the system"),
+    DEVICE_TYPE_NOT_SUPPORTED(1037, "Device type not supported"),
+    DEVICE_CODE_EXISTED(1038, "Device code already exists"),
+    DEVICE_DETAIL_NOT_FOUND(1039, "No detailed technical data could be found for this device."),
+    DEVICE_IPADDRESS_EXISTED(1040, "Device ipAddress already exists"),
+    DEVICE_MACADDRESS_EXISTED(1040, "Device macAddress already exists"),
+
+
     UNCATEGORIZED_EXCEPTION  (9999, "UNCATEGORIZED_EXCEPTION!")
     ;
     ErrorCode(int code, String message){

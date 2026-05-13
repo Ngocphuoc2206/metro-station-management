@@ -53,7 +53,6 @@ public class ApplicationInitConfig {
             }
             permissionRepository.findAll();
 
-            if (userRepository.findByEmail(PredefinedAccount.ADMIN_USER_NAME).isEmpty()) {
 
                 Role passengerRole = roleRepository.findByRoleName(PredefinedRole.USER_ROLE)
                         .orElseGet(() -> roleRepository.save(
@@ -79,19 +78,35 @@ public class ApplicationInitConfig {
                                         .build()
                         ));
 
-                Set<Role> roles = new HashSet<>();
-                roles.add(adminRole);
+                if(userRepository.findByEmail(PredefinedAccount.STAFF_USER_NAME).isEmpty()){
+                    Set<Role> staffRoles = new HashSet<>();
+                    staffRoles.add(staffRole);
 
-                User user = User.builder()
-                        .email(PredefinedAccount.ADMIN_USER_NAME)
-                        .passwordHash(passwordEncoder.encode(PredefinedAccount.ADMIN_PASSWORD))
-                        .fullName("ADMIN")
-                        .roles(roles)
-                        .status(UserStatus.ACTIVE)
-                        .build();
+                    User staffUser = User.builder()
+                            .email(PredefinedAccount.STAFF_USER_NAME)
+                            .passwordHash(passwordEncoder.encode(PredefinedAccount.STAFF_PASSWORD))
+                            .fullName("STAFF")
+                            .roles(staffRoles)
+                            .status(UserStatus.ACTIVE)
+                            .build();
+                    userRepository.save(staffUser);
+                    log.warn("Staff user created with default password");
+                }
 
-                userRepository.save(user);
-                log.warn("admin user has been created with default password: admin, please change it");
+                if (userRepository.findByEmail(PredefinedAccount.ADMIN_USER_NAME).isEmpty()) {
+                    Set<Role> adminRoles = new HashSet<>();
+                    adminRoles.add(adminRole);
+
+                    User adminUser = User.builder()
+                            .email(PredefinedAccount.ADMIN_USER_NAME)
+                            .passwordHash(passwordEncoder.encode(PredefinedAccount.ADMIN_PASSWORD))
+                            .fullName("ADMIN")
+                            .roles(adminRoles)
+                            .status(UserStatus.ACTIVE)
+                            .build();
+
+                    userRepository.save(adminUser);
+                    log.warn("admin user has been created with default password: admin, please change it");
             }
 
             log.info("Application initialization completed .....");
