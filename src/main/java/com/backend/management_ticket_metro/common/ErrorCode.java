@@ -53,7 +53,17 @@ public enum ErrorCode {
 
 
 
-    PAYMENT_NOT_FOUND(1034, "Payment not found"),
+    PAYMENT_NOT_FOUND(1040, "Payment not found"),
+
+    TICKET_NOT_FOUND(1041, "Ticket not found"),
+    TICKET_ALREADY_USED(1042, "Ticket already used"),
+    TICKET_EXPIRED(1043, "Ticket expired"),
+    TICKET_CANCELLED(1044, "Ticket cancelled"),
+    QR_TOKEN_NOT_FOUND(1045, "QR token not found"),
+    QR_TOKEN_EXPIRED(1046, "QR token expired"),
+    QR_TOKEN_USED(1047, "QR token already used"),
+    QR_TOKEN_INVALID(1048, "QR token invalid"),
+
     UNCATEGORIZED_EXCEPTION  (9999, "UNCATEGORIZED_EXCEPTION!")
     ;
     ErrorCode(int code, String message){

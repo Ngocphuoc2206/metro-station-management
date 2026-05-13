@@ -26,15 +26,15 @@ import java.util.Map;
 public class QRCodeService {
     private final StorageService storageService;
 
-    public String generateAndUploadTicketQR(String ticketCode){
-        log.info("generateAndUploadTicketQr called: ticketCode={}", ticketCode);
+    public String generateAndUploadTicketQR(String qrToken, String ticketCode){
+        log.info("generateAndUploadTicketQr called: ticketCode={}, qrToken={}", ticketCode, qrToken);
 
         try{
-            String qrContent = buildQrContent(ticketCode);
+            String qrContent = buildQrContent(qrToken);
             byte[] pngBytes = generateQrPng(qrContent);
             String uploadedUrl = storageService.uploadBytes(
                     pngBytes,
-                    ticketCode + ".png",
+                    ticketCode + "-" + qrToken + ".png",
                     "image/png",
                     "tickets/qr"
             );
@@ -97,9 +97,10 @@ public class QRCodeService {
         return image;
     }
 
-        private String buildQrContent(String ticketCode) {
-        String qrContent = "ticket_code:" + ticketCode;
-        log.info("buildQrContent success: ticketCode={}, qrContent={}", ticketCode, qrContent);
+    private String buildQrContent(String qrToken) {
+        String qrContent = "qr_token:" + qrToken;
+        log.info("buildQrContent success: qrToken={}, qrContent={}", qrToken, qrContent);
         return qrContent;
     }
+
 }
