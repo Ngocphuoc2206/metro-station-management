@@ -24,14 +24,18 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final OrderRepository orderRepository;
     private final PaymentMapper paymentMapper;
+    private final TicketService ticketService;
 
     @Transactional
     public PaymentResponse initPayment(String orderId, String method) {
+
         //Check if this order has ever been initiated for payment.
         Optional<Payment> existingPayment = paymentRepository.findByOrderOrderId(orderId);
+
         if (existingPayment.isPresent() && existingPayment.get().getStatus() == PaymentStatus.PENDING) {
             return paymentMapper.toPaymentResponse(existingPayment.get());
         }
+
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new AppException(ErrorCode.PAYMENT_NOT_FOUND));
         LocalDateTime now = LocalDateTime.now();
@@ -52,13 +56,14 @@ public class PaymentService {
 
         return paymentMapper.toPaymentResponse(payment);
     }
+
     @Transactional
     public PaymentResponse processCallback(String paymentId, String transactionId, boolean isSuccess) {
         //Check if the transaction has been processed
-        //if transactionId existinged, return existinged
+        //if transactionId extinguished, return exising
        Optional<Payment> existingPayment = paymentRepository.findByTransactionId(transactionId);
-       if(existingPayment.isPresent() && existingPayment.get().getStatus() == PaymentStatus.SUCCESS)
-       {
+
+       if (existingPayment.isPresent() && existingPayment.get().getStatus() == PaymentStatus.SUCCESS)  {
            return paymentMapper.toPaymentResponse(existingPayment.get());
        }
 
@@ -68,24 +73,29 @@ public class PaymentService {
         if (payment.getStatus() == PaymentStatus.SUCCESS) {
             return paymentMapper.toPaymentResponse(payment);
         }
-
-        if(isSuccess) {
+        // Check payment isSuccess
+        if (isSuccess) {
             payment.setStatus(PaymentStatus.SUCCESS);
             payment.setTransactionId(transactionId);
 
             Order order = payment.getOrder();
             order.setStatus(OrderStatus.PAID);
+            ticketService.issueTicketsForPaidOrder(order);
             orderRepository.save(order);
         }else {
             payment.setStatus(PaymentStatus.FAILED);
         }
+
         Payment upatedPayment = paymentRepository.save(payment);
+
         return paymentMapper.toPaymentResponse(upatedPayment);
     }
+
     @Transactional
     public PaymentResponse getPaymentById(String id) {
         Payment payment = paymentRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.PAYMENT_NOT_FOUND));
+
         return paymentMapper.toPaymentResponse(payment);
     }
 }
