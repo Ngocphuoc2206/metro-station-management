@@ -14,7 +14,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ScannerDetail {
     @Id
-
+    @GeneratedValue(strategy = GenerationType.UUID)
     private String deviceId;
 
     @OneToOne(fetch = FetchType.LAZY)
