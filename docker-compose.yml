@@ -5,7 +5,9 @@ services:
     build: .
     container_name: metro-backend
     ports:
-      - "8080:8080"
+      - "${SERVER_PORT:-8080}:8080"
+    env_file:
+      - .env
     environment:
       DB_HOST: mysql
       DB_PORT: 3306
@@ -13,7 +15,8 @@ services:
       DB_USERNAME: root
       DB_PASSWORD: root
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
 
   mysql:
     image: mysql:8.0.45-debian
@@ -26,6 +29,11 @@ services:
       - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${DB_PASSWORD:-root}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
 volumes:
   mysql_data:

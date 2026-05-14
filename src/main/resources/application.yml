@@ -41,3 +41,12 @@ jwt:
   signerKey: ${JWT_SECRET:1TjXchw5FloESb63Kc+DFhTARvpWL4jUGCwfGWxuG5SIf/1y/LgJxHnMqaF6A/ij}
   valid-duration: 3600 # in second
   refreshable-duration: 36000 # in second
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
