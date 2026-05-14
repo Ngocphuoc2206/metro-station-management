@@ -39,21 +39,21 @@ public enum ErrorCode {
     FARE_INVALID(1030, "Fare not found"),
 
 
-    ORDER_NOT_FOUND(1029, "Order not found"),
-    ORDER_EXPIRED(1030, "Order has expired"),
-    ORDER_ALREADY_PAID(1031, "Order has already been paid"),
-    INVALID_ORDER_STATUS(1032, "Invalid order status for this action"),
-    ORDER_ITEM_EMPTY(1033, "Order must contain at least one item"),
+    ORDER_NOT_FOUND(1031, "Order not found"),
+    ORDER_EXPIRED(1032, "Order has expired"),
+    ORDER_ALREADY_PAID(1033, "Order has already been paid"),
+    INVALID_ORDER_STATUS(1034, "Invalid order status for this action"),
+    ORDER_ITEM_EMPTY(1035, "Order must contain at least one item"),
 
-    PAYMENT_NOT_FOUND(1034, "Payment not found"),
+    PAYMENT_NOT_FOUND(1036, "Payment not found"),
 
-    DEVICE_NOT_FOUND(1035, "Device not found"),
-    DEVICE_TYPE_INVALID(1036, "Invalid or unsupported device type in the system"),
-    DEVICE_TYPE_NOT_SUPPORTED(1037, "Device type not supported"),
-    DEVICE_CODE_EXISTED(1038, "Device code already exists"),
-    DEVICE_DETAIL_NOT_FOUND(1039, "No detailed technical data could be found for this device."),
-    DEVICE_IPADDRESS_EXISTED(1040, "Device ipAddress already exists"),
-    DEVICE_MACADDRESS_EXISTED(1040, "Device macAddress already exists"),
+    DEVICE_NOT_FOUND(1037, "Device not found"),
+    DEVICE_TYPE_INVALID(1038, "Invalid or unsupported device type in the system"),
+    DEVICE_TYPE_NOT_SUPPORTED(1039, "Device type not supported"),
+    DEVICE_CODE_EXISTED(1040, "Device code already exists"),
+    DEVICE_DETAIL_NOT_FOUND(1041, "No detailed technical data could be found for this device."),
+    DEVICE_IPADDRESS_EXISTED(1042, "Device ipAddress already exists"),
+    DEVICE_MACADDRESS_EXISTED(1043, "Device macAddress already exists"),
 
 
     UNCATEGORIZED_EXCEPTION  (9999, "UNCATEGORIZED_EXCEPTION!")
