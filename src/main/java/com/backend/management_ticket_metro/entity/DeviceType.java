@@ -20,7 +20,6 @@ public class DeviceType {
     private String description;
 
     @OneToMany(mappedBy = "type", cascade = CascadeType.ALL)
-    @JsonIgnore
     private List<Device> devices;
 }
 

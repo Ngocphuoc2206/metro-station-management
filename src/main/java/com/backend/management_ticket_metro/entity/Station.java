@@ -4,6 +4,8 @@ import com.backend.management_ticket_metro.enums.StationStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.List;
+
 @Entity
 @Table
 @Data
@@ -31,4 +33,7 @@ public class Station {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 30, nullable = false)
     private StationStatus status;
+
+    @OneToMany(mappedBy = "station", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Device> devices;
 }

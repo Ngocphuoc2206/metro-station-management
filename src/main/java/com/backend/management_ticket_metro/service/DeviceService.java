@@ -14,7 +14,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -34,7 +36,7 @@ public class DeviceService {
     public List<DeviceResponse> getAllDevices() {
         log.info("Getting all devices");
         return deviceRepository.findAll().stream()
-                .map(device -> deviceMapper.toDeviceResponse(device, gateDetailRepository, ticketMachineDetailRepository, topupMachineDetailRepository, scannerDetailRepository))
+                .map(this::toDeviceResponseWithDetails)
                 .collect(Collectors.toList());
     }
 
@@ -43,7 +45,7 @@ public class DeviceService {
         log.info("Getting device by id {}", id);
         Device device = deviceRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.DEVICE_NOT_FOUND));
-        return deviceMapper.toDeviceResponse(device, gateDetailRepository, ticketMachineDetailRepository, topupMachineDetailRepository, scannerDetailRepository);
+        return toDeviceResponseWithDetails(device);
     }
 
     @Transactional
@@ -77,7 +79,7 @@ public class DeviceService {
         device = deviceRepository.saveAndFlush(device);
         saveDeviceDetails(device, request);
 
-        return deviceMapper.toDeviceResponse(device, gateDetailRepository, ticketMachineDetailRepository, topupMachineDetailRepository, scannerDetailRepository);
+        return toDeviceResponseWithDetails(device);
     }
 
     @Transactional
@@ -103,7 +105,7 @@ public class DeviceService {
         device = deviceRepository.save(device);
         saveDeviceDetails(device, request);
 
-        return deviceMapper.toDeviceResponse(device, gateDetailRepository, ticketMachineDetailRepository, topupMachineDetailRepository, scannerDetailRepository);
+        return toDeviceResponseWithDetails(device);
     }
 
     @Transactional
@@ -115,11 +117,7 @@ public class DeviceService {
         device.setStatus(status);
         device = deviceRepository.save(device);
 
-        return deviceMapper.toDeviceResponse(device,
-                gateDetailRepository,
-                ticketMachineDetailRepository,
-                topupMachineDetailRepository,
-                scannerDetailRepository);
+        return toDeviceResponseWithDetails(device);
     }
 
     private void saveDeviceDetails(Device device, DeviceRequest request) {
@@ -128,11 +126,10 @@ public class DeviceService {
 
         switch (typeName) {
             case "GATE" -> {
-                GateDetail gate = gateDetailRepository.findById(deviceId).orElse(new GateDetail());
-
-
-                gate.setDevice(device);
-
+                GateDetail gate = gateDetailRepository.findByDeviceId(deviceId)
+                        .orElseGet(() -> GateDetail.builder()
+                                        .device(device)
+                                        .build());
                 gate.setDirectionMode(request.getDirectionMode());
                 gate.setGateType(request.getGateType());
                 gate.setEmergencyMode(request.getEmergencyMode() != null && request.getEmergencyMode());
@@ -141,8 +138,11 @@ public class DeviceService {
                 gateDetailRepository.save(gate);
             }
             case "TICKET_MACHINE" -> {
-                TicketMachineDetail ticket = ticketMachineDetailRepository.findById(deviceId).orElse(new TicketMachineDetail());
-                ticket.setDevice(device);
+                TicketMachineDetail ticket = ticketMachineDetailRepository.findByDeviceId(deviceId)
+                        .orElseGet(() -> TicketMachineDetail.builder()
+                                .device(device)
+                                .build());
+
                 ticket.setCard_stock_level(request.getCardStockLevel() != null ? request.getCardStockLevel() : 0);
                 ticket.setAccepted_payment_methods(request.getAcceptedPaymentMethods());
                 ticket.setCash_box_full(request.getCashBoxFull() != null && request.getCashBoxFull() != null);
@@ -150,19 +150,58 @@ public class DeviceService {
                 ticketMachineDetailRepository.save(ticket);
             }
             case "TOPUP_MACHINE" -> {
-                TopupMachineDetail topup = topupMachineDetailRepository.findById(deviceId).orElse(new TopupMachineDetail());
-                topup.setDevice(device);
+                TopupMachineDetail topup = topupMachineDetailRepository.findByDeviceId(deviceId)
+                        .orElseGet(() -> TopupMachineDetail.builder()
+                                .device(device)
+                                .build());
+
                 topup.setReaderFirmwareVersion(request.getReaderFirmwareVersion());
                 topup.setMaxTopupLimit(request.getMaxTopupLimit() != null ? request.getMaxTopupLimit() : 0);
                 topupMachineDetailRepository.save(topup);
             }
             case "SCANNER" -> {
-                ScannerDetail scanner = scannerDetailRepository.findById(deviceId).orElse(new ScannerDetail());
-                scanner.setDevice(device);
+                ScannerDetail scanner = scannerDetailRepository.findById(deviceId)
+                        .orElseGet(() -> ScannerDetail.builder()
+                                .device(device)
+                                .build());
+
                 scanner.setBattery_level(request.getBatteryLevel() != null ? request.getBatteryLevel() : 0);
                 scanner.setOs_version(request.getOsVersion());
                 scannerDetailRepository.save(scanner);
             }
         }
+    }
+
+    private DeviceResponse toDeviceResponseWithDetails(Device device) {
+        DeviceResponse response = deviceMapper.toDeviceResponse(device);
+        Map<String, Object> detailsMap = new HashMap<>();
+        String typeName = device.getType().getTypeName().toUpperCase();
+        String deviceId = device.getId();
+
+        switch (typeName) {
+            case "GATE" -> gateDetailRepository.findByDeviceId(deviceId).ifPresent(detail -> {
+                detailsMap.put("directionMode", detail.getDirectionMode());
+                detailsMap.put("gateType", detail.getGateType());
+                detailsMap.put("emergencyMode", detail.isEmergencyMode());
+                detailsMap.put("passageCount", detail.getPassageCount());
+            });
+            case "TICKET_MACHINE" -> ticketMachineDetailRepository.findByDeviceId(deviceId).ifPresent(detail -> {
+                detailsMap.put("cardStockLevel", detail.getCard_stock_level());
+                detailsMap.put("acceptedPaymentMethods", detail.getAccepted_payment_methods());
+                detailsMap.put("cashBoxFull", detail.isCash_box_full());
+                detailsMap.put("printerInkLevel", detail.getPrinter_ink_level());
+            });
+            case "TOPUP_MACHINE" -> topupMachineDetailRepository.findByDeviceId(deviceId).ifPresent(detail -> {
+                detailsMap.put("firmwareVersion", detail.getReaderFirmwareVersion());
+                detailsMap.put("maxTopupLimit", detail.getMaxTopupLimit());
+            });
+            case "SCANNER" -> scannerDetailRepository.findByDeviceId(deviceId).ifPresent(detail -> {
+                detailsMap.put("batteryLevel", detail.getBattery_level());
+                detailsMap.put("osVersion", detail.getOs_version());
+            });
+        }
+
+        response.setAdditionalDetails(detailsMap);
+        return response;
     }
 }

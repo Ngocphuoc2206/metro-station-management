@@ -11,10 +11,10 @@ import lombok.*;
 @AllArgsConstructor
 public class GateDetail {
     @Id
-    private String deviceId;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private String id;
 
     @OneToOne(fetch = FetchType.LAZY)
-    @MapsId
     @JoinColumn(name = "device_id")
     private Device device;
 

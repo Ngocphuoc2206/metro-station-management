@@ -25,6 +25,7 @@ public class Device {
 
     @Enumerated(EnumType.STRING)
     private DeviceStatus status;
+    private LocalDateTime lastMaintenance;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "station_id")
@@ -34,5 +35,15 @@ public class Device {
     @JoinColumn(name = "type_id")
     private DeviceType type;
 
-    private LocalDateTime lastMaintenance;
+    @OneToOne(mappedBy = "device", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private GateDetail gateDetail;
+
+    @OneToOne(mappedBy = "device", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private TicketMachineDetail ticketMachineDetail;
+
+    @OneToOne(mappedBy = "device", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private TopupMachineDetail topupMachineDetail;
+
+    @OneToOne(mappedBy = "device", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private ScannerDetail scannerDetail;
 }

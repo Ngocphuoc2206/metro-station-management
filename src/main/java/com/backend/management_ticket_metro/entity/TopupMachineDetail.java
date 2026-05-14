@@ -14,10 +14,10 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class TopupMachineDetail {
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     private String deviceId;
 
     @OneToOne(fetch = FetchType.LAZY)
-    @MapsId
     @JoinColumn(name = "device_id")
     private Device device;
 
