@@ -18,8 +18,8 @@ public class GateDetail {
     @JoinColumn(name = "device_id")
     private Device device;
 
-    private String directionMode;
-    private String gateType;
-    private boolean emergencyMode;
-    private Long passageCount;
+    private String direction_mode;
+    private String gate_type;
+    private boolean emergency_mode;
+    private Long passage_count;
 }

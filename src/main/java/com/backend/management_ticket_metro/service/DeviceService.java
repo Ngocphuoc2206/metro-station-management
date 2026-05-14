@@ -76,7 +76,7 @@ public class DeviceService {
                 .type(type)
                 .build();
 
-        device = deviceRepository.saveAndFlush(device);
+        device = deviceRepository.save(device);
         saveDeviceDetails(device, request);
 
         return toDeviceResponseWithDetails(device);
@@ -130,10 +130,10 @@ public class DeviceService {
                         .orElseGet(() -> GateDetail.builder()
                                         .device(device)
                                         .build());
-                gate.setDirectionMode(request.getDirectionMode());
-                gate.setGateType(request.getGateType());
-                gate.setEmergencyMode(request.getEmergencyMode() != null && request.getEmergencyMode());
-                gate.setPassageCount(request.getPassageCount() != null ? request.getPassageCount() : 0L);
+                gate.setDirection_mode(request.getDirectionMode());
+                gate.setGate_type(request.getGateType());
+                gate.setEmergency_mode(request.getEmergencyMode() != null && request.getEmergencyMode());
+                gate.setPassage_count(request.getPassageCount() != null ? request.getPassageCount() : 0L);
 
                 gateDetailRepository.save(gate);
             }
@@ -155,8 +155,8 @@ public class DeviceService {
                                 .device(device)
                                 .build());
 
-                topup.setReaderFirmwareVersion(request.getReaderFirmwareVersion());
-                topup.setMaxTopupLimit(request.getMaxTopupLimit() != null ? request.getMaxTopupLimit() : 0);
+                topup.setReader_firmware_version(request.getReaderFirmwareVersion());
+                topup.setMax_topup_limit(request.getMaxTopupLimit() != null ? request.getMaxTopupLimit() : 0);
                 topupMachineDetailRepository.save(topup);
             }
             case "SCANNER" -> {
@@ -180,10 +180,10 @@ public class DeviceService {
 
         switch (typeName) {
             case "GATE" -> gateDetailRepository.findByDeviceId(deviceId).ifPresent(detail -> {
-                detailsMap.put("directionMode", detail.getDirectionMode());
-                detailsMap.put("gateType", detail.getGateType());
-                detailsMap.put("emergencyMode", detail.isEmergencyMode());
-                detailsMap.put("passageCount", detail.getPassageCount());
+                detailsMap.put("directionMode", detail.getDirection_mode());
+                detailsMap.put("gateType", detail.getGate_type());
+                detailsMap.put("emergencyMode", detail.isEmergency_mode());
+                detailsMap.put("passageCount", detail.getPassage_count());
             });
             case "TICKET_MACHINE" -> ticketMachineDetailRepository.findByDeviceId(deviceId).ifPresent(detail -> {
                 detailsMap.put("cardStockLevel", detail.getCard_stock_level());
@@ -192,8 +192,8 @@ public class DeviceService {
                 detailsMap.put("printerInkLevel", detail.getPrinter_ink_level());
             });
             case "TOPUP_MACHINE" -> topupMachineDetailRepository.findByDeviceId(deviceId).ifPresent(detail -> {
-                detailsMap.put("firmwareVersion", detail.getReaderFirmwareVersion());
-                detailsMap.put("maxTopupLimit", detail.getMaxTopupLimit());
+                detailsMap.put("firmwareVersion", detail.getReader_firmware_version());
+                detailsMap.put("maxTopupLimit", detail.getMax_topup_limit());
             });
             case "SCANNER" -> scannerDetailRepository.findByDeviceId(deviceId).ifPresent(detail -> {
                 detailsMap.put("batteryLevel", detail.getBattery_level());

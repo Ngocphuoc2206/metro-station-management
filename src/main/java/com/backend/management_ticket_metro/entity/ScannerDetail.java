@@ -15,7 +15,7 @@ import lombok.NoArgsConstructor;
 public class ScannerDetail {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    private String deviceId;
+    private String id;
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "device_id")

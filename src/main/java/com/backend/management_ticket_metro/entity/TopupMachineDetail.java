@@ -15,12 +15,12 @@ import lombok.NoArgsConstructor;
 public class TopupMachineDetail {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    private String deviceId;
+    private String id;
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "device_id")
     private Device device;
 
-    private String readerFirmwareVersion;
-    private Double maxTopupLimit;
+    private String reader_firmware_version;
+    private Double max_topup_limit;
 }
