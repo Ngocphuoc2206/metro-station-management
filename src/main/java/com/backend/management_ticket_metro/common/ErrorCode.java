@@ -38,15 +38,33 @@ public enum ErrorCode {
     TICKET_TYPE_INVALID(1029, "Ticket type not found"),
     FARE_INVALID(1030, "Fare not found"),
 
-
+    //Order
     ORDER_NOT_FOUND(1031, "Order not found"),
     ORDER_EXPIRED(1032, "Order has expired"),
     ORDER_ALREADY_PAID(1033, "Order has already been paid"),
     INVALID_ORDER_STATUS(1034, "Invalid order status for this action"),
     ORDER_ITEM_EMPTY(1035, "Order must contain at least one item"),
 
-    PAYMENT_NOT_FOUND(1036, "Payment not found"),
+    //File upload
+    FILE_UPLOAD_FAILED(1036, "File upload failed"),
+    INVALID_FILE(1037, "File is empty or invalid"),
+    INVALID_FILE_TYPE(1038, "Only JPG, PNG, WEBP files are allowed"),
+    FILE_TOO_LARGE(1039, "File size exceeds the allowed limit"),
 
+
+
+    PAYMENT_NOT_FOUND(1040, "Payment not found"),
+
+    TICKET_NOT_FOUND(1041, "Ticket not found"),
+    TICKET_ALREADY_USED(1042, "Ticket already used"),
+    TICKET_EXPIRED(1043, "Ticket expired"),
+    TICKET_CANCELLED(1044, "Ticket cancelled"),
+    QR_TOKEN_NOT_FOUND(1045, "QR token not found"),
+    QR_TOKEN_EXPIRED(1046, "QR token expired"),
+    QR_TOKEN_USED(1047, "QR token already used"),
+    QR_TOKEN_INVALID(1048, "QR token invalid"),
+
+    //Device
     DEVICE_NOT_FOUND(1037, "Device not found"),
     DEVICE_TYPE_INVALID(1038, "Invalid or unsupported device type in the system"),
     DEVICE_TYPE_NOT_SUPPORTED(1039, "Device type not supported"),
@@ -54,7 +72,6 @@ public enum ErrorCode {
     DEVICE_DETAIL_NOT_FOUND(1041, "No detailed technical data could be found for this device."),
     DEVICE_IPADDRESS_EXISTED(1042, "Device ipAddress already exists"),
     DEVICE_MACADDRESS_EXISTED(1043, "Device macAddress already exists"),
-
 
     UNCATEGORIZED_EXCEPTION  (9999, "UNCATEGORIZED_EXCEPTION!")
     ;
