@@ -30,7 +30,7 @@ public class RegisterRequest {
     private String phone;
 
     @NotBlank(message = "Password must not be blank")
-    @Size(min = 8, message = "PASSWORD_INVALID")
+    @Size(min = 3, message = "PASSWORD_INVALID")
     private String password;
 
     @NotBlank(message = "Confirm password must not be blank")

@@ -23,8 +23,8 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class TicketService {
-    // Set 2 minutes
-    private static final long QR_TOKEN_TTL_SECONDS = 120;
+    // Set 10 minutes
+    private static final long QR_TOKEN_TTL_SECONDS = 600;
 
     private final TicketRepository ticketRepository;
     private final TicketQrTokenRepository ticketQrTokenRepository;
@@ -127,12 +127,6 @@ public class TicketService {
                 .build();
 
         ticketQrTokenRepository.save(qrToken);
-
-        if (ticket.getStatus() == TicketStatus.READY) {
-            ticket.setStatus(TicketStatus.ACTIVE);
-            ticket.setActivatedAt(now);
-            ticketRepository.save(ticket);
-        }
 
         return TicketQrTokenResponse.builder()
                 .ticketId(ticket.getId())
