@@ -26,7 +26,6 @@ public class DeviceService {
     private final DeviceRepository deviceRepository;
     private final GateDetailRepository gateDetailRepository;
     private final TicketMachineDetailRepository ticketMachineDetailRepository;
-    private final TopupMachineDetailRepository topupMachineDetailRepository;
     private final ScannerDetailRepository scannerDetailRepository;
     private final DeviceMapper deviceMapper;
     private final StationRepository stationRepository;
@@ -149,16 +148,6 @@ public class DeviceService {
                 ticket.setPrinter_ink_level(request.getPrinterInkLevel() != null ? request.getPrinterInkLevel() : 0);
                 ticketMachineDetailRepository.save(ticket);
             }
-            case "TOPUP_MACHINE" -> {
-                TopupMachineDetail topup = topupMachineDetailRepository.findByDeviceId(deviceId)
-                        .orElseGet(() -> TopupMachineDetail.builder()
-                                .device(device)
-                                .build());
-
-                topup.setReader_firmware_version(request.getReaderFirmwareVersion());
-                topup.setMax_topup_limit(request.getMaxTopupLimit() != null ? request.getMaxTopupLimit() : 0);
-                topupMachineDetailRepository.save(topup);
-            }
             case "SCANNER" -> {
                 ScannerDetail scanner = scannerDetailRepository.findById(deviceId)
                         .orElseGet(() -> ScannerDetail.builder()
@@ -190,10 +179,6 @@ public class DeviceService {
                 detailsMap.put("acceptedPaymentMethods", detail.getAccepted_payment_methods());
                 detailsMap.put("cashBoxFull", detail.isCash_box_full());
                 detailsMap.put("printerInkLevel", detail.getPrinter_ink_level());
-            });
-            case "TOPUP_MACHINE" -> topupMachineDetailRepository.findByDeviceId(deviceId).ifPresent(detail -> {
-                detailsMap.put("firmwareVersion", detail.getReader_firmware_version());
-                detailsMap.put("maxTopupLimit", detail.getMax_topup_limit());
             });
             case "SCANNER" -> scannerDetailRepository.findByDeviceId(deviceId).ifPresent(detail -> {
                 detailsMap.put("batteryLevel", detail.getBattery_level());
