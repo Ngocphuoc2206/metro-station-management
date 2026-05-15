@@ -64,6 +64,15 @@ public enum ErrorCode {
     QR_TOKEN_USED(1047, "QR token already used"),
     QR_TOKEN_INVALID(1048, "QR token invalid"),
 
+    //Device
+    DEVICE_NOT_FOUND(1037, "Device not found"),
+    DEVICE_TYPE_INVALID(1038, "Invalid or unsupported device type in the system"),
+    DEVICE_TYPE_NOT_SUPPORTED(1039, "Device type not supported"),
+    DEVICE_CODE_EXISTED(1040, "Device code already exists"),
+    DEVICE_DETAIL_NOT_FOUND(1041, "No detailed technical data could be found for this device."),
+    DEVICE_IPADDRESS_EXISTED(1042, "Device ipAddress already exists"),
+    DEVICE_MACADDRESS_EXISTED(1043, "Device macAddress already exists"),
+
     UNCATEGORIZED_EXCEPTION  (9999, "UNCATEGORIZED_EXCEPTION!")
     ;
     ErrorCode(int code, String message){

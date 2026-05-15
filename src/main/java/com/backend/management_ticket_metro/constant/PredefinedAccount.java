@@ -9,5 +9,11 @@ public class PredefinedAccount {
     @NonFinal
     public static final String ADMIN_PASSWORD = "admin";
 
+    @NonFinal
+    public static final String STAFF_USER_NAME = "staff@gmail.com";
+
+    @NonFinal
+    public static final String STAFF_PASSWORD = "staff";
+
     public PredefinedAccount(){}
 }
