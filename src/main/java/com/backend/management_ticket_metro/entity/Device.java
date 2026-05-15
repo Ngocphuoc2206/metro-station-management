@@ -42,8 +42,5 @@ public class Device {
     private TicketMachineDetail ticketMachineDetail;
 
     @OneToOne(mappedBy = "device", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private TopupMachineDetail topupMachineDetail;
-
-    @OneToOne(mappedBy = "device", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private ScannerDetail scannerDetail;
 }
