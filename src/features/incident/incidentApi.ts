@@ -1,4 +1,9 @@
-import type { IncidentRecord, IncidentStatus, IncidentFilterParams } from "./incidentTypes";
+import type {
+  IncidentRecord,
+  IncidentStatus,
+  IncidentFilterParams,
+  IncidentFormData,
+} from "./incidentTypes";
 
 // Mock Data gốc
 let MOCK_INCIDENTS: IncidentRecord[] = [

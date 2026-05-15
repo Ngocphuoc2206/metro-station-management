@@ -147,7 +147,6 @@ export default function TransactionLogsPage() {
 
     const payload = {
       timestamp: "2024-05-24T14:22:15.827Z",
-      device: row.device,
       station_id: row.station
         .toUpperCase()
         .normalize("NFD")
@@ -172,6 +171,7 @@ export default function TransactionLogsPage() {
         gate_command: row.result === "Success" ? "OPEN_GATE_3000MS" : "DENY_ACCESS",
       },
       device: {
+        name: row.device,
         model: "MN-SCAN-X1",
         firmware: "v2.4.1",
         ip: "10.0.12.54",
