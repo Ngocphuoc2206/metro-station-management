@@ -5,6 +5,7 @@ import lombok.Data;
 @Data
 public class ScanTicketRequest {
     private String qrContent;
+    private String deviceId;
     private String stationId;
     private String gateId;
 }

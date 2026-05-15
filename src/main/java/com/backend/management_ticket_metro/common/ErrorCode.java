@@ -55,24 +55,32 @@ public enum ErrorCode {
 
     PAYMENT_NOT_FOUND(1040, "Payment not found"),
 
+    //Ticket
     TICKET_NOT_FOUND(1041, "Ticket not found"),
     TICKET_ALREADY_USED(1042, "Ticket already used"),
     TICKET_EXPIRED(1043, "Ticket expired"),
     TICKET_CANCELLED(1044, "Ticket cancelled"),
+
+    //QR
     QR_TOKEN_NOT_FOUND(1045, "QR token not found"),
     QR_TOKEN_EXPIRED(1046, "QR token expired"),
     QR_TOKEN_USED(1047, "QR token already used"),
     QR_TOKEN_INVALID(1048, "QR token invalid"),
+    QR_TOKEN_EMPTY(1049, "QR token is empty"),
+    QR_TOKEN_REVOKE(1050, "QR token revoked"),
 
     //Device
-    DEVICE_NOT_FOUND(1037, "Device not found"),
-    DEVICE_TYPE_INVALID(1038, "Invalid or unsupported device type in the system"),
-    DEVICE_TYPE_NOT_SUPPORTED(1039, "Device type not supported"),
-    DEVICE_CODE_EXISTED(1040, "Device code already exists"),
-    DEVICE_DETAIL_NOT_FOUND(1041, "No detailed technical data could be found for this device."),
-    DEVICE_IPADDRESS_EXISTED(1042, "Device ipAddress already exists"),
-    DEVICE_MACADDRESS_EXISTED(1043, "Device macAddress already exists"),
+    DEVICE_NOT_FOUND(1051, "Device not found"),
+    DEVICE_TYPE_INVALID(1052, "Invalid or unsupported device type in the system"),
+    DEVICE_TYPE_NOT_SUPPORTED(1053, "Device type not supported"),
+    DEVICE_CODE_EXISTED(1054, "Device code already exists"),
+    DEVICE_DETAIL_NOT_FOUND(1055, "No detailed technical data could be found for this device."),
+    DEVICE_IPADDRESS_EXISTED(1056, "Device ipAddress already exists"),
+    DEVICE_MACADDRESS_EXISTED(1057, "Device macAddress already exists"),
 
+    // Gate
+    GATE_NOT_FOUND(1058, "Gate not found"),
+    GATE_NOT_ACTIVE(1059, "Gate is not active"),
     UNCATEGORIZED_EXCEPTION  (9999, "UNCATEGORIZED_EXCEPTION!")
     ;
     ErrorCode(int code, String message){
