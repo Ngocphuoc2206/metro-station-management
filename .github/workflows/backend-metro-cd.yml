@@ -9,13 +9,16 @@ on:
       - master
     types:
       - closed
+
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
-    permissions:
-      contents: read
-      packages: write
+
 
     steps:
       - name: Checkout source
