@@ -1,9 +1,19 @@
 name: backend-metro-ci.yml
 on:
+  push:
+    branches:
+      - main
+      - develop
+      - master
+    paths:
+      - "src/**"
+      - "pom.xml"
+      - "Dockerfile"
+      - ".github/workflows/backend-ci.yml"
+
   pull_request:
     branches:
       - master
-
 jobs:
   build-test:
     runs-on: ubuntu-latest
