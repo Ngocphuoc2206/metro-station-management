@@ -82,7 +82,8 @@ const resultBadgeClass: Record<TransactionRow["result"], string> = {
 
 export default function TransactionLogsPage() {
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const [selectedDetail, setSelectedDetail] = useState<TransactionDetail | null>(null);
+  const [selectedDetail, setSelectedDetail] =
+    useState<TransactionDetail | null>(null);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
 
@@ -108,7 +109,10 @@ export default function TransactionLogsPage() {
       expanded.push({
         ...row,
         timestamp: `${datePart} ${nh}:${nm}:${ns}`,
-        ticketCode: row.ticketCode.replace(/\d{4}$/, String(1000 + ((i * 73) % 9000))),
+        ticketCode: row.ticketCode.replace(
+          /\d{4}$/,
+          String(1000 + ((i * 73) % 9000)),
+        ),
       });
     }
     return expanded;
@@ -119,7 +123,8 @@ export default function TransactionLogsPage() {
     return rows.filter((row) => {
       const stationOk = station === "all" ? true : row.station === station;
       const deviceOk = device === "all" ? true : row.device === device;
-      const resultOk = result === "all" ? true : row.result.toLowerCase() === result;
+      const resultOk =
+        result === "all" ? true : row.result.toLowerCase() === result;
       const searchOk =
         q.length === 0
           ? true
@@ -143,6 +148,7 @@ export default function TransactionLogsPage() {
   const showingTo = (safePage - 1) * pageSize + pageRows.length;
 
   const openDetail = (row: TransactionRow) => {
+    // eslint-disable-next-line react-hooks/purity
     const id = `TXN_${Math.floor(100000000000 + Math.random() * 900000000000)}`;
 
     const payload = {
@@ -167,8 +173,9 @@ export default function TransactionLogsPage() {
         message:
           row.result === "Success"
             ? "Transaction validated successfully"
-            : row.reason ?? "Transaction rejected",
-        gate_command: row.result === "Success" ? "OPEN_GATE_3000MS" : "DENY_ACCESS",
+            : (row.reason ?? "Transaction rejected"),
+        gate_command:
+          row.result === "Success" ? "OPEN_GATE_3000MS" : "DENY_ACCESS",
       },
       device: {
         name: row.device,
@@ -178,7 +185,11 @@ export default function TransactionLogsPage() {
       },
     };
 
-    setSelectedDetail({ id, payload, payloadPretty: JSON.stringify(payload, null, 2) });
+    setSelectedDetail({
+      id,
+      payload,
+      payloadPretty: JSON.stringify(payload, null, 2),
+    });
   };
 
   const closeDetail = () => setSelectedDetail(null);
@@ -202,7 +213,9 @@ export default function TransactionLogsPage() {
 
   const downloadPayload = () => {
     if (!selectedDetail) return;
-    const blob = new Blob([selectedDetail.payloadPretty], { type: "application/json;charset=utf-8" });
+    const blob = new Blob([selectedDetail.payloadPretty], {
+      type: "application/json;charset=utf-8",
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -229,15 +242,22 @@ export default function TransactionLogsPage() {
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-xs font-medium leading-4">
               <span className="text-slate-500">Staff Portal</span>
-              <span className="h-1.5 w-1 rounded-full bg-slate-500" aria-hidden="true" />
+              <span
+                className="h-1.5 w-1 rounded-full bg-slate-500"
+                aria-hidden="true"
+              />
               <span className="text-blue-600">Nhật ký giao dịch</span>
             </div>
-            <h1 className="text-3xl font-bold leading-9 text-slate-900">Nhật ký giao dịch</h1>
+            <h1 className="text-3xl font-bold leading-9 text-slate-900">
+              Nhật ký giao dịch
+            </h1>
           </div>
 
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-3 rounded-xl bg-white px-4 py-2.5 outline outline-1 outline-offset-[-1px] outline-slate-200 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
-              <span className="text-sm font-semibold leading-5 text-slate-700">Auto refresh</span>
+              <span className="text-sm font-semibold leading-5 text-slate-700">
+                Auto refresh
+              </span>
               <button
                 type="button"
                 onClick={() => setAutoRefresh((value) => !value)}
@@ -248,7 +268,7 @@ export default function TransactionLogsPage() {
               >
                 <span
                   className={`absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-white shadow transition ${
-                    autoRefresh ? "left-[18px]" : "left-[2px]"
+                    autoRefresh ? "left-[18px]" : "left-0.5"
                   }`}
                 />
               </button>
@@ -258,7 +278,10 @@ export default function TransactionLogsPage() {
               type="button"
               className="flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold leading-5 text-slate-900 outline outline-1 outline-offset-[-1px] outline-slate-200 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
             >
-              <span className="inline-flex h-2.5 w-2.5 items-center justify-center rounded bg-slate-900" aria-hidden="true" />
+              <span
+                className="inline-flex h-2.5 w-2.5 items-center justify-center rounded bg-slate-900"
+                aria-hidden="true"
+              />
               Export CSV
             </button>
           </div>
@@ -267,7 +290,9 @@ export default function TransactionLogsPage() {
         <div className="relative rounded-xl bg-white outline outline-1 outline-offset-[-1px] outline-slate-200 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
           <div className="grid grid-cols-1 gap-5 p-6 md:grid-cols-4">
             <div className="min-w-[12rem] space-y-1.5">
-              <div className="text-[10px] font-bold uppercase leading-4 text-slate-400">Khoảng thời gian</div>
+              <div className="text-[10px] font-bold uppercase leading-4 text-slate-400">
+                Khoảng thời gian
+              </div>
               <div className="relative">
                 <input
                   className="w-full rounded-xl bg-slate-50 py-2 pl-9 pr-4 text-sm leading-5 text-slate-900 outline outline-1 outline-offset-[-1px] outline-slate-200"
@@ -282,7 +307,9 @@ export default function TransactionLogsPage() {
             </div>
 
             <div className="min-w-[10rem] space-y-1.5">
-              <div className="text-[10px] font-bold uppercase leading-4 text-slate-400">Ga</div>
+              <div className="text-[10px] font-bold uppercase leading-4 text-slate-400">
+                Ga
+              </div>
               <select
                 value={station}
                 onChange={(e) => setStation(e.target.value)}
@@ -296,7 +323,9 @@ export default function TransactionLogsPage() {
             </div>
 
             <div className="min-w-[9rem] space-y-1.5">
-              <div className="text-[10px] font-bold uppercase leading-4 text-slate-400">Thiết bị</div>
+              <div className="text-[10px] font-bold uppercase leading-4 text-slate-400">
+                Thiết bị
+              </div>
               <select
                 value={device}
                 onChange={(e) => setDevice(e.target.value)}
@@ -310,7 +339,9 @@ export default function TransactionLogsPage() {
             </div>
 
             <div className="min-w-[10rem] space-y-1.5">
-              <div className="text-[10px] font-bold uppercase leading-4 text-slate-400">Kết quả</div>
+              <div className="text-[10px] font-bold uppercase leading-4 text-slate-400">
+                Kết quả
+              </div>
               <select
                 value={result}
                 onChange={(e) => setResult(e.target.value)}
@@ -337,21 +368,44 @@ export default function TransactionLogsPage() {
           <div className="bg-slate-50 border-b border-slate-200">
             <div className="grid grid-cols-[12rem_10rem_9rem_7rem_9rem_8rem_1fr] items-center gap-6 px-6 py-4">
               <div className="flex items-center gap-1">
-                <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Thời gian</span>
-                <span className="h-2 w-1 rounded bg-slate-300" aria-hidden="true" />
+                <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                  Thời gian
+                </span>
+                <span
+                  className="h-2 w-1 rounded bg-slate-300"
+                  aria-hidden="true"
+                />
               </div>
               <div className="flex items-center gap-1">
-                <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Ga</span>
-                <span className="h-2 w-1 rounded bg-slate-300" aria-hidden="true" />
+                <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                  Ga
+                </span>
+                <span
+                  className="h-2 w-1 rounded bg-slate-300"
+                  aria-hidden="true"
+                />
               </div>
               <div className="flex items-center gap-1">
-                <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Thiết bị</span>
-                <span className="h-2 w-1 rounded bg-slate-300" aria-hidden="true" />
+                <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                  Thiết bị
+                </span>
+                <span
+                  className="h-2 w-1 rounded bg-slate-300"
+                  aria-hidden="true"
+                />
               </div>
-              <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Hành động</div>
-              <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Ticket code</div>
-              <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Kết quả</div>
-              <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Lý do</div>
+              <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                Hành động
+              </div>
+              <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                Ticket code
+              </div>
+              <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                Kết quả
+              </div>
+              <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                Lý do
+              </div>
             </div>
           </div>
 
@@ -365,7 +419,9 @@ export default function TransactionLogsPage() {
                   index === 0 ? "" : "border-t border-slate-100"
                 }`}
               >
-                <div className="text-sm leading-5 text-slate-600">{row.timestamp}</div>
+                <div className="text-sm leading-5 text-slate-600">
+                  {row.timestamp}
+                </div>
                 <div className="text-sm font-medium leading-5 text-slate-900">
                   {row.station.includes(" ") ? (
                     <span>
@@ -377,7 +433,9 @@ export default function TransactionLogsPage() {
                     row.station
                   )}
                 </div>
-                <div className="text-sm font-medium leading-5 text-slate-900">{row.device}</div>
+                <div className="text-sm font-medium leading-5 text-slate-900">
+                  {row.device}
+                </div>
 
                 <div>
                   <span
@@ -412,7 +470,11 @@ export default function TransactionLogsPage() {
                 </div>
 
                 <div className="text-sm font-medium leading-5 text-slate-400">
-                  {row.reason ? <span className="text-red-600">{row.reason}</span> : "—"}
+                  {row.reason ? (
+                    <span className="text-red-600">{row.reason}</span>
+                  ) : (
+                    "—"
+                  )}
                 </div>
               </button>
             ))}
@@ -430,7 +492,10 @@ export default function TransactionLogsPage() {
                 aria-label="Previous page"
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
               >
-                <span className="h-1.5 w-1 rounded bg-slate-500" aria-hidden="true" />
+                <span
+                  className="h-1.5 w-1 rounded bg-slate-500"
+                  aria-hidden="true"
+                />
               </button>
 
               {[1, 2, 3].map((p) => (
@@ -445,12 +510,16 @@ export default function TransactionLogsPage() {
                   {p}
                 </button>
               ))}
-              <span className="px-1 text-base leading-6 text-slate-400">...</span>
+              <span className="px-1 text-base leading-6 text-slate-400">
+                ...
+              </span>
               <button
                 type="button"
                 onClick={() => setPage(totalPages)}
                 className={`h-8 w-8 rounded-md text-xs font-bold ${
-                  safePage === totalPages ? "bg-blue-600 text-white" : "text-slate-600"
+                  safePage === totalPages
+                    ? "bg-blue-600 text-white"
+                    : "text-slate-600"
                 }`}
               >
                 {totalPages}
@@ -462,7 +531,10 @@ export default function TransactionLogsPage() {
                 aria-label="Next page"
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               >
-                <span className="h-1.5 w-1 rounded bg-slate-500" aria-hidden="true" />
+                <span
+                  className="h-1.5 w-1 rounded bg-slate-500"
+                  aria-hidden="true"
+                />
               </button>
             </div>
           </div>
@@ -483,7 +555,10 @@ export default function TransactionLogsPage() {
               <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600/10">
-                    <span className="h-4 w-5 rounded bg-blue-600" aria-hidden="true" />
+                    <span
+                      className="h-4 w-5 rounded bg-blue-600"
+                      aria-hidden="true"
+                    />
                   </div>
                   <div>
                     <div className="text-lg font-bold leading-7 text-slate-900">
@@ -501,7 +576,10 @@ export default function TransactionLogsPage() {
                   className="rounded-full p-2 hover:bg-slate-50"
                   aria-label="Đóng"
                 >
-                  <span className="h-3.5 w-3.5 rounded bg-slate-400" aria-hidden="true" />
+                  <span
+                    className="h-3.5 w-3.5 rounded bg-slate-400"
+                    aria-hidden="true"
+                  />
                 </button>
               </div>
 
@@ -516,8 +594,13 @@ export default function TransactionLogsPage() {
                     onClick={copyPayload}
                     className="flex items-center gap-1 rounded-lg px-2 py-1"
                   >
-                    <span className="h-3 w-2.5 rounded bg-blue-600" aria-hidden="true" />
-                    <span className="text-xs font-bold leading-4 text-blue-600">Sao chép</span>
+                    <span
+                      className="h-3 w-2.5 rounded bg-blue-600"
+                      aria-hidden="true"
+                    />
+                    <span className="text-xs font-bold leading-4 text-blue-600">
+                      Sao chép
+                    </span>
                   </button>
                 </div>
 

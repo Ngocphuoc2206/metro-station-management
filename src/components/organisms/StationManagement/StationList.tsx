@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { stationApi } from "@features/station/stationApi";
 import { Station, StationFilters } from "@features/station/stationTypes";
 import StationFormModal from "./StationFormModal";
@@ -70,6 +70,7 @@ export default function StationList() {
     setIsConfirmOpen(true);
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleFormSubmit = async (data: any) => {
     if (editingStation) {
       await stationApi.updateStation(editingStation.id, data);
@@ -97,8 +98,18 @@ export default function StationList() {
           onClick={handleCreate}
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition flex items-center gap-2"
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 4v16m8-8H4"
+            />
           </svg>
           Thêm ga
         </button>
@@ -107,8 +118,18 @@ export default function StationList() {
       {/* Filter Bar */}
       <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-wrap gap-4 items-center">
         <div className="relative flex-1 min-w-[200px]">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          <svg
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
           </svg>
           <input
             type="text"
@@ -118,10 +139,13 @@ export default function StationList() {
             className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
           />
         </div>
-        
+
         <select
           value={filterLine}
-          onChange={(e) => { setFilterLine(e.target.value); setPage(1); }}
+          onChange={(e) => {
+            setFilterLine(e.target.value);
+            setPage(1);
+          }}
           className="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-100 min-w-[150px]"
         >
           <option value="">Tất cả tuyến</option>
@@ -131,7 +155,10 @@ export default function StationList() {
 
         <select
           value={filterStatus}
-          onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}
+          onChange={(e) => {
+            setFilterStatus(e.target.value);
+            setPage(1);
+          }}
           className="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-100 min-w-[150px]"
         >
           <option value="">Trạng thái</option>
@@ -146,38 +173,80 @@ export default function StationList() {
           <table className="w-full text-sm text-left">
             <thead>
               <tr className="border-b border-gray-50 text-gray-400">
-                <th className="px-6 py-4 font-medium tracking-wider text-xs">MÃ</th>
-                <th className="px-6 py-4 font-medium tracking-wider text-xs">TÊN GA</th>
-                <th className="px-6 py-4 font-medium tracking-wider text-xs">TUYẾN</th>
-                <th className="px-6 py-4 font-medium tracking-wider text-xs">KHU VỰC / QUẬN</th>
-                <th className="px-6 py-4 font-medium tracking-wider text-xs">TRẠNG THÁI</th>
-                <th className="px-6 py-4 font-medium tracking-wider text-xs text-right">THAO TÁC</th>
+                <th className="px-6 py-4 font-medium tracking-wider text-xs">
+                  MÃ
+                </th>
+                <th className="px-6 py-4 font-medium tracking-wider text-xs">
+                  TÊN GA
+                </th>
+                <th className="px-6 py-4 font-medium tracking-wider text-xs">
+                  TUYẾN
+                </th>
+                <th className="px-6 py-4 font-medium tracking-wider text-xs">
+                  KHU VỰC / QUẬN
+                </th>
+                <th className="px-6 py-4 font-medium tracking-wider text-xs">
+                  TRẠNG THÁI
+                </th>
+                <th className="px-6 py-4 font-medium tracking-wider text-xs text-right">
+                  THAO TÁC
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading && stations.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-400">
-                    <svg className="animate-spin h-6 w-6 mx-auto mb-2 text-blue-500" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                  <td
+                    colSpan={6}
+                    className="px-6 py-12 text-center text-gray-400"
+                  >
+                    <svg
+                      className="animate-spin h-6 w-6 mx-auto mb-2 text-blue-500"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v8H4z"
+                      ></path>
                     </svg>
                     Đang tải dữ liệu...
                   </td>
                 </tr>
               ) : stations.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                  <td
+                    colSpan={6}
+                    className="px-6 py-12 text-center text-gray-500"
+                  >
                     Không tìm thấy nhà ga nào phù hợp.
                   </td>
                 </tr>
               ) : (
                 stations.map((s) => (
-                  <tr key={s.id} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-6 py-4 font-semibold text-blue-600">{s.code}</td>
-                    <td className="px-6 py-4 font-medium text-gray-900">{s.name}</td>
+                  <tr
+                    key={s.id}
+                    className="hover:bg-gray-50/50 transition-colors"
+                  >
+                    <td className="px-6 py-4 font-semibold text-blue-600">
+                      {s.code}
+                    </td>
+                    <td className="px-6 py-4 font-medium text-gray-900">
+                      {s.name}
+                    </td>
                     <td className="px-6 py-4 text-gray-600">
-                      <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded-md text-xs font-semibold">{s.line}</span>
+                      <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded-md text-xs font-semibold">
+                        {s.line}
+                      </span>
                     </td>
                     <td className="px-6 py-4 text-gray-600">{s.zone}</td>
                     <td className="px-6 py-4">
@@ -195,17 +264,52 @@ export default function StationList() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-3">
-                        <button onClick={() => handleEdit(s)} className="text-gray-400 hover:text-blue-600 transition" title="Sửa">
-                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        <button
+                          onClick={() => handleEdit(s)}
+                          className="text-gray-400 hover:text-blue-600 transition"
+                          title="Sửa"
+                        >
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                            />
                           </svg>
                         </button>
-                        <button onClick={() => handleToggleClick(s)} className={`transition ${s.status === "active" ? "text-gray-400 hover:text-red-600" : "text-gray-400 hover:text-green-600"}`} title={s.status === "active" ? "Tạm ngưng" : "Kích hoạt"}>
-                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <button
+                          onClick={() => handleToggleClick(s)}
+                          className={`transition ${s.status === "active" ? "text-gray-400 hover:text-red-600" : "text-gray-400 hover:text-green-600"}`}
+                          title={
+                            s.status === "active" ? "Tạm ngưng" : "Kích hoạt"
+                          }
+                        >
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
                             {s.status === "active" ? (
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
+                              />
                             ) : (
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                              />
                             )}
                           </svg>
                         </button>
@@ -220,14 +324,28 @@ export default function StationList() {
 
         {/* Pagination Dummy */}
         <div className="p-4 border-t border-gray-50 mt-auto flex items-center justify-between text-sm text-gray-500">
-          <p>Hiển thị 1 - {stations.length} trong {total} nhà ga</p>
+          <p>
+            Hiển thị 1 - {stations.length} trong {total} nhà ga
+          </p>
           <div className="flex items-center gap-1">
-            <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-50 text-gray-400">&lt;</button>
-            <button className="w-8 h-8 flex items-center justify-center rounded-lg bg-blue-600 text-white font-medium shadow-sm">1</button>
-            <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-50">2</button>
-            <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-50">3</button>
-            <span className="w-8 h-8 flex items-center justify-center tracking-widest text-gray-400">...</span>
-            <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-50 text-gray-400">&gt;</button>
+            <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-50 text-gray-400">
+              &lt;
+            </button>
+            <button className="w-8 h-8 flex items-center justify-center rounded-lg bg-blue-600 text-white font-medium shadow-sm">
+              1
+            </button>
+            <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-50">
+              2
+            </button>
+            <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-50">
+              3
+            </button>
+            <span className="w-8 h-8 flex items-center justify-center tracking-widest text-gray-400">
+              ...
+            </span>
+            <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-50 text-gray-400">
+              &gt;
+            </button>
           </div>
         </div>
       </div>

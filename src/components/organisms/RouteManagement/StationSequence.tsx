@@ -7,7 +7,11 @@ interface Props {
   onUpdate: (newStations: RouteStation[]) => void;
 }
 
-export default function StationSequence({ stations: initialStations, routeColor, onUpdate }: Props) {
+export default function StationSequence({
+  stations: initialStations,
+  routeColor,
+  onUpdate,
+}: Props) {
   const [stations, setStations] = useState<RouteStation[]>(initialStations);
   const [hasChanged, setHasChanged] = useState(false);
 
@@ -16,11 +20,15 @@ export default function StationSequence({ stations: initialStations, routeColor,
   const dragOverItem = useRef<number | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setStations(initialStations);
     setHasChanged(false);
   }, [initialStations]);
 
-  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, index: number) => {
+  const handleDragStart = (
+    e: React.DragEvent<HTMLDivElement>,
+    index: number,
+  ) => {
     dragItem.current = index;
     // For visual effect
     e.dataTransfer.effectAllowed = "move";
@@ -31,7 +39,10 @@ export default function StationSequence({ stations: initialStations, routeColor,
     }, 0);
   };
 
-  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>, index: number) => {
+  const handleDragEnter = (
+    e: React.DragEvent<HTMLDivElement>,
+    index: number,
+  ) => {
     e.preventDefault();
     dragOverItem.current = index;
   };
@@ -44,7 +55,11 @@ export default function StationSequence({ stations: initialStations, routeColor,
     const el = e.target as HTMLElement;
     if (el) el.style.opacity = "1";
 
-    if (dragItem.current !== null && dragOverItem.current !== null && dragItem.current !== dragOverItem.current) {
+    if (
+      dragItem.current !== null &&
+      dragOverItem.current !== null &&
+      dragItem.current !== dragOverItem.current
+    ) {
       const newStations = [...stations];
       const draggedStationContent = newStations.splice(dragItem.current, 1)[0];
       newStations.splice(dragOverItem.current, 0, draggedStationContent);
@@ -57,7 +72,7 @@ export default function StationSequence({ stations: initialStations, routeColor,
       setStations(newStations);
       setHasChanged(true);
     }
-    
+
     dragItem.current = null;
     dragOverItem.current = null;
   };
@@ -84,12 +99,24 @@ export default function StationSequence({ stations: initialStations, routeColor,
       {/* Header */}
       <div className="px-6 py-5 flex items-center justify-between border-b border-gray-100">
         <div className="flex items-center gap-2">
-          <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+          <svg
+            className="w-5 h-5 text-blue-600"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M13 10V3L4 14h7v7l9-11h-7z"
+            />
           </svg>
           <h2 className="text-lg font-bold text-gray-900">Lộ trình chi tiết</h2>
         </div>
-        <span className="text-xs text-gray-500 font-medium">Kéo thả để sắp xếp</span>
+        <span className="text-xs text-gray-500 font-medium">
+          Kéo thả để sắp xếp
+        </span>
       </div>
 
       {/* Body: Station List */}
@@ -97,11 +124,11 @@ export default function StationSequence({ stations: initialStations, routeColor,
         <div className="relative">
           {/* Vertical connecting line */}
           <div className="absolute left-8 top-6 bottom-6 w-0.5 bg-gray-200" />
-          
+
           <div className="flex flex-col gap-4 relative z-10">
             {stations.map((st, index) => (
-              <div 
-                key={st.id} 
+              <div
+                key={st.id}
                 className="flex items-center gap-4 bg-white p-3 pr-4 rounded-xl shadow-sm border border-gray-100 group transition-all"
                 draggable
                 onDragStart={(e) => handleDragStart(e, index)}
@@ -111,11 +138,21 @@ export default function StationSequence({ stations: initialStations, routeColor,
               >
                 {/* Drag Handle */}
                 <div className="flex flex-col items-center gap-1 cursor-grab active:cursor-grabbing hover:bg-gray-50 p-1 rounded">
-                  <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
+                  <svg
+                    className="w-4 h-4 text-gray-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 8h16M4 16h16"
+                    />
                   </svg>
                 </div>
-                
+
                 {/* Sequence Circle */}
                 <div
                   className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 transition-colors"
@@ -126,20 +163,39 @@ export default function StationSequence({ stations: initialStations, routeColor,
 
                 {/* Info */}
                 <div className="flex-1 min-w-0 py-1">
-                  <h4 className="font-bold text-gray-900 text-sm truncate leading-tight mb-0.5">{st.stationName}</h4>
-                  <p className="text-xs text-gray-500 truncate leading-tight">{st.stationDetail}</p>
+                  <h4 className="font-bold text-gray-900 text-sm truncate leading-tight mb-0.5">
+                    {st.stationName}
+                  </h4>
+                  <p className="text-xs text-gray-500 truncate leading-tight">
+                    {st.stationDetail}
+                  </p>
                 </div>
               </div>
             ))}
 
             {/* Empty State / Add Button */}
-            <button onClick={handleAddStation} className="flex items-center gap-3 bg-transparent border-2 border-dashed border-gray-200 hover:border-blue-400 hover:bg-blue-50/50 rounded-xl p-3 px-4 transition-colors group mt-2">
+            <button
+              onClick={handleAddStation}
+              className="flex items-center gap-3 bg-transparent border-2 border-dashed border-gray-200 hover:border-blue-400 hover:bg-blue-50/50 rounded-xl p-3 px-4 transition-colors group mt-2"
+            >
               <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 4v16m8-8H4"
+                  />
                 </svg>
               </div>
-              <span className="text-sm font-semibold text-gray-500 group-hover:text-blue-600 transition-colors">Thêm ga vào tuyến...</span>
+              <span className="text-sm font-semibold text-gray-500 group-hover:text-blue-600 transition-colors">
+                Thêm ga vào tuyến...
+              </span>
             </button>
           </div>
         </div>
@@ -147,11 +203,16 @@ export default function StationSequence({ stations: initialStations, routeColor,
 
       {/* Footer / Context Actions */}
       <div className="p-4 bg-white border-t border-gray-100 flex items-center justify-between">
-        <span className="text-xs text-gray-500">{stations.length} Ga trong lộ trình</span>
+        <span className="text-xs text-gray-500">
+          {stations.length} Ga trong lộ trình
+        </span>
         <div className="flex gap-3">
           <button
             disabled={!hasChanged}
-            onClick={() => { setStations(initialStations); setHasChanged(false); }}
+            onClick={() => {
+              setStations(initialStations);
+              setHasChanged(false);
+            }}
             className="px-5 py-2 text-sm font-semibold text-gray-600 bg-transparent hover:bg-gray-50 rounded-xl transition-colors disabled:opacity-50"
           >
             Hủy
