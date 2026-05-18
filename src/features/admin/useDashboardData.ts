@@ -14,7 +14,8 @@ function mockKpi(range: TimeRange): KpiData {
   return {
     revenue: base * 1_000_000,
     revenueChange: range === "today" ? 12 : range === "7d" ? 8.5 : -2.3,
-    totalTrips: range === "today" ? 125_400 : range === "7d" ? 874_200 : 3_410_000,
+    totalTrips:
+      range === "today" ? 125_400 : range === "7d" ? 874_200 : 3_410_000,
     peakStart: "07:30",
     peakEnd: "08:30",
     criticalAlerts: range === "today" ? 5 : range === "7d" ? 3 : 1,
@@ -132,6 +133,7 @@ export function useDashboardData(range: TimeRange): DashboardData {
   const [alerts] = useState<Alert[]>(mockAlerts());
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setKpiLoading(true);
     setRevenueLoading(true);
     const t1 = setTimeout(() => {

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { User, UserRole } from "./userTypes";
 import { apiClient } from "@features/httpClient/ApiClient";
 
@@ -60,29 +61,39 @@ export const userApi = {
   updateUser: async (id: string, updates: Partial<User>): Promise<User> => {
     // Admin update status
     if (updates.status) {
-      const statusToUpdate = updates.status.toUpperCase() as "ACTIVE" | "INACTIVE";
+      const statusToUpdate = updates.status.toUpperCase() as
+        | "ACTIVE"
+        | "INACTIVE";
       const res = await apiClient.patch<ApiResponse<BackendUser>>(
-        `/users/${id}/status?status=${statusToUpdate}`
+        `/users/${id}/status?status=${statusToUpdate}`,
       );
       return mapBackendUserToUI(res.data.results);
     }
-    throw new Error("API Backend hiện chỉ hỗ trợ cập nhật Trạng thái (Khoá/Mở).");
+    throw new Error(
+      "API Backend hiện chỉ hỗ trợ cập nhật Trạng thái (Khoá/Mở).",
+    );
   },
 
   deleteUser: async (id: string): Promise<void> => {
-    throw new Error("Backend chưa hỗ trợ xoá người dùng hoàn toàn, chỉ được khoá (Inactive).");
-  }
+    throw new Error(
+      "Backend chưa hỗ trợ xoá người dùng hoàn toàn, chỉ được khoá (Inactive).",
+    );
+  },
 };
 
 // ==========================================
 // API DÀNH CHO CÁ NHÂN (MY-PROFILE)
 // ==========================================
 export async function getMyProfile() {
-  const res = await apiClient.get<ApiResponse<BackendUser>>("/users/my-profile");
+  const res =
+    await apiClient.get<ApiResponse<BackendUser>>("/users/my-profile");
   return res.data.results;
 }
 
 export async function updateMyProfile(data: any) {
-  const res = await apiClient.put<ApiResponse<BackendUser>>("/users/my-profile", data);
+  const res = await apiClient.put<ApiResponse<BackendUser>>(
+    "/users/my-profile",
+    data,
+  );
   return res.data.results;
 }
