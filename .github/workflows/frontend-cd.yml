@@ -82,6 +82,9 @@ jobs:
             APP_PORT=${{ secrets.APP_PORT }}
             EOF
 
-            docker compose down || true
+            docker compose down --remove-orphans || true
+            docker system df || true
+            docker system prune -af || true
             docker compose up -d --build
-            docker image prune -f
+            docker image prune -af || true
+            docker builder prune -af || true
