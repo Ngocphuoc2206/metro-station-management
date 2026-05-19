@@ -21,7 +21,7 @@
     "react-hook-form": "7.71.2",
     "react-hot-toast": "2.6.0",
     "react-redux": "9.2.0",
-    "recharts": "^3.8.1",
+    "recharts": "3.8.1",
     "redux-persist": "6.0.0",
     "status-code-enum": "1.0.0",
     "styled-components": "6.3.12",
