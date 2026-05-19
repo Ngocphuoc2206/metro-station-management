@@ -84,4 +84,4 @@ jobs:
 
             docker compose down || true
             docker compose up -d --build
-            docker image prune -af || true
+            docker image prune -f
