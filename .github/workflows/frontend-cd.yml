@@ -50,7 +50,11 @@ jobs:
           script: |
             set -e
             cd /home/ubuntu/metronext
+      
             echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
+      
             docker compose pull frontend
-            docker compose up -d frontend
+            docker compose up -d --force-recreate --no-deps frontend
+      
+            docker compose ps
             docker image prune -f
