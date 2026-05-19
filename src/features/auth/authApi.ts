@@ -28,6 +28,28 @@ const MOCK_ACCOUNTS: Record<
 // ─── Map roleName → app role ──────────────────────────────────────────────────
 type AppRole = "passenger" | "staff" | "admin" | "scanner";
 
+type RoleLike = {
+  roleId?: string;
+  roleName?: string;
+  name?: string;
+  authority?: string;
+};
+
+type LoginResultsLike = LoginApiResponse["results"] & {
+  role?: string;
+  roleId?: string;
+  roleName?: string;
+  authorities?: RoleLike[];
+  permissions?: RoleLike[];
+  user?: {
+    role?: string;
+    roleId?: string;
+    roleName?: string;
+    roles?: RoleLike[];
+    authorities?: RoleLike[];
+  };
+};
+
 function mapRoleValue(roleValue?: string): AppRole | null {
   const normalized = roleValue?.toUpperCase() ?? "";
 
@@ -39,12 +61,81 @@ function mapRoleValue(roleValue?: string): AppRole | null {
   return null;
 }
 
+function decodeJwtPayload(token?: string): Record<string, unknown> | null {
+  if (!token) return null;
+
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return null;
+
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(
+      normalized.length + ((4 - (normalized.length % 4)) % 4),
+      "=",
+    );
+    const decoded =
+      typeof window === "undefined"
+        ? Buffer.from(padded, "base64").toString("utf-8")
+        : atob(padded);
+
+    return JSON.parse(decoded) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+function readRoleLike(role: RoleLike): AppRole | null {
+  return (
+    mapRoleValue(role.roleName) ??
+    mapRoleValue(role.roleId) ??
+    mapRoleValue(role.name) ??
+    mapRoleValue(role.authority)
+  );
+}
+
+function collectRoleValues(value: unknown): AppRole[] {
+  if (!value) return [];
+
+  if (typeof value === "string") {
+    const mapped = mapRoleValue(value);
+    return mapped ? [mapped] : [];
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap(collectRoleValues);
+  }
+
+  if (typeof value === "object") {
+    const role = readRoleLike(value as RoleLike);
+    return role ? [role] : [];
+  }
+
+  return [];
+}
+
 function getPrimaryRole(
-  roles?: { roleId?: string; roleName?: string }[],
+  results: LoginResultsLike,
 ): AppRole {
-  const mappedRoles = roles
-    ?.map((role) => mapRoleValue(role.roleName) ?? mapRoleValue(role.roleId))
-    .filter((role): role is AppRole => Boolean(role)) ?? [];
+  const jwtPayload = decodeJwtPayload(results.token);
+  const mappedRoles = [
+    ...collectRoleValues(results.roles),
+    ...collectRoleValues(results.authorities),
+    ...collectRoleValues(results.permissions),
+    ...collectRoleValues(results.role),
+    ...collectRoleValues(results.roleName),
+    ...collectRoleValues(results.roleId),
+    ...collectRoleValues(results.user?.roles),
+    ...collectRoleValues(results.user?.authorities),
+    ...collectRoleValues(results.user?.role),
+    ...collectRoleValues(results.user?.roleName),
+    ...collectRoleValues(results.user?.roleId),
+    ...collectRoleValues(jwtPayload?.roles),
+    ...collectRoleValues(jwtPayload?.authorities),
+    ...collectRoleValues(jwtPayload?.scope),
+    ...collectRoleValues(jwtPayload?.role),
+    ...collectRoleValues(jwtPayload?.roleName),
+    ...collectRoleValues(jwtPayload?.roleId),
+  ];
 
   const priority: AppRole[] = ["admin", "staff", "scanner", "passenger"];
   return priority.find((role) => mappedRoles.includes(role)) ?? "passenger";
@@ -81,14 +172,14 @@ export async function loginUser(data: LoginRequest): Promise<LoginResponse> {
       API_ENDPOINTS.auth.login,
       data,
     );
-    const { results } = res.data;
+    const results = res.data.results as LoginResultsLike;
     return {
       success: true,
       data: {
         token: results.token,
         name: results.fullName,
         email: results.email,
-        role: getPrimaryRole(results.roles),
+        role: getPrimaryRole(results),
       },
     };
   } catch (error: unknown) {

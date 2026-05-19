@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { useRouter } from "next/router";
 import type { ReactNode } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import {
   Bell,
   History,
   LayoutDashboard,
+  LogOut,
   MapPinned,
   QrCode,
   Search,
@@ -13,6 +15,8 @@ import {
   TrainFront,
   UserRound,
 } from "lucide-react";
+import type { AppDispatch, RootState } from "@stores/index";
+import { logout } from "@stores/slices/userSlice";
 
 const BrandMark = ({ className = "h-8 w-8" }: { className?: string }) => (
   <svg
@@ -39,6 +43,18 @@ type PassengerShellProps = {
 
 export default function PassengerShell({ children }: PassengerShellProps) {
   const router = useRouter();
+  const dispatch = useDispatch<AppDispatch>();
+  const { name, email } = useSelector((state: RootState) => state.userReducer);
+
+  const displayName = name || "Hanh khach";
+  const displayEmail = email || "MetroNext";
+
+  const handleLogout = () => {
+    localStorage.removeItem("authToken");
+    sessionStorage.removeItem("persist:root");
+    dispatch(logout());
+    router.push("/auth/login");
+  };
 
   const isBuyTicketActive =
     router.pathname.startsWith("/passenger-page/buy-tickets-step-") ||
@@ -132,7 +148,10 @@ export default function PassengerShell({ children }: PassengerShellProps) {
           </nav>
 
           <div className="border-t border-slate-200 p-4">
-            <div className="flex items-center gap-3 rounded-2xl p-2">
+            <div
+              className="flex items-center gap-3 rounded-2xl p-2"
+              title={`${displayName} - ${displayEmail}`}
+            >
               <img
                 className="h-10 w-10 rounded-full object-cover"
                 src="https://placehold.co/40x40"
@@ -140,13 +159,21 @@ export default function PassengerShell({ children }: PassengerShellProps) {
               />
               <div className="min-w-0">
                 <p className="truncate text-sm font-bold text-neutral-900">
-                  Anh Yang Say Hi (Dzz)
+                  {displayName}
                 </p>
                 <p className="truncate text-xs text-slate-500">
                   Hành khách Gold
                 </p>
               </div>
             </div>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-red-100 bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-100"
+            >
+              <LogOut className="h-4 w-4" />
+              <span>Đăng xuất</span>
+            </button>
           </div>
         </aside>
 
@@ -168,6 +195,14 @@ export default function PassengerShell({ children }: PassengerShellProps) {
               </button>
               <button className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-600">
                 <Settings className="h-5 w-5" />
+              </button>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="hidden h-10 items-center gap-2 rounded-2xl bg-red-50 px-3 text-sm font-semibold text-red-600 transition hover:bg-red-100 sm:flex"
+              >
+                <LogOut className="h-4 w-4" />
+                <span>Đăng xuất</span>
               </button>
             </div>
           </header>
