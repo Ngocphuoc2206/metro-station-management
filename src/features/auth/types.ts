@@ -25,6 +25,11 @@ export type SignupResponse = {
   message?: string;
 };
 
+export type CheckEmailResponse = {
+  exists: boolean;
+  message?: string;
+};
+
 // ─── Login ───────────────────────────────────────────────────────────────────
 
 export type LoginRequest = {

@@ -1,8 +1,14 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# AI agent files (không push lên git)
+.agent/
+AGENTS.md
+CLAUDE.md
+
+# IDE config
+.idea/
+.vscode/
 
 # dependencies
 /node_modules
-package-lock.json
 /.pnp
 .pnp.*
 .yarn/*
@@ -32,7 +38,7 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files
-.env*
+.env.*
 !.env.development
 
 # vercel

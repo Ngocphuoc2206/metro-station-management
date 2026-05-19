@@ -1,0 +1,25 @@
+services:
+  frontend:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_BASE_API_ENDPOINT: ${NEXT_PUBLIC_BASE_API_ENDPOINT:-http://localhost:8080/api/v1}
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:3000/api}
+        NEXT_PUBLIC_LOGIN_ENDPOINT: ${NEXT_PUBLIC_LOGIN_ENDPOINT:-/api/auth/login}
+        NEXT_PUBLIC_REGISTER_ENDPOINT: ${NEXT_PUBLIC_REGISTER_ENDPOINT:-/api/auth/register}
+        NEXT_PUBLIC_LOGOUT_ENDPOINT: ${NEXT_PUBLIC_LOGOUT_ENDPOINT:-/api/auth/logout}
+        NEXT_PUBLIC_REFRESH_ENDPOINT: ${NEXT_PUBLIC_REFRESH_ENDPOINT:-/api/auth/refresh}
+        NEXT_PUBLIC_USER_PROFILE_ENDPOINT: ${NEXT_PUBLIC_USER_PROFILE_ENDPOINT:-/api/auth/users/me}
+        NEXT_PUBLIC_DEVICES_ENDPOINT: ${NEXT_PUBLIC_DEVICES_ENDPOINT:-/api/devices}
+        NEXT_PUBLIC_DEVICE_STATUS_ENDPOINT: ${NEXT_PUBLIC_DEVICE_STATUS_ENDPOINT:-/api/devices/status}
+        NEXT_PUBLIC_INCIDENTS_ENDPOINT: ${NEXT_PUBLIC_INCIDENTS_ENDPOINT:-/api/incidents}
+        NEXT_PUBLIC_GATE_LOGS_ENDPOINT: ${NEXT_PUBLIC_GATE_LOGS_ENDPOINT:-/api/gate-logs}
+        NEXT_PUBLIC_GATE_LOGS_EXPORT_ENDPOINT: ${NEXT_PUBLIC_GATE_LOGS_EXPORT_ENDPOINT:-/api/gate-logs/export}
+        NEXT_PUBLIC_USE_MOCK_AUTH: ${NEXT_PUBLIC_USE_MOCK_AUTH:-false}
+    container_name: metro-management-ticket-frontend
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    restart: unless-stopped

@@ -46,14 +46,20 @@ const TICKET_TYPES: TicketType[] = [
     id: "single",
     name: "Vé lượt",
     subtitle: "Single Journey",
-    description: ["Dành cho hành khách di chuyển một lần", "giữa hai ga đã chọn."],
+    description: [
+      "Dành cho hành khách di chuyển một lần",
+      "giữa hai ga đã chọn.",
+    ],
     price: 15000,
   },
   {
     id: "day",
     name: "Vé ngày",
     subtitle: "Day Pass",
-    description: ["Đi lại không giới hạn trong 24h", "Áp dụng cho tất cả các tuyến"],
+    description: [
+      "Đi lại không giới hạn trong 24h",
+      "Áp dụng cho tất cả các tuyến",
+    ],
     price: 40000,
     highlighted: true,
     badge: "Best Value",
@@ -62,7 +68,10 @@ const TICKET_TYPES: TicketType[] = [
     id: "month",
     name: "Vé tháng",
     subtitle: "Month Pass",
-    description: ["Di chuyển không giới hạn trong 30 ngày.", "Phù hợp cho người đi làm."],
+    description: [
+      "Di chuyển không giới hạn trong 30 ngày.",
+      "Phù hợp cho người đi làm.",
+    ],
     price: 200000,
   },
 ];
@@ -87,14 +96,21 @@ const formatCurrency = (amount: number) => {
 const MetroBuyTicketsStep2Page: NextPage = () => {
   const router = useRouter();
   const [journeyState, setJourneyState] = useState<JourneyState>(emptyState);
-  const [selectedTicketId, setSelectedTicketId] = useState<TicketType["id"]>("day");
+  const [selectedTicketId, setSelectedTicketId] =
+    useState<TicketType["id"]>("day");
 
   useEffect(() => {
     const fromQuery = {
-      originStation: typeof router.query.from === "string" ? router.query.from : "",
-      destinationStation: typeof router.query.to === "string" ? router.query.to : "",
-      travelDate: typeof router.query.date === "string" ? router.query.date : "",
-      passengerCount: typeof router.query.passengers === "string" ? router.query.passengers : "",
+      originStation:
+        typeof router.query.from === "string" ? router.query.from : "",
+      destinationStation:
+        typeof router.query.to === "string" ? router.query.to : "",
+      travelDate:
+        typeof router.query.date === "string" ? router.query.date : "",
+      passengerCount:
+        typeof router.query.passengers === "string"
+          ? router.query.passengers
+          : "",
       isRoundTrip: router.query.roundTrip === "1",
     };
 
@@ -105,6 +121,7 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
       fromQuery.passengerCount;
 
     if (hasAllFromQuery) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setJourneyState(fromQuery);
     }
 
@@ -134,8 +151,15 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
     const rawStep2Data = window.sessionStorage.getItem(STEP2_STORAGE_KEY);
     if (rawStep2Data) {
       try {
-        const parsedStep2 = JSON.parse(rawStep2Data) as { selectedTicketId?: TicketType["id"] };
-        if (parsedStep2.selectedTicketId && TICKET_TYPES.some((ticket) => ticket.id === parsedStep2.selectedTicketId)) {
+        const parsedStep2 = JSON.parse(rawStep2Data) as {
+          selectedTicketId?: TicketType["id"];
+        };
+        if (
+          parsedStep2.selectedTicketId &&
+          TICKET_TYPES.some(
+            (ticket) => ticket.id === parsedStep2.selectedTicketId,
+          )
+        ) {
           setSelectedTicketId(parsedStep2.selectedTicketId);
         }
       } catch {
@@ -149,20 +173,26 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
       return;
     }
 
-    window.sessionStorage.setItem(STEP2_STORAGE_KEY, JSON.stringify({ selectedTicketId }));
+    window.sessionStorage.setItem(
+      STEP2_STORAGE_KEY,
+      JSON.stringify({ selectedTicketId }),
+    );
   }, [selectedTicketId]);
 
   const hasJourneyState = useMemo(() => {
     return Boolean(
       journeyState.originStation &&
-        journeyState.destinationStation &&
-        journeyState.travelDate &&
-        journeyState.passengerCount,
+      journeyState.destinationStation &&
+      journeyState.travelDate &&
+      journeyState.passengerCount,
     );
   }, [journeyState]);
 
   const selectedTicket = useMemo(() => {
-    return TICKET_TYPES.find((ticket) => ticket.id === selectedTicketId) ?? TICKET_TYPES[1];
+    return (
+      TICKET_TYPES.find((ticket) => ticket.id === selectedTicketId) ??
+      TICKET_TYPES[1]
+    );
   }, [selectedTicketId]);
 
   const serviceFee = 0;
@@ -198,7 +228,9 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
       <div className="mx-auto w-full max-w-[1200px]">
         <section className="flex min-w-0 flex-col gap-6">
           <div className="flex flex-col gap-4">
-            <h1 className="text-4xl leading-10 font-black text-neutral-900">Mua vé</h1>
+            <h1 className="text-4xl leading-10 font-black text-neutral-900">
+              Mua vé
+            </h1>
 
             <div className="flex items-start gap-8 border-b border-slate-300 text-sm font-bold tracking-tight">
               <div className="border-b-[3px] border-blue-600 pb-3 pt-4 text-blue-600 opacity-70">
@@ -207,8 +239,12 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
                   1. Hành trình
                 </span>
               </div>
-              <div className="border-b-[3px] border-blue-600 pb-3 pt-4 text-blue-600">2. Loại vé</div>
-              <div className="border-b-[3px] border-transparent pb-3 pt-4 text-slate-500">3. Thanh toán</div>
+              <div className="border-b-[3px] border-blue-600 pb-3 pt-4 text-blue-600">
+                2. Loại vé
+              </div>
+              <div className="border-b-[3px] border-transparent pb-3 pt-4 text-slate-500">
+                3. Thanh toán
+              </div>
             </div>
           </div>
 
@@ -233,12 +269,19 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
                       ) : null}
 
                       <div className="pb-6">
-                        <h3 className="text-lg font-bold leading-7 text-neutral-900">{ticket.name}</h3>
-                        <p className="text-xs leading-4 text-slate-500">{ticket.subtitle}</p>
+                        <h3 className="text-lg font-bold leading-7 text-neutral-900">
+                          {ticket.name}
+                        </h3>
+                        <p className="text-xs leading-4 text-slate-500">
+                          {ticket.subtitle}
+                        </p>
 
                         <ul className="pt-3 text-sm leading-5 text-slate-500">
                           {ticket.description.map((line) => (
-                            <li key={line} className="mb-2 flex items-start gap-2">
+                            <li
+                              key={line}
+                              className="mb-2 flex items-start gap-2"
+                            >
                               {ticket.highlighted ? (
                                 <Circle className="mt-1 h-2.5 w-2.5 fill-blue-600 text-blue-600" />
                               ) : (
@@ -280,9 +323,12 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-blue-400 opacity-90" />
                 <div className="absolute -right-8 top-0 h-32 w-40 rounded-l-full bg-white/20" />
                 <div className="absolute inset-0 flex flex-col justify-center px-8 text-white">
-                  <h3 className="text-lg font-bold leading-7">Trải nghiệm MetroNext 5 sao</h3>
+                  <h3 className="text-lg font-bold leading-7">
+                    Trải nghiệm MetroNext 5 sao
+                  </h3>
                   <p className="max-w-96 text-xs leading-4 opacity-90">
-                    Tiết kiệm hơn khi sử dụng vé tháng trực tuyến. Nhanh chóng, tiện lợi, an toàn.
+                    Tiết kiệm hơn khi sử dụng vé tháng trực tuyến. Nhanh chóng,
+                    tiện lợi, an toàn.
                   </p>
                 </div>
               </article>
@@ -290,7 +336,9 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
 
             <aside className="w-full">
               <article className="flex flex-col gap-4 rounded-xl bg-white p-6 shadow-[0px_1px_2px_rgba(0,0,0,0.05)] outline outline-1 outline-slate-200">
-                <h3 className="text-lg leading-7 font-bold text-neutral-900">Tóm tắt đơn</h3>
+                <h3 className="text-lg leading-7 font-bold text-neutral-900">
+                  Tóm tắt đơn
+                </h3>
 
                 {hasJourneyState ? (
                   <div className="flex flex-col gap-4">
@@ -301,7 +349,8 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
                           Ga đi - Ga đến
                         </p>
                         <p className="text-sm font-medium leading-5 text-neutral-900">
-                          {journeyState.originStation} - {journeyState.destinationStation}
+                          {journeyState.originStation} -{" "}
+                          {journeyState.destinationStation}
                         </p>
                       </div>
                     </div>
@@ -319,7 +368,10 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
                     </div>
 
                     <div className="rounded-lg border border-slate-200 p-3 text-xs text-slate-600">
-                      Ngày đi: <span className="font-semibold text-neutral-900">{formatDate(journeyState.travelDate)}</span>
+                      Ngày đi:{" "}
+                      <span className="font-semibold text-neutral-900">
+                        {formatDate(journeyState.travelDate)}
+                      </span>
                     </div>
                   </div>
                 ) : (
@@ -331,15 +383,23 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
                 <div className="flex flex-col gap-2 border-t border-slate-200 pt-6 text-sm">
                   <div className="flex items-center justify-between">
                     <span className="text-slate-500">Tạm tính:</span>
-                    <span className="font-semibold text-neutral-900">{formatCurrency(selectedTicket.price)}</span>
+                    <span className="font-semibold text-neutral-900">
+                      {formatCurrency(selectedTicket.price)}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-slate-500">Phí dịch vụ:</span>
-                    <span className="font-semibold text-neutral-900">{formatCurrency(serviceFee)}</span>
+                    <span className="font-semibold text-neutral-900">
+                      {formatCurrency(serviceFee)}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between border-t border-slate-200 pt-2">
-                    <span className="text-base font-bold text-neutral-900">Tổng cộng:</span>
-                    <span className="text-xl font-black text-blue-600">{formatCurrency(totalPrice)}</span>
+                    <span className="text-base font-bold text-neutral-900">
+                      Tổng cộng:
+                    </span>
+                    <span className="text-xl font-black text-blue-600">
+                      {formatCurrency(totalPrice)}
+                    </span>
                   </div>
                 </div>
 
@@ -349,7 +409,9 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
                     onClick={handleContinue}
                     disabled={!hasJourneyState}
                     className={`inline-flex items-center justify-center gap-4 rounded-xl py-4 text-base font-bold text-white transition ${
-                      hasJourneyState ? "bg-blue-600 hover:bg-blue-700" : "cursor-not-allowed bg-slate-300"
+                      hasJourneyState
+                        ? "bg-blue-600 hover:bg-blue-700"
+                        : "cursor-not-allowed bg-slate-300"
                     }`}
                   >
                     Tiếp tục thanh toán

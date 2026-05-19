@@ -89,17 +89,25 @@ const formatCurrency = (amount: number) => {
 
 const MetroBuyTicketsStep3Page: NextPage = () => {
   const router = useRouter();
-  const [journeyState, setJourneyState] = useState<JourneyState>(emptyJourneyState);
+  const [journeyState, setJourneyState] =
+    useState<JourneyState>(emptyJourneyState);
   const [step2State, setStep2State] = useState<Step2State>({});
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>("ewallet");
+  const [selectedPaymentMethod, setSelectedPaymentMethod] =
+    useState<PaymentMethod>("ewallet");
   const [promotionCode, setPromotionCode] = useState("");
 
   useEffect(() => {
     const fromQuery = {
-      originStation: typeof router.query.from === "string" ? router.query.from : "",
-      destinationStation: typeof router.query.to === "string" ? router.query.to : "",
-      travelDate: typeof router.query.date === "string" ? router.query.date : "",
-      passengerCount: typeof router.query.passengers === "string" ? router.query.passengers : "",
+      originStation:
+        typeof router.query.from === "string" ? router.query.from : "",
+      destinationStation:
+        typeof router.query.to === "string" ? router.query.to : "",
+      travelDate:
+        typeof router.query.date === "string" ? router.query.date : "",
+      passengerCount:
+        typeof router.query.passengers === "string"
+          ? router.query.passengers
+          : "",
       isRoundTrip: router.query.roundTrip === "1",
     };
 
@@ -110,6 +118,7 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
       fromQuery.passengerCount;
 
     if (hasAllFromQuery) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setJourneyState(fromQuery);
     }
 
@@ -149,14 +158,15 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
     }
   }, [router.query]);
 
-  const ticketTypeFromQuery = typeof router.query.ticketType === "string" ? router.query.ticketType : "";
+  const ticketTypeFromQuery =
+    typeof router.query.ticketType === "string" ? router.query.ticketType : "";
 
   const hasJourneyState = useMemo(() => {
     return Boolean(
       journeyState.originStation &&
-        journeyState.destinationStation &&
-        journeyState.travelDate &&
-        journeyState.passengerCount,
+      journeyState.destinationStation &&
+      journeyState.travelDate &&
+      journeyState.passengerCount,
     );
   }, [journeyState]);
 
@@ -168,7 +178,10 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
       id: defaultTicket.id,
       name: step2State.selectedTicketName || defaultTicket.name,
       subtitle: step2State.selectedTicketSubtitle || defaultTicket.subtitle,
-      price: typeof step2State.selectedTicketPrice === "number" ? step2State.selectedTicketPrice : defaultTicket.price,
+      price:
+        typeof step2State.selectedTicketPrice === "number"
+          ? step2State.selectedTicketPrice
+          : defaultTicket.price,
     };
   }, [step2State, ticketTypeFromQuery]);
 
@@ -212,7 +225,9 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
       <div className="mx-auto w-full max-w-[1200px]">
         <section className="flex min-w-0 flex-col gap-6">
           <div className="flex flex-col gap-4">
-            <h1 className="text-4xl leading-10 font-black text-neutral-900">Mua vé</h1>
+            <h1 className="text-4xl leading-10 font-black text-neutral-900">
+              Mua vé
+            </h1>
 
             <div className="flex items-start gap-8 border-b border-slate-300 text-sm font-bold tracking-tight">
               <div className="border-b-[3px] border-green-500 pb-3 pt-4 text-green-500">
@@ -227,14 +242,18 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
                   2. Loại vé
                 </span>
               </div>
-              <div className="border-b-[3px] border-blue-600 pb-3 pt-4 text-blue-600">3. Thanh toán</div>
+              <div className="border-b-[3px] border-blue-600 pb-3 pt-4 text-blue-600">
+                3. Thanh toán
+              </div>
             </div>
           </div>
 
           <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
             <div className="flex min-w-0 flex-col gap-6">
               <article className="flex flex-col gap-6 rounded-xl bg-white p-8 shadow-[0px_1px_2px_rgba(0,0,0,0.05)] outline outline-1 outline-slate-200">
-                <h2 className="text-xl leading-7 font-bold text-neutral-900">Phương thức thanh toán</h2>
+                <h2 className="text-xl leading-7 font-bold text-neutral-900">
+                  Phương thức thanh toán
+                </h2>
 
                 <div className="flex flex-col gap-4">
                   <button
@@ -249,25 +268,43 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
                     <div className="flex items-center gap-4">
                       <span
                         className={`flex h-6 w-6 items-center justify-center rounded-full border-2 ${
-                          selectedPaymentMethod === "ewallet" ? "border-blue-600" : "border-slate-300"
+                          selectedPaymentMethod === "ewallet"
+                            ? "border-blue-600"
+                            : "border-slate-300"
                         }`}
                       >
                         <span
                           className={`h-3 w-3 rounded-full ${
-                            selectedPaymentMethod === "ewallet" ? "bg-blue-600" : "bg-transparent"
+                            selectedPaymentMethod === "ewallet"
+                              ? "bg-blue-600"
+                              : "bg-transparent"
                           }`}
                         />
                       </span>
                       <div>
-                        <p className="text-base leading-6 font-bold text-neutral-900">Ví điện tử</p>
+                        <p className="text-base leading-6 font-bold text-neutral-900">
+                          Ví điện tử
+                        </p>
                         <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] leading-4 font-bold text-neutral-900">
-                          <span className="rounded-xl bg-slate-200 px-2 py-0.5">MOMO</span>
-                          <span className="rounded-xl bg-slate-200 px-2 py-0.5">ZALOPAY</span>
-                          <span className="rounded-xl bg-slate-200 px-2 py-0.5">SHOPEEPAY</span>
+                          <span className="rounded-xl bg-slate-200 px-2 py-0.5">
+                            MOMO
+                          </span>
+                          <span className="rounded-xl bg-slate-200 px-2 py-0.5">
+                            ZALOPAY
+                          </span>
+                          <span className="rounded-xl bg-slate-200 px-2 py-0.5">
+                            SHOPEEPAY
+                          </span>
                         </div>
                       </div>
                     </div>
-                    <Wallet className={selectedPaymentMethod === "ewallet" ? "h-5 w-5 text-blue-600" : "h-5 w-5 text-slate-500"} />
+                    <Wallet
+                      className={
+                        selectedPaymentMethod === "ewallet"
+                          ? "h-5 w-5 text-blue-600"
+                          : "h-5 w-5 text-slate-500"
+                      }
+                    />
                   </button>
 
                   <button
@@ -282,25 +319,43 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
                     <div className="flex items-center gap-4">
                       <span
                         className={`flex h-6 w-6 items-center justify-center rounded-full border-2 ${
-                          selectedPaymentMethod === "card" ? "border-blue-600" : "border-slate-300"
+                          selectedPaymentMethod === "card"
+                            ? "border-blue-600"
+                            : "border-slate-300"
                         }`}
                       >
                         <span
                           className={`h-3 w-3 rounded-full ${
-                            selectedPaymentMethod === "card" ? "bg-blue-600" : "bg-transparent"
+                            selectedPaymentMethod === "card"
+                              ? "bg-blue-600"
+                              : "bg-transparent"
                           }`}
                         />
                       </span>
                       <div>
-                        <p className="text-base leading-6 font-bold text-neutral-900">Thẻ ngân hàng</p>
+                        <p className="text-base leading-6 font-bold text-neutral-900">
+                          Thẻ ngân hàng
+                        </p>
                         <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] leading-4 font-bold text-neutral-900">
-                          <span className="rounded-xl bg-slate-200 px-2 py-0.5">VISA</span>
-                          <span className="rounded-xl bg-slate-200 px-2 py-0.5">MASTERCARD</span>
-                          <span className="rounded-xl bg-slate-200 px-2 py-0.5">ATM</span>
+                          <span className="rounded-xl bg-slate-200 px-2 py-0.5">
+                            VISA
+                          </span>
+                          <span className="rounded-xl bg-slate-200 px-2 py-0.5">
+                            MASTERCARD
+                          </span>
+                          <span className="rounded-xl bg-slate-200 px-2 py-0.5">
+                            ATM
+                          </span>
                         </div>
                       </div>
                     </div>
-                    <CreditCard className={selectedPaymentMethod === "card" ? "h-5 w-5 text-blue-600" : "h-5 w-5 text-slate-500"} />
+                    <CreditCard
+                      className={
+                        selectedPaymentMethod === "card"
+                          ? "h-5 w-5 text-blue-600"
+                          : "h-5 w-5 text-slate-500"
+                      }
+                    />
                   </button>
 
                   <button
@@ -315,26 +370,43 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
                     <div className="flex items-center gap-4">
                       <span
                         className={`flex h-6 w-6 items-center justify-center rounded-full border-2 ${
-                          selectedPaymentMethod === "vietqr" ? "border-blue-600" : "border-slate-300"
+                          selectedPaymentMethod === "vietqr"
+                            ? "border-blue-600"
+                            : "border-slate-300"
                         }`}
                       >
                         <span
                           className={`h-3 w-3 rounded-full ${
-                            selectedPaymentMethod === "vietqr" ? "bg-blue-600" : "bg-transparent"
+                            selectedPaymentMethod === "vietqr"
+                              ? "bg-blue-600"
+                              : "bg-transparent"
                           }`}
                         />
                       </span>
                       <div>
-                        <p className="text-base leading-6 font-bold text-neutral-900">Quét mã QR (VietQR)</p>
-                        <p className="text-xs leading-4 text-slate-500">Thanh toán nhanh qua ứng dụng ngân hàng</p>
+                        <p className="text-base leading-6 font-bold text-neutral-900">
+                          Quét mã QR (VietQR)
+                        </p>
+                        <p className="text-xs leading-4 text-slate-500">
+                          Thanh toán nhanh qua ứng dụng ngân hàng
+                        </p>
                       </div>
                     </div>
-                    <QrCode className={selectedPaymentMethod === "vietqr" ? "h-5 w-5 text-blue-600" : "h-5 w-5 text-slate-500"} />
+                    <QrCode
+                      className={
+                        selectedPaymentMethod === "vietqr"
+                          ? "h-5 w-5 text-blue-600"
+                          : "h-5 w-5 text-slate-500"
+                      }
+                    />
                   </button>
                 </div>
 
                 <div className="flex flex-col gap-2 border-t border-slate-200 pt-10">
-                  <label htmlFor="promotion-code" className="text-sm leading-5 font-semibold text-neutral-900">
+                  <label
+                    htmlFor="promotion-code"
+                    className="text-sm leading-5 font-semibold text-neutral-900"
+                  >
                     Mã giảm giá
                   </label>
                   <div className="flex flex-col gap-2 sm:flex-row">
@@ -362,9 +434,12 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
                 <div className="absolute inset-0 flex items-center gap-4 px-8 text-white">
                   <ShieldCheck className="h-6 w-6 opacity-90" />
                   <div>
-                    <h3 className="text-base leading-6 font-bold">Thanh toán an toàn & bảo mật</h3>
+                    <h3 className="text-base leading-6 font-bold">
+                      Thanh toán an toàn & bảo mật
+                    </h3>
                     <p className="text-xs leading-4 opacity-80">
-                      Mọi giao dịch đều được mã hóa và bảo mật theo tiêu chuẩn quốc tế.
+                      Mọi giao dịch đều được mã hóa và bảo mật theo tiêu chuẩn
+                      quốc tế.
                     </p>
                   </div>
                 </div>
@@ -373,16 +448,21 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
 
             <aside className="w-full">
               <article className="flex flex-col gap-4 rounded-xl bg-white p-6 shadow-[0px_1px_2px_rgba(0,0,0,0.05)] outline outline-1 outline-slate-200">
-                <h3 className="text-lg leading-7 font-bold text-neutral-900">Tóm tắt đơn</h3>
+                <h3 className="text-lg leading-7 font-bold text-neutral-900">
+                  Tóm tắt đơn
+                </h3>
 
                 {hasJourneyState ? (
                   <div className="flex flex-col gap-4">
                     <div className="flex items-start gap-3">
                       <MapPin className="mt-0.5 h-4 w-4 text-blue-600" />
                       <div>
-                        <p className="text-[10px] font-bold leading-4 tracking-wide text-slate-500 uppercase">Hành trình</p>
+                        <p className="text-[10px] font-bold leading-4 tracking-wide text-slate-500 uppercase">
+                          Hành trình
+                        </p>
                         <p className="text-sm font-medium leading-5 text-neutral-900">
-                          {journeyState.originStation} - {journeyState.destinationStation}
+                          {journeyState.originStation} -{" "}
+                          {journeyState.destinationStation}
                         </p>
                       </div>
                     </div>
@@ -390,7 +470,9 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
                     <div className="flex items-start gap-3">
                       <Ticket className="mt-0.5 h-4 w-4 text-blue-600" />
                       <div>
-                        <p className="text-[10px] font-bold leading-4 tracking-wide text-slate-500 uppercase">Loại vé</p>
+                        <p className="text-[10px] font-bold leading-4 tracking-wide text-slate-500 uppercase">
+                          Loại vé
+                        </p>
                         <p className="text-sm font-medium leading-5 text-neutral-900">
                           {selectedTicket.name} ({selectedTicket.subtitle})
                         </p>
@@ -398,7 +480,10 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
                     </div>
 
                     <div className="rounded-lg border border-slate-200 p-3 text-xs text-slate-600">
-                      Ngày đi: <span className="font-semibold text-neutral-900">{formatDate(journeyState.travelDate)}</span>
+                      Ngày đi:{" "}
+                      <span className="font-semibold text-neutral-900">
+                        {formatDate(journeyState.travelDate)}
+                      </span>
                     </div>
                   </div>
                 ) : (
@@ -410,15 +495,23 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
                 <div className="flex flex-col gap-2 border-t border-slate-200 pt-6 text-sm">
                   <div className="flex items-center justify-between">
                     <span className="text-slate-500">Tạm tính:</span>
-                    <span className="font-semibold text-neutral-900">{formatCurrency(subtotal)}</span>
+                    <span className="font-semibold text-neutral-900">
+                      {formatCurrency(subtotal)}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-slate-500">Phí dịch vụ:</span>
-                    <span className="font-semibold text-neutral-900">{formatCurrency(serviceFee)}</span>
+                    <span className="font-semibold text-neutral-900">
+                      {formatCurrency(serviceFee)}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between border-t border-slate-200 pt-2">
-                    <span className="text-base font-bold text-neutral-900">Tổng thanh toán:</span>
-                    <span className="text-2xl font-black text-blue-600">{formatCurrency(totalPrice)}</span>
+                    <span className="text-base font-bold text-neutral-900">
+                      Tổng thanh toán:
+                    </span>
+                    <span className="text-2xl font-black text-blue-600">
+                      {formatCurrency(totalPrice)}
+                    </span>
                   </div>
                 </div>
 
@@ -428,7 +521,9 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
                     onClick={handleConfirmPayment}
                     disabled={!hasJourneyState}
                     className={`inline-flex items-center justify-center gap-3 rounded-xl py-4 text-base font-bold text-white transition ${
-                      hasJourneyState ? "bg-blue-600 hover:bg-blue-700" : "cursor-not-allowed bg-slate-300"
+                      hasJourneyState
+                        ? "bg-blue-600 hover:bg-blue-700"
+                        : "cursor-not-allowed bg-slate-300"
                     }`}
                   >
                     Xác nhận thanh toán

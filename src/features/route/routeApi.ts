@@ -1,6 +1,6 @@
 import { Route } from "./routeTypes";
 
-let fakeRoutes: Route[] = [
+const fakeRoutes: Route[] = [
   {
     id: "r1",
     name: "Line 01 - Metro Blue",
@@ -12,9 +12,27 @@ let fakeRoutes: Route[] = [
     endTime: "11:30 PM",
     headwayMinutes: 5,
     stations: [
-      { id: "rs1", stationId: "sta1", stationName: "Ga Bến Thành", stationDetail: "Ga trung tâm / Kết nối Line 01, 02, 03", sequenceOrder: 1 },
-      { id: "rs2", stationId: "sta2", stationName: "Ga Nhà hát Thành phố", stationDetail: "Ga ngầm / Quận 1", sequenceOrder: 2 },
-      { id: "rs3", stationId: "sta3", stationName: "Ga Ba Son", stationDetail: "Ga ngầm / Quận 1", sequenceOrder: 3 },
+      {
+        id: "rs1",
+        stationId: "sta1",
+        stationName: "Ga Bến Thành",
+        stationDetail: "Ga trung tâm / Kết nối Line 01, 02, 03",
+        sequenceOrder: 1,
+      },
+      {
+        id: "rs2",
+        stationId: "sta2",
+        stationName: "Ga Nhà hát Thành phố",
+        stationDetail: "Ga ngầm / Quận 1",
+        sequenceOrder: 2,
+      },
+      {
+        id: "rs3",
+        stationId: "sta3",
+        stationName: "Ga Ba Son",
+        stationDetail: "Ga ngầm / Quận 1",
+        sequenceOrder: 3,
+      },
     ],
   },
   {
@@ -28,8 +46,20 @@ let fakeRoutes: Route[] = [
     endTime: "11:00 PM",
     headwayMinutes: 8,
     stations: [
-      { id: "rs4", stationId: "sta1", stationName: "Ga Bến Thành", stationDetail: "Ga trung tâm / Kết nối Line 01, 02, 03", sequenceOrder: 1 },
-      { id: "rs5", stationId: "sta4", stationName: "Ga Tao Đàn", stationDetail: "Ga ngầm / Quận 1", sequenceOrder: 2 },
+      {
+        id: "rs4",
+        stationId: "sta1",
+        stationName: "Ga Bến Thành",
+        stationDetail: "Ga trung tâm / Kết nối Line 01, 02, 03",
+        sequenceOrder: 1,
+      },
+      {
+        id: "rs5",
+        stationId: "sta4",
+        stationName: "Ga Tao Đàn",
+        stationDetail: "Ga ngầm / Quận 1",
+        sequenceOrder: 2,
+      },
     ],
   },
   {
@@ -54,7 +84,9 @@ export const routeApi = {
     return [...fakeRoutes];
   },
 
-  createRoute: async (data: Omit<Route, "id" | "stationsCount" | "stations">): Promise<Route> => {
+  createRoute: async (
+    data: Omit<Route, "id" | "stationsCount" | "stations">,
+  ): Promise<Route> => {
     await delay(800);
     const newRoute: Route = {
       ...data,
@@ -70,7 +102,7 @@ export const routeApi = {
     await delay(800);
     const index = fakeRoutes.findIndex((r) => r.id === id);
     if (index === -1) throw new Error("Route not found");
-    
+
     fakeRoutes[index] = { ...fakeRoutes[index], ...updates };
     return fakeRoutes[index];
   },

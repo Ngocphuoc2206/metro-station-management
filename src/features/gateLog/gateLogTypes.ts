@@ -4,9 +4,9 @@ export type TicketType = "qr" | "nfc" | "monthly" | "daily";
 
 export interface GateLog {
   id: string;
-  timestamp: string;      // "DD/MM/YYYY HH:mm:ss"
-  gateId: string;         // "G-STN-001"
-  ticketId: string;       // "G-STN-0003"
+  timestamp: string; // "DD/MM/YYYY HH:mm:ss"
+  gateId: string; // "G-STN-001"
+  ticketId: string; // "G-STN-0003"
   action: GateAction;
   result: GateResult;
   ticketType: TicketType;
@@ -15,12 +15,12 @@ export interface GateLog {
   station: string;
   rejectionReason?: string; // only when result === "rejected"
   deviceFirmware?: string;
-  transactionMs?: number;   // response time in ms
+  transactionMs?: number; // response time in ms
 }
 
-export interface GateLogFilters {
+export interface GateLogs {
   timeRange: "all" | "today" | "1h" | "8h";
-  gateId: string;          // "" = all
+  gateId: string; // "" = all
   ticketType: TicketType | "";
   result: GateResult | "";
 }
