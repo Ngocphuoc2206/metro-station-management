@@ -1,47 +1,40 @@
-name: Deploy Frontend
+name: Frontend CD
 
 on:
-  push:
+  pull_request:
     branches:
       - develop
-
-permissions:
-  contents: read
-  packages: write
+    types:
+      - closed
 
 jobs:
-  build-and-deploy:
+  deploy-frontend:
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Check required secrets
+      - name: Determine target folder
+        id: target
         run: |
-          test -n "${{ secrets.GHCR_TOKEN }}" || (echo "GHCR_TOKEN is missing" && exit 1)
-          test -n "${{ secrets.GHCR_USERNAME }}" || (echo "GHCR_USERNAME is missing" && exit 1)
-          test -n "${{ secrets.EC2_HOST }}" || (echo "EC2_HOST is missing" && exit 1)
-          test -n "${{ secrets.EC2_USER }}" || (echo "EC2_USER is missing" && exit 1)
-          test -n "${{ secrets.EC2_SSH_KEY }}" || (echo "EC2_SSH_KEY is missing" && exit 1)
+          if [ "${GITHUB_REF_NAME}" = "develop" ]; then
+            echo "folder=frontend-staging" >> $GITHUB_OUTPUT
+          else
+            echo "folder=frontend-prod" >> $GITHUB_OUTPUT
+          fi
 
-      - name: Set image name
-        run: echo "IMAGE_NAME=ghcr.io/ngocphuoc2206/metro-station-management-frontend:latest" >> $GITHUB_ENV
+      - name: Copy frontend source to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "src,public,package.json,package-lock.json,next.config.ts,Dockerfile,docker-compose.yml,.dockerignore,tsconfig.json,postcss.config.mjs,eslint.config.mjs"
+          target: "/home/ubuntu/apps/metro_server/${{ steps.target.outputs.folder }}/source"
 
-      - name: Login to GHCR
-        run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
-
-      - name: Build Docker image
-        run: |
-          docker build \
-            --build-arg NEXT_PUBLIC_BASE_API_ENDPOINT="${{ vars.NEXT_PUBLIC_BASE_API_ENDPOINT }}" \
-            --build-arg NEXT_PUBLIC_USE_MOCK_AUTH="false" \
-            -t $IMAGE_NAME .
-
-      - name: Push Docker image
-        run: docker push $IMAGE_NAME
-
-      - name: Deploy on EC2
+      - name: Deploy frontend on server
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -49,12 +42,46 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             set -e
-            cd /home/ubuntu/metronext
-      
-            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
-      
-            docker compose pull frontend
-            docker compose up -d --force-recreate --no-deps frontend
-      
-            docker compose ps
-            docker image prune -f
+            cd /home/ubuntu/apps/metro_server/${{ steps.target.outputs.folder }}/source
+
+            cat > .env <<EOF
+            NEXT_PUBLIC_BASE_API_ENDPOINT=${{ secrets.NEXT_PUBLIC_BASE_API_ENDPOINT }}
+            NEXT_PUBLIC_AUTH_LOGIN_ENDPOINT=${{ secrets.NEXT_PUBLIC_AUTH_LOGIN_ENDPOINT }}
+            NEXT_PUBLIC_AUTH_INTROSPECT_ENDPOINT=${{ secrets.NEXT_PUBLIC_AUTH_INTROSPECT_ENDPOINT }}
+            NEXT_PUBLIC_AUTH_REFRESH_ENDPOINT=${{ secrets.NEXT_PUBLIC_AUTH_REFRESH_ENDPOINT }}
+            NEXT_PUBLIC_AUTH_LOGOUT_ENDPOINT=${{ secrets.NEXT_PUBLIC_AUTH_LOGOUT_ENDPOINT }}
+            NEXT_PUBLIC_USERS_ENDPOINT=${{ secrets.NEXT_PUBLIC_USERS_ENDPOINT }}
+            NEXT_PUBLIC_USER_ME_ENDPOINT=${{ secrets.NEXT_PUBLIC_USER_ME_ENDPOINT }}
+            NEXT_PUBLIC_MY_PROFILE_ENDPOINT=${{ secrets.NEXT_PUBLIC_MY_PROFILE_ENDPOINT }}
+            NEXT_PUBLIC_MY_PASSWORD_ENDPOINT=${{ secrets.NEXT_PUBLIC_MY_PASSWORD_ENDPOINT }}
+            NEXT_PUBLIC_MY_SETTINGS_ENDPOINT=${{ secrets.NEXT_PUBLIC_MY_SETTINGS_ENDPOINT }}
+            NEXT_PUBLIC_MY_AVATAR_ENDPOINT=${{ secrets.NEXT_PUBLIC_MY_AVATAR_ENDPOINT }}
+            NEXT_PUBLIC_ADMIN_DEVICES_ENDPOINT=${{ secrets.NEXT_PUBLIC_ADMIN_DEVICES_ENDPOINT }}
+            NEXT_PUBLIC_STAFF_DEVICES_ENDPOINT=${{ secrets.NEXT_PUBLIC_STAFF_DEVICES_ENDPOINT }}
+            NEXT_PUBLIC_STAFF_GATES_ENDPOINT=${{ secrets.NEXT_PUBLIC_STAFF_GATES_ENDPOINT }}
+            NEXT_PUBLIC_STAFF_GATE_SCAN_ENDPOINT=${{ secrets.NEXT_PUBLIC_STAFF_GATE_SCAN_ENDPOINT }}
+            NEXT_PUBLIC_STAFF_GATE_LOGS_ENDPOINT=${{ secrets.NEXT_PUBLIC_STAFF_GATE_LOGS_ENDPOINT }}
+            NEXT_PUBLIC_ROUTES_ENDPOINT=${{ secrets.NEXT_PUBLIC_ROUTES_ENDPOINT }}
+            NEXT_PUBLIC_ADMIN_ROUTES_ENDPOINT=${{ secrets.NEXT_PUBLIC_ADMIN_ROUTES_ENDPOINT }}
+            NEXT_PUBLIC_STATIONS_ENDPOINT=${{ secrets.NEXT_PUBLIC_STATIONS_ENDPOINT }}
+            NEXT_PUBLIC_ADMIN_STATIONS_ENDPOINT=${{ secrets.NEXT_PUBLIC_ADMIN_STATIONS_ENDPOINT }}
+            NEXT_PUBLIC_FARE_CALCULATE_ENDPOINT=${{ secrets.NEXT_PUBLIC_FARE_CALCULATE_ENDPOINT }}
+            NEXT_PUBLIC_ADMIN_FARES_ENDPOINT=${{ secrets.NEXT_PUBLIC_ADMIN_FARES_ENDPOINT }}
+            NEXT_PUBLIC_TICKET_TYPES_ENDPOINT=${{ secrets.NEXT_PUBLIC_TICKET_TYPES_ENDPOINT }}
+            NEXT_PUBLIC_ADMIN_TICKET_TYPES_ENDPOINT=${{ secrets.NEXT_PUBLIC_ADMIN_TICKET_TYPES_ENDPOINT }}
+            NEXT_PUBLIC_ORDERS_ENDPOINT=${{ secrets.NEXT_PUBLIC_ORDERS_ENDPOINT }}
+            NEXT_PUBLIC_ORDER_PREVIEW_ENDPOINT=${{ secrets.NEXT_PUBLIC_ORDER_PREVIEW_ENDPOINT }}
+            NEXT_PUBLIC_ORDER_STATUS_ENDPOINT=${{ secrets.NEXT_PUBLIC_ORDER_STATUS_ENDPOINT }}
+            NEXT_PUBLIC_PAYMENTS_ENDPOINT=${{ secrets.NEXT_PUBLIC_PAYMENTS_ENDPOINT }}
+            NEXT_PUBLIC_PAYMENT_INIT_ENDPOINT=${{ secrets.NEXT_PUBLIC_PAYMENT_INIT_ENDPOINT }}
+            NEXT_PUBLIC_PAYMENT_CALLBACK_ENDPOINT=${{ secrets.NEXT_PUBLIC_PAYMENT_CALLBACK_ENDPOINT }}
+            NEXT_PUBLIC_MY_TICKETS_ENDPOINT=${{ secrets.NEXT_PUBLIC_MY_TICKETS_ENDPOINT }}
+            NEXT_PUBLIC_PERMISSIONS_MATRIX_ENDPOINT=${{ secrets.NEXT_PUBLIC_PERMISSIONS_MATRIX_ENDPOINT }}
+            NEXT_PUBLIC_PERMISSION_ROLES_ENDPOINT=${{ secrets.NEXT_PUBLIC_PERMISSION_ROLES_ENDPOINT }}
+            NEXT_PUBLIC_MEDIA_UPLOAD_ENDPOINT=${{ secrets.NEXT_PUBLIC_MEDIA_UPLOAD_ENDPOINT }}
+            APP_PORT=${{ secrets.APP_PORT }}
+            EOF
+
+            docker compose down || true
+            docker compose up -d --build
+            docker image prune -af || true
