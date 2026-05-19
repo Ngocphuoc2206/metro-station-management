@@ -26,20 +26,28 @@ const MOCK_ACCOUNTS: Record<
 };
 
 // ─── Map roleName → app role ──────────────────────────────────────────────────
-function mapRole(
-  roleName: string
-): "passenger" | "staff" | "admin" | "scanner" {
-  const map: Record<string, "passenger" | "staff" | "admin" | "scanner"> = {
-    ROLE_PASSENGER: "passenger",
-    PASSENGER: "passenger",
-    ROLE_STAFF: "staff",
-    STAFF: "staff",
-    ROLE_ADMIN: "admin",
-    ADMIN: "admin",
-    ROLE_SCANNER: "scanner",
-    SCANNER: "scanner",
-  };
-  return map[roleName?.toUpperCase()] ?? "passenger";
+type AppRole = "passenger" | "staff" | "admin" | "scanner";
+
+function mapRoleValue(roleValue?: string): AppRole | null {
+  const normalized = roleValue?.toUpperCase() ?? "";
+
+  if (normalized.includes("ADMIN")) return "admin";
+  if (normalized.includes("STAFF")) return "staff";
+  if (normalized.includes("SCANNER")) return "scanner";
+  if (normalized.includes("PASSENGER")) return "passenger";
+
+  return null;
+}
+
+function getPrimaryRole(
+  roles?: { roleId?: string; roleName?: string }[],
+): AppRole {
+  const mappedRoles = roles
+    ?.map((role) => mapRoleValue(role.roleName) ?? mapRoleValue(role.roleId))
+    .filter((role): role is AppRole => Boolean(role)) ?? [];
+
+  const priority: AppRole[] = ["admin", "staff", "scanner", "passenger"];
+  return priority.find((role) => mappedRoles.includes(role)) ?? "passenger";
 }
 
 // ─── Login ────────────────────────────────────────────────────────────────────
@@ -74,14 +82,13 @@ export async function loginUser(data: LoginRequest): Promise<LoginResponse> {
       data,
     );
     const { results } = res.data;
-    const primaryRole = results.roles?.[0]?.roleName ?? "ROLE_PASSENGER";
     return {
       success: true,
       data: {
         token: results.token,
         name: results.fullName,
         email: results.email,
-        role: mapRole(primaryRole),
+        role: getPrimaryRole(results.roles),
       },
     };
   } catch (error: unknown) {
