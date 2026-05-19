@@ -5,6 +5,7 @@ import { useSelector } from "react-redux";
 import { useRouter } from "next/router";
 import type { RootState } from "@stores/index";
 import SignupForm from "@components/organisms/SignupForm/SignupForm";
+import { ROLE_PATHS } from "@/const/Role";
 
 const SignupPage: NextPage = () => {
   const router = useRouter();
@@ -12,7 +13,7 @@ const SignupPage: NextPage = () => {
 
   useEffect(() => {
     if (isLoggedIn && role) {
-      router.replace(`/dashboard/${role}`);
+      router.replace(ROLE_PATHS[role] || "/auth/login");
     }
   }, [isLoggedIn, role, router]);
 

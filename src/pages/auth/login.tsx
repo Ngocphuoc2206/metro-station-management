@@ -5,6 +5,7 @@ import { useSelector } from "react-redux";
 import { useRouter } from "next/router";
 import type { RootState } from "@stores/index";
 import LoginForm from "@components/organisms/LoginForm/LoginForm";
+import { ROLE_PATHS } from "@/const/Role";
 
 const LoginPage: NextPage = () => {
   const router = useRouter();
@@ -12,7 +13,7 @@ const LoginPage: NextPage = () => {
 
   useEffect(() => {
     if (isLoggedIn && role) {
-      const redirectTo = (router.query.redirectTo as string) || `/dashboard/${role}`;
+      const redirectTo = (router.query.redirectTo as string) || ROLE_PATHS[role] || "/auth/login";
       router.replace(redirectTo);
     }
   }, [isLoggedIn, role, router]);

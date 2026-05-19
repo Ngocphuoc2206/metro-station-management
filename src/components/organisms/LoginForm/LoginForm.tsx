@@ -29,12 +29,6 @@ export default function LoginForm() {
     defaultValues: { email: "", password: "" },
   });
 
-  const ROLE_PATHS: Record<string, string> = {
-    passenger: "/dashboard/passenger",
-    staff: "/staff",
-    admin: "/dashboard/admin",
-  };
-
   const onSubmit = async (data: LoginFormValues) => {
     setApiError(null);
     setIsLoading(true);
