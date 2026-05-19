@@ -5,6 +5,7 @@ import {
   Bell,
   History,
   LayoutDashboard,
+  MapPinned,
   QrCode,
   Search,
   Settings,
@@ -75,6 +76,12 @@ export default function PassengerShell({ children }: PassengerShellProps) {
       active: router.pathname === "/passenger-page/schedule",
     },
     {
+      label: "Bản đồ live",
+      href: "/passenger-page/live-map",
+      icon: MapPinned,
+      active: router.pathname === "/passenger-page/live-map",
+    },
+    {
       label: "Tài khoản",
       href: "/passenger-page/account",
       icon: UserRound,
@@ -90,7 +97,10 @@ export default function PassengerShell({ children }: PassengerShellProps) {
             <div className="flex h-8 w-8 items-center justify-center overflow-hidden">
               <BrandMark className="h-8 w-8" />
             </div>
-            <Link href="/" className="text-xl font-bold leading-6 text-neutral-900">
+            <Link
+              href="/"
+              className="text-xl font-bold leading-6 text-neutral-900"
+            >
               MetroNext
             </Link>
           </div>
@@ -103,11 +113,19 @@ export default function PassengerShell({ children }: PassengerShellProps) {
                   key={item.label}
                   href={item.href}
                   className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition ${
-                    item.active ? "bg-blue-600/10 text-blue-600" : "text-slate-700 hover:bg-slate-100"
+                    item.active
+                      ? "bg-blue-600/10 text-blue-600"
+                      : "text-slate-700 hover:bg-slate-100"
                   }`}
                 >
-                  <Icon className={`h-4 w-4 ${item.active ? "text-blue-600" : "text-slate-500"}`} />
-                  <span className={`text-sm ${item.active ? "font-semibold" : "font-medium"}`}>{item.label}</span>
+                  <Icon
+                    className={`h-4 w-4 ${item.active ? "text-blue-600" : "text-slate-500"}`}
+                  />
+                  <span
+                    className={`text-sm ${item.active ? "font-semibold" : "font-medium"}`}
+                  >
+                    {item.label}
+                  </span>
                 </Link>
               );
             })}
@@ -121,8 +139,12 @@ export default function PassengerShell({ children }: PassengerShellProps) {
                 alt="Passenger avatar"
               />
               <div className="min-w-0">
-                <p className="truncate text-sm font-bold text-neutral-900">Anh Yang Say Hi (Dzz)</p>
-                <p className="truncate text-xs text-slate-500">Hành khách Gold</p>
+                <p className="truncate text-sm font-bold text-neutral-900">
+                  Anh Yang Say Hi (Dzz)
+                </p>
+                <p className="truncate text-xs text-slate-500">
+                  Hành khách Gold
+                </p>
               </div>
             </div>
           </div>

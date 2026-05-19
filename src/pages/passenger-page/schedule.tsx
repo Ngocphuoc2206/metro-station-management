@@ -356,7 +356,10 @@ export default function PassengerSchedulePage() {
                       </div>
                     </div>
 
-                    <div className="relative h-48 overflow-hidden rounded-3xl border border-slate-200 shadow-sm">
+                    <Link
+                      href="/passenger-page/live-map"
+                      className="relative block h-48 overflow-hidden rounded-3xl border border-slate-200 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                    >
                       <img
                         src="https://placehold.co/295x190"
                         alt="Bản đồ tàu"
@@ -373,7 +376,7 @@ export default function PassengerSchedulePage() {
                           </div>
                         </div>
                       </div>
-                    </div>
+                    </Link>
                   </div>
                 </div>
               </div>
