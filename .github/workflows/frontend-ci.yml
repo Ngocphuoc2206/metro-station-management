@@ -1,15 +1,15 @@
 name: Frontend CI
+
 on:
   push:
     branches:
-      - main
       - develop
     paths:
       - "src/**"
       - "public/**"
       - "package.json"
       - "package-lock.json"
-      - "next.config.ts"
+      - "next.config.js"
       - "Dockerfile"
       - ".github/workflows/frontend-ci.yml"
   pull_request:
@@ -23,9 +23,11 @@ on:
 jobs:
   lint-build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
+
       - name: Set up Node.js 20
         uses: actions/setup-node@v4
         with:
@@ -40,25 +42,3 @@ jobs:
 
       - name: Build app
         run: npm run build
-
-      - name: Build Docker image
-        run: |
-          docker build \
-            --build-arg NEXT_PUBLIC_BASE_API_ENDPOINT=http://localhost:8080/api/v1 \
-            --build-arg NEXT_PUBLIC_USE_MOCK_AUTH=false \
-            --build-arg NEXT_PUBLIC_AUTH_LOGIN_ENDPOINT=/auth/login \
-            --build-arg NEXT_PUBLIC_AUTH_INTROSPECT_ENDPOINT=/auth/introspect \
-            --build-arg NEXT_PUBLIC_AUTH_REFRESH_ENDPOINT=/auth/refresh \
-            --build-arg NEXT_PUBLIC_AUTH_LOGOUT_ENDPOINT=/auth/logout \
-            --build-arg NEXT_PUBLIC_USERS_ENDPOINT=/users \
-            --build-arg NEXT_PUBLIC_USER_ME_ENDPOINT=/users/me \
-            --build-arg NEXT_PUBLIC_MY_PROFILE_ENDPOINT=/my/profile \
-            --build-arg NEXT_PUBLIC_MY_TICKETS_ENDPOINT=/my/tickets \
-            --build-arg NEXT_PUBLIC_STAFF_DEVICES_ENDPOINT=/staff/devices \
-            --build-arg NEXT_PUBLIC_STAFF_GATES_ENDPOINT=/staff/gates \
-            --build-arg NEXT_PUBLIC_STAFF_GATE_LOGS_ENDPOINT=/staff/gates/logs \
-            --build-arg NEXT_PUBLIC_ROUTES_ENDPOINT=/routes \
-            --build-arg NEXT_PUBLIC_STATIONS_ENDPOINT=/stations \
-            --build-arg NEXT_PUBLIC_TICKET_TYPES_ENDPOINT=/ticket-types \
-            --build-arg NEXT_PUBLIC_PAYMENTS_ENDPOINT=/payments \
-            -t event-frontend:ci .
