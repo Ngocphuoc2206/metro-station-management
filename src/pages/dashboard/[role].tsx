@@ -5,7 +5,7 @@ import type { RootState } from "@stores/index";
 
 /** Redirect shim — maps old /dashboard/[role] to new static portal paths */
 const PORTAL_PATHS: Record<string, string> = {
-  passenger: "/dashboard/passenger",
+  passenger: "/passenger-page",
   staff: "/staff",
   admin: "/dashboard/admin",
   scanner: "/dashboard/scanner",
