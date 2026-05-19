@@ -1,4 +1,5 @@
 import { apiClient } from "@features/httpClient/ApiClient";
+import { API_ENDPOINTS } from "@features/httpClient/apiEndpoints";
 import type {
   SignupRequest,
   SignupResponse,
@@ -68,7 +69,10 @@ export async function loginUser(data: LoginRequest): Promise<LoginResponse> {
 
   // REAL API
   try {
-    const res = await apiClient.post<LoginApiResponse>("/auth/login", data);
+    const res = await apiClient.post<LoginApiResponse>(
+      API_ENDPOINTS.auth.login,
+      data,
+    );
     const { results } = res.data;
     const primaryRole = results.roles?.[0]?.roleName ?? "ROLE_PASSENGER";
     return {
@@ -104,7 +108,7 @@ export async function registerUser(
 
   // REAL API
   try {
-    await apiClient.post<RegisterApiResponse>("/users", data);
+    await apiClient.post<RegisterApiResponse>(API_ENDPOINTS.users.base, data);
     return { success: true };
   } catch (error: unknown) {
     const err = error as {
