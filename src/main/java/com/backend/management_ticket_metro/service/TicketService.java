@@ -1,24 +1,22 @@
 package com.backend.management_ticket_metro.service;
 
 import com.backend.management_ticket_metro.common.ErrorCode;
-import com.backend.management_ticket_metro.dto.response.TicketQrTokenResponse;
-import com.backend.management_ticket_metro.dto.response.TicketResponse;
-import com.backend.management_ticket_metro.dto.response.TicketUsageResponse;
+import com.backend.management_ticket_metro.dto.response.*;
 import com.backend.management_ticket_metro.entity.*;
 import com.backend.management_ticket_metro.enums.TicketStatus;
 import com.backend.management_ticket_metro.exception.AppException;
+import com.backend.management_ticket_metro.mapper.OrderMapper;
 import com.backend.management_ticket_metro.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -32,6 +30,8 @@ public class TicketService {
     private final UserRepository userRepository;
     private final TicketTypeRepository ticketTypeRepository;
     private final QRCodeService qrCodeService;
+    private final OrderRepository orderRepository;
+    private final OrderMapper orderMapper;
 
     // Issuing Tickets
     @Transactional
@@ -215,6 +215,55 @@ public class TicketService {
                 .orderItemId(item.getOrderItemId())
                 .fromStationId(item.getFromStation() != null ? item.getFromStation().getStationId() : null)
                 .toStationId(item.getToStation() != null ? item.getToStation().getStationId() : null)
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public PassengerDashboardResponse getPassengerDashboard() {
+        User user = getCurrentUser();
+        LocalDateTime now = LocalDateTime.now();
+
+        //Calculate the number of active tickets (ready or active and not yet expired).
+        List<TicketStatus> activeStatuses = List.of(TicketStatus.READY, TicketStatus.ACTIVE);
+        long activeTickets = ticketRepository.countByUserAndStatusInAndExpiredAtAfter(user, activeStatuses, now);
+
+        //Calculate the total number of successful trips.
+        long totalTrips = ticketUsageRepository.countByTicketUserAndSuccessTrue(user);
+
+        //Take the 3 most recent tickets.
+        Pageable topThree = PageRequest.of(0, 3);
+        List<TicketResponse> recentTickets = ticketRepository.findByUserOrderByIssuedAtDesc(user, topThree)
+                .stream()
+                .map(this::toTicketResponse)
+                .toList();
+
+        //Take the last 5 trips (card swipes)
+        Pageable topFive = PageRequest.of(0, 5);
+        List<TicketUsageResponse> recentTrips = ticketUsageRepository.findByTicketUserOrderByScannedAtDesc(user, topFive)
+                .stream()
+                .map(usage -> TicketUsageResponse.builder()
+                        .id(usage.getId())
+                        .stationId(usage.getStationId())
+                        .gateId(usage.getGateId())
+                        .success(usage.getSuccess())
+                        .message(usage.getMessage())
+                        .scannedAt(usage.getScannedAt())
+                        .build())
+                .toList();
+
+        //Get the latest order.
+        OrderResponse latestOrder = null;
+        List<Order> orders = orderRepository.findByUserOrderByCreatedAtDesc(user, PageRequest.of(0, 1));
+        if (!orders.isEmpty()) {
+            latestOrder = orderMapper.toOrderResponse(orders.get(0));
+        }
+
+        return PassengerDashboardResponse.builder()
+                .activeTickets(activeTickets)
+                .totalTrips(totalTrips)
+                .recentTickets(recentTickets)
+                .recentTrips(recentTrips)
+                .latestOrder(latestOrder)
                 .build();
     }
 }
