@@ -3,11 +3,16 @@ import type { NextPage } from "next";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
 import PassengerShell from "@components/templates/PassengerShell";
+import { orderApi } from "@features/order/orderApi";
+import { myTicketApi } from "@features/myTicket/myTicketApi";
+import type { MyTicketDto, QrTokenResult } from "@features/myTicket/myTicketTypes";
 import { Check, Download, QrCode, ShieldCheck, Ticket } from "lucide-react";
 
 type JourneyState = {
-  originStation: string;
-  destinationStation: string;
+  originStationId: string;
+  originStationName: string;
+  destinationStationId: string;
+  destinationStationName: string;
   travelDate: string;
   passengerCount: string;
   isRoundTrip: boolean;
@@ -31,8 +36,10 @@ const STEP1_STORAGE_KEY = "metro-buy-ticket-step1";
 const STEP2_STORAGE_KEY = "metro-buy-ticket-step2";
 
 const emptyJourneyState: JourneyState = {
-  originStation: "",
-  destinationStation: "",
+  originStationId: "",
+  originStationName: "",
+  destinationStationId: "",
+  destinationStationName: "",
   travelDate: "",
   passengerCount: "",
   isRoundTrip: false,
@@ -77,6 +84,50 @@ const randomTicketCode = () => {
   return `MN-2026-${seed}`;
 };
 
+const extractTicketIdFromOrder = (order: unknown): string | null => {
+  if (!order || typeof order !== "object") return null;
+  const anyOrder = order as Record<string, unknown>;
+
+  const direct = anyOrder.ticketId;
+  if (typeof direct === "string" && direct) return direct;
+
+  const data = anyOrder.data;
+  if (data && typeof data === "object") {
+    const anyData = data as Record<string, unknown>;
+    const ticketId = anyData.ticketId;
+    if (typeof ticketId === "string" && ticketId) return ticketId;
+
+    const ticket = anyData.ticket;
+    if (ticket && typeof ticket === "object") {
+      const anyTicket = ticket as Record<string, unknown>;
+      const nested = anyTicket.id;
+      if (typeof nested === "string" && nested) return nested;
+    }
+
+    const tickets = anyData.tickets;
+    if (Array.isArray(tickets) && tickets.length > 0) {
+      const first = tickets[0] as Record<string, unknown> | null;
+      const firstId = first?.id;
+      if (typeof firstId === "string" && firstId) return firstId;
+    }
+  }
+
+  return null;
+};
+
+const formatIsoDateTime = (value?: string) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
+};
+
 const MetroPaymentSuccessPage: NextPage = () => {
   const router = useRouter();
   const [journeyState, setJourneyState] =
@@ -84,6 +135,13 @@ const MetroPaymentSuccessPage: NextPage = () => {
   const [step2State, setStep2State] = useState<Step2State>({});
   const [ticketCode, setTicketCode] = useState("MN-2026-0000");
   const [showSuccessToast, setShowSuccessToast] = useState(true);
+
+  const [isLoadingTicket, setIsLoadingTicket] = useState(false);
+  const [ticketError, setTicketError] = useState<string | null>(null);
+  const [ticketId, setTicketId] = useState<string | null>(null);
+  const [ticket, setTicket] = useState<MyTicketDto | null>(null);
+  const [qrToken, setQrToken] = useState<QrTokenResult | null>(null);
+  const [qrImageUrl, setQrImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const toastTimer = window.setTimeout(() => {
@@ -100,9 +158,9 @@ const MetroPaymentSuccessPage: NextPage = () => {
     setTicketCode(randomTicketCode());
 
     const fromQuery = {
-      originStation:
+      originStationId:
         typeof router.query.from === "string" ? router.query.from : "",
-      destinationStation:
+      destinationStationId:
         typeof router.query.to === "string" ? router.query.to : "",
       travelDate:
         typeof router.query.date === "string" ? router.query.date : "",
@@ -114,13 +172,17 @@ const MetroPaymentSuccessPage: NextPage = () => {
     };
 
     const hasJourneyFromQuery =
-      fromQuery.originStation &&
-      fromQuery.destinationStation &&
+      fromQuery.originStationId &&
+      fromQuery.destinationStationId &&
       fromQuery.travelDate &&
       fromQuery.passengerCount;
 
     if (hasJourneyFromQuery) {
-      setJourneyState(fromQuery);
+      setJourneyState({
+        ...fromQuery,
+        originStationName: "",
+        destinationStationName: "",
+      });
     }
 
     if (typeof window === "undefined") {
@@ -133,8 +195,8 @@ const MetroPaymentSuccessPage: NextPage = () => {
         try {
           const parsedStep1 = JSON.parse(rawStep1) as JourneyState;
           if (
-            parsedStep1.originStation &&
-            parsedStep1.destinationStation &&
+            parsedStep1.originStationId &&
+            parsedStep1.destinationStationId &&
             parsedStep1.travelDate &&
             parsedStep1.passengerCount
           ) {
@@ -159,6 +221,65 @@ const MetroPaymentSuccessPage: NextPage = () => {
     }
   }, [router.query]);
 
+  const orderIdFromQuery =
+    typeof router.query.orderId === "string" ? router.query.orderId : "";
+
+  useEffect(() => {
+    if (!orderIdFromQuery) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadTicketAndQr = async () => {
+      setIsLoadingTicket(true);
+      setTicketError(null);
+
+      try {
+        const order = await orderApi.getById(orderIdFromQuery);
+        const extractedTicketId = extractTicketIdFromOrder(order);
+
+        if (!extractedTicketId) {
+          throw new Error(
+            "Không tìm thấy ticketId trong đơn hàng. Vui lòng kiểm tra response GET /orders/{id}.",
+          );
+        }
+
+        if (cancelled) return;
+        setTicketId(extractedTicketId);
+
+        const [ticketRes, tokenRes] = await Promise.all([
+          myTicketApi.getById(extractedTicketId),
+          myTicketApi.createQrToken(extractedTicketId),
+        ]);
+
+        if (cancelled) return;
+        setTicket(ticketRes);
+        setQrToken(tokenRes);
+
+        // Generate QR image from token
+        const qrcode = await import("qrcode");
+        const dataUrl = await qrcode.toDataURL(tokenRes.token, {
+          margin: 1,
+          width: 192,
+        });
+
+        if (!cancelled) setQrImageUrl(dataUrl);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Không thể tải vé";
+        if (!cancelled) setTicketError(message);
+      } finally {
+        if (!cancelled) setIsLoadingTicket(false);
+      }
+    };
+
+    loadTicketAndQr();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [orderIdFromQuery]);
+
   const ticketTypeFromQuery =
     typeof router.query.ticketType === "string" ? router.query.ticketType : "";
 
@@ -178,12 +299,19 @@ const MetroPaymentSuccessPage: NextPage = () => {
   }, [step2State, ticketTypeFromQuery]);
 
   const journeyText = useMemo(() => {
-    if (!journeyState.originStation || !journeyState.destinationStation) {
+    if (!journeyState.originStationId || !journeyState.destinationStationId) {
       return "Đang cập nhật";
     }
 
-    return `${journeyState.originStation} - ${journeyState.destinationStation}`;
-  }, [journeyState.destinationStation, journeyState.originStation]);
+    const from = journeyState.originStationName || journeyState.originStationId;
+    const to = journeyState.destinationStationName || journeyState.destinationStationId;
+    return `${from} - ${to}`;
+  }, [
+    journeyState.destinationStationId,
+    journeyState.destinationStationName,
+    journeyState.originStationId,
+    journeyState.originStationName,
+  ]);
 
   const handleViewMyTickets = async () => {
     await router.push("/passenger-page/my-tickets");
@@ -235,6 +363,12 @@ const MetroPaymentSuccessPage: NextPage = () => {
               </div>
 
               <div className="mx-auto flex w-full max-w-[480px] flex-col gap-8">
+                {ticketError ? (
+                  <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 outline outline-1 outline-offset-[-1px] outline-red-100">
+                    {ticketError}
+                  </div>
+                ) : null}
+
                 <article className="relative overflow-hidden rounded-xl bg-white outline outline-1 outline-slate-200 shadow-2xl">
                   <div className="pointer-events-none absolute inset-0 opacity-10 [background:linear-gradient(315deg,rgba(37,99,235,0.05)_12%,transparent_13%,rgba(37,99,235,0.05)_100%)]" />
 
@@ -245,7 +379,7 @@ const MetroPaymentSuccessPage: NextPage = () => {
                           MetroNext Digital Ticket
                         </p>
                         <h3 className="text-xl font-bold leading-7 text-slate-900">
-                          {selectedTicket.name}
+                          {ticket?.ticketTypeId ? selectedTicket.name : selectedTicket.name}
                         </h3>
                       </div>
                       <div className="text-right">
@@ -253,7 +387,7 @@ const MetroPaymentSuccessPage: NextPage = () => {
                           Trạng thái
                         </p>
                         <span className="inline-flex rounded-lg bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-600">
-                          Sẵn sàng
+                          {isLoadingTicket ? "Đang tải" : "Sẵn sàng"}
                         </span>
                       </div>
                     </div>
@@ -262,17 +396,28 @@ const MetroPaymentSuccessPage: NextPage = () => {
                       <div className="rounded-3xl bg-white p-4 shadow-[inset_0px_2px_4px_1px_rgba(0,0,0,0.05)] outline outline-1 outline-slate-100">
                         <div className="relative h-48 w-48 overflow-hidden rounded-xl border border-dashed border-slate-300 bg-slate-50">
                           <img
-                            src="https://placehold.co/192x192?text=QR+Demo"
-                            alt="QR code mô phỏng"
+                            src={
+                              qrImageUrl ??
+                              "https://placehold.co/192x192?text=QR+Loading"
+                            }
+                            alt={
+                              qrImageUrl
+                                ? "QR token động"
+                                : "Đang tải QR token"
+                            }
                             className="h-full w-full object-cover"
                           />
                           <div className="absolute inset-x-0 bottom-0 bg-slate-900/70 px-2 py-1 text-center text-[10px] text-white">
-                            QR giả lập
+                            {qrToken?.expiresAt
+                              ? `Hết hạn: ${formatIsoDateTime(qrToken.expiresAt)}`
+                              : qrImageUrl
+                                ? "QR token động"
+                                : "Đang tải..."}
                           </div>
                         </div>
                       </div>
                       <p className="pt-4 font-mono text-[10px] tracking-wide text-slate-400">
-                        {ticketCode}
+                        {qrToken?.token ?? ticket?.code ?? ticketId ?? ticketCode}
                       </p>
                     </div>
 
@@ -290,7 +435,7 @@ const MetroPaymentSuccessPage: NextPage = () => {
                           Mã vé
                         </p>
                         <p className="text-sm font-bold leading-5 text-slate-900">
-                          {ticketCode}
+                          {ticket?.code ?? ticketId ?? ticketCode}
                         </p>
                       </div>
                       <div className="absolute left-0 top-[79px] w-full">

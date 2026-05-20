@@ -1,7 +1,9 @@
 import type { NextPage } from "next";
 import { useRouter } from "next/router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import PassengerShell from "@components/templates/PassengerShell";
+import { publicApi } from "@features/public/publicApi";
+import type { StationDto } from "@features/public/publicTypes";
 import {
   ArrowRight,
   CalendarDays,
@@ -10,19 +12,6 @@ import {
   MapPin,
   User,
 } from "lucide-react";
-
-const MOCK_STATIONS = [
-  "Ben Thanh",
-  "Nha hat Thanh pho",
-  "Ba Son",
-  "Van Thanh Park",
-  "Tan Cang",
-  "Thao Dien",
-  "An Phu",
-  "Rach Chiec",
-  "Phuoc Long",
-  "Binh Thai",
-];
 
 const PASSENGER_OPTIONS = [
   "1 người lớn",
@@ -49,38 +38,70 @@ const formatDate = (date: string) => {
 
 const MetroBuyTicketsStep1Page: NextPage = () => {
   const router = useRouter();
-  const [originStation, setOriginStation] = useState("");
-  const [destinationStation, setDestinationStation] = useState("");
+  const [stations, setStations] = useState<StationDto[]>([]);
+  const [isLoadingStations, setIsLoadingStations] = useState(true);
+  const [stationsError, setStationsError] = useState<string | null>(null);
+
+  const [originStationId, setOriginStationId] = useState("");
+  const [destinationStationId, setDestinationStationId] = useState("");
   const [travelDate, setTravelDate] = useState("");
   const [passengerCount, setPassengerCount] = useState(PASSENGER_OPTIONS[0]);
   const [isRoundTrip, setIsRoundTrip] = useState(false);
 
+  const stationsById = useMemo(() => {
+    return new Map(stations.map((s) => [s.id, s]));
+  }, [stations]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadStations = async () => {
+      setIsLoadingStations(true);
+      setStationsError(null);
+      try {
+        const data = await publicApi.getStations();
+        if (!cancelled) setStations(data);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Không thể tải danh sách ga";
+        if (!cancelled) setStationsError(message);
+      } finally {
+        if (!cancelled) setIsLoadingStations(false);
+      }
+    };
+
+    loadStations();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const destinationOptions = useMemo(() => {
-    return MOCK_STATIONS.filter((station) => station !== originStation);
-  }, [originStation]);
+    return stations.filter((station) => station.id !== originStationId);
+  }, [originStationId, stations]);
 
   const originOptions = useMemo(() => {
-    return MOCK_STATIONS.filter((station) => station !== destinationStation);
-  }, [destinationStation]);
+    return stations.filter((station) => station.id !== destinationStationId);
+  }, [destinationStationId, stations]);
 
   const isFormReady =
-    originStation.length > 0 &&
-    destinationStation.length > 0 &&
-    originStation !== destinationStation &&
+    originStationId.length > 0 &&
+    destinationStationId.length > 0 &&
+    originStationId !== destinationStationId &&
     travelDate.length > 0 &&
     passengerCount.length > 0;
 
   const handleOriginChange = (value: string) => {
-    setOriginStation(value);
-    if (value && value === destinationStation) {
-      setDestinationStation("");
+    setOriginStationId(value);
+    if (value && value === destinationStationId) {
+      setDestinationStationId("");
     }
   };
 
   const handleDestinationChange = (value: string) => {
-    setDestinationStation(value);
-    if (value && value === originStation) {
-      setOriginStation("");
+    setDestinationStationId(value);
+    if (value && value === originStationId) {
+      setOriginStationId("");
     }
   };
 
@@ -90,8 +111,11 @@ const MetroBuyTicketsStep1Page: NextPage = () => {
     }
 
     const payload = {
-      originStation,
-      destinationStation,
+      originStationId,
+      originStationName: stationsById.get(originStationId)?.name ?? originStationId,
+      destinationStationId,
+      destinationStationName:
+        stationsById.get(destinationStationId)?.name ?? destinationStationId,
       travelDate,
       passengerCount,
       isRoundTrip,
@@ -104,8 +128,8 @@ const MetroBuyTicketsStep1Page: NextPage = () => {
     await router.push({
       pathname: "/passenger-page/buy-tickets-step-2",
       query: {
-        from: originStation,
-        to: destinationStation,
+        from: originStationId,
+        to: destinationStationId,
         date: travelDate,
         passengers: passengerCount,
         roundTrip: isRoundTrip ? "1" : "0",
@@ -149,16 +173,17 @@ const MetroBuyTicketsStep1Page: NextPage = () => {
                     </span>
                     <div className="relative">
                       <select
-                        value={originStation}
+                        value={originStationId}
                         onChange={(event) =>
                           handleOriginChange(event.target.value)
                         }
+                        disabled={isLoadingStations}
                         className="h-12 w-full appearance-none rounded-xl border border-slate-300 bg-white px-4 pr-10 text-base text-neutral-900 outline-none focus:border-blue-600"
                       >
                         <option value="">Chọn ga đi</option>
                         {originOptions.map((station) => (
-                          <option key={station} value={station}>
-                            {station}
+                          <option key={station.id} value={station.id}>
+                            {station.name}
                           </option>
                         ))}
                       </select>
@@ -172,29 +197,36 @@ const MetroBuyTicketsStep1Page: NextPage = () => {
                     </span>
                     <div className="relative">
                       <select
-                        value={destinationStation}
+                        value={destinationStationId}
                         onChange={(event) =>
                           handleDestinationChange(event.target.value)
                         }
+                        disabled={isLoadingStations}
                         className="h-12 w-full appearance-none rounded-xl border border-slate-300 bg-white px-4 pr-10 text-base text-neutral-900 outline-none focus:border-blue-600"
                       >
                         <option value="">Chọn ga đến</option>
                         {destinationOptions.map((station) => (
-                          <option key={station} value={station}>
-                            {station}
+                          <option key={station.id} value={station.id}>
+                            {station.name}
                           </option>
                         ))}
                       </select>
                       <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
                     </div>
-                    {originStation &&
-                    destinationStation &&
-                    originStation === destinationStation ? (
+                    {originStationId &&
+                    destinationStationId &&
+                    originStationId === destinationStationId ? (
                       <span className="text-xs text-red-600">
                         Ga đi và ga đến không được trùng nhau
                       </span>
                     ) : null}
                   </label>
+
+                  {stationsError ? (
+                    <div className="sm:col-span-2 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 outline outline-1 outline-offset-[-1px] outline-red-100">
+                      {stationsError}
+                    </div>
+                  ) : null}
 
                   <label className="flex flex-col gap-2">
                     <span className="text-sm font-semibold text-neutral-900">
@@ -290,9 +322,9 @@ const MetroBuyTicketsStep1Page: NextPage = () => {
                       <p className="text-xs font-bold tracking-wide text-slate-500 uppercase">
                         Ga đi - Ga đến
                       </p>
-                      <p className="text-sm font-medium text-neutral-900">
-                        {originStation && destinationStation
-                          ? `${originStation} - ${destinationStation}`
+                        <p className="text-sm font-medium text-neutral-900">
+                          {originStationId && destinationStationId
+                            ? `${stationsById.get(originStationId)?.name ?? originStationId} - ${stationsById.get(destinationStationId)?.name ?? destinationStationId}`
                           : "Chưa chọn"}
                       </p>
                     </div>
