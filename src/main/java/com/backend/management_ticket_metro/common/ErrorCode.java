@@ -81,6 +81,11 @@ public enum ErrorCode {
     // Gate
     GATE_NOT_FOUND(1058, "Gate not found"),
     GATE_NOT_ACTIVE(1059, "Gate is not active"),
+
+
+    CREATE_SCHEDULE_FAILED(1060, "Create schedule failed"),
+    SCHEDULE_NOT_FOUND(1061, "Schedule not found"),
+    DIRECTION_INVALID(1062, "Invalid direction value"),
     UNCATEGORIZED_EXCEPTION  (9999, "UNCATEGORIZED_EXCEPTION!")
     ;
     ErrorCode(int code, String message){
