@@ -30,12 +30,14 @@ public class SecurityConfig {
             "/api/v1/auth/logout",
             "/api/v1/auth/refresh",
             "/actuator/health",
-            "/actuator/health/**"
+            "/actuator/health/**",
+            "/api/v1/live/**"
     };
 
     private static final String[] PUBLIC_GET_ENDPOINTS = {
             "/actuator/health",
-            "/actuator/health/**"
+            "/actuator/health/**",
+            "/api/v1/live/**"
     };
 
     @Bean
