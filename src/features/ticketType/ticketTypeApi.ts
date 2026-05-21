@@ -1,76 +1,84 @@
+import { apiClient } from "@features/httpClient/ApiClient";
+import { API_ENDPOINTS, ApiResponse, withPathParam } from "@features/httpClient/apiEndpoints";
 import { TicketType } from "./ticketTypeTypes";
 
-let fakeTicketTypes: TicketType[] = [
-  {
-    id: "tt_1",
-    code: "V-NGAY-01",
-    name: "Vé ngày",
-    validityDuration: 24,
-    validityUnit: "hours",
-    price: 35000,
-    conditions: "Không giới hạn lượt đi trong 24 giờ",
-    status: "active",
-  },
-  {
-    id: "tt_2",
-    code: "V-THG-30",
-    name: "Vé tháng (Phổ thông)",
-    validityDuration: 30,
-    validityUnit: "days",
-    price: 200000,
-    conditions: "Sử dụng trong Zone 1, 2",
-    status: "active",
-  },
-  {
-    id: "tt_3",
-    code: "V-STUD-30",
-    name: "Vé tháng (Học sinh/SV)",
-    validityDuration: 30,
-    validityUnit: "days",
-    price: 100000,
-    conditions: "Yêu cầu thẻ HSSV hợp lệ",
-    status: "active",
-  },
-  {
-    id: "tt_4",
-    code: "V-LOU-12",
-    name: "Vé du lịch 3 ngày",
-    validityDuration: 72,
-    validityUnit: "hours",
-    price: 90000,
-    conditions: "Không giới hạn lượt đi, áp dụng ngày lễ",
-    status: "inactive",
-  },
-];
+// ── Backend response shape ────────────────────────────────────────────────────
+interface BackendTicketType {
+  ticketTypeId: string;
+  code?: string;
+  name: string;
+  validityDuration?: number;
+  duration?: number;
+  validityUnit?: string;
+  unit?: string;
+  price: number;
+  basePrice?: number;
+  conditions?: string;
+  description?: string;
+  status?: string;
+  [key: string]: unknown;
+}
 
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+// ── Map Backend → UI ──────────────────────────────────────────────────────────
+function mapToUI(b: BackendTicketType): TicketType {
+  const unit = (b.validityUnit ?? b.unit ?? "hours").toLowerCase();
+  return {
+    id: b.ticketTypeId,
+    code: b.code ?? b.ticketTypeId.slice(0, 10).toUpperCase(),
+    name: b.name,
+    validityDuration: b.validityDuration ?? b.duration ?? 0,
+    validityUnit: unit.includes("day") ? "days" : "hours",
+    price: b.price ?? b.basePrice ?? 0,
+    conditions: b.conditions ?? b.description ?? "",
+    status: b.status?.toLowerCase() === "active" ? "active" : "inactive",
+  };
+}
+
+// ── Map UI → Backend payload ──────────────────────────────────────────────────
+function mapToBackend(data: Partial<TicketType>): Record<string, unknown> {
+  return {
+    code: data.code,
+    name: data.name,
+    validityDuration: data.validityDuration,
+    validityUnit: data.validityUnit,
+    price: data.price,
+    conditions: data.conditions,
+    status: data.status?.toUpperCase(),
+  };
+}
 
 export const ticketTypeApi = {
+  // ── GET /ticket-types (FE-21) ─────────────────────────────────────────────
   getTicketTypes: async (): Promise<TicketType[]> => {
-    await delay(600);
-    return [...fakeTicketTypes];
+    const res = await apiClient.get<ApiResponse<BackendTicketType[]>>(
+      API_ENDPOINTS.ticketTypes.base
+    );
+    return (res.data.results ?? []).map(mapToUI);
   },
 
+  // ── POST /admin/ticket-types (FE-21) ──────────────────────────────────────
   createTicketType: async (data: Omit<TicketType, "id">): Promise<TicketType> => {
-    await delay(800);
-    const newRecord: TicketType = {
-      ...data,
-      id: `tt_${Date.now()}`,
-    };
-    fakeTicketTypes.push(newRecord);
-    return newRecord;
+    const res = await apiClient.post<ApiResponse<BackendTicketType>>(
+      API_ENDPOINTS.ticketTypes.admin,
+      mapToBackend(data)
+    );
+    return mapToUI(res.data.results);
   },
 
+  // ── PUT /admin/ticket-types/{id} (FE-21) ──────────────────────────────────
   updateTicketType: async (id: string, updates: Partial<TicketType>): Promise<TicketType> => {
-    await delay(800);
-    const index = fakeTicketTypes.findIndex((t) => t.id === id);
-    if (index === -1) throw new Error("Not found");
-    fakeTicketTypes[index] = { ...fakeTicketTypes[index], ...updates };
-    return fakeTicketTypes[index];
+    const res = await apiClient.put<ApiResponse<BackendTicketType>>(
+      withPathParam(API_ENDPOINTS.ticketTypes.admin, id),
+      mapToBackend(updates)
+    );
+    return mapToUI(res.data.results);
   },
 
+  // Backend chưa có API xóa ticket type, dùng update status thay thế
   deleteTicketType: async (id: string): Promise<void> => {
-    await delay(800);
-    fakeTicketTypes = fakeTicketTypes.filter((t) => t.id !== id);
+    await apiClient.put(
+      withPathParam(API_ENDPOINTS.ticketTypes.admin, id),
+      { status: "INACTIVE" }
+    );
   },
 };

@@ -1,6 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import type { GateLog, GateLogs } from "@features/gateLog/gateLogTypes";
-import { MOCK_GATE_LOGS } from "@features/gateLog/gateLogMockData";
+import { gateLogApi } from "@features/gateLog/gateLogApi";
 import GateLogTable from "./GateLogTable";
 import GateLogDetailModal from "./GateLogDetailModal";
 import GateLogFilters from "./GateLogFilters";
@@ -41,16 +41,34 @@ export default function GateLogDashboard() {
   });
   const [page, setPage] = useState(1);
   const [selectedLog, setSelectedLog] = useState<GateLog | null>(null);
+  const [allLogs, setAllLogs] = useState<GateLog[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch logs from real API (FE-35)
+  useEffect(() => {
+    setLoading(true);
+    gateLogApi
+      .getLogs({
+        gateId: filters.gateId || undefined,
+      })
+      .then((data) => {
+        setAllLogs(data);
+        setError(null);
+      })
+      .catch(() => setError("Không thể tải dữ liệu. Vui lòng thử lại."))
+      .finally(() => setLoading(false));
+  }, [filters.gateId]);
 
   const filtered = useMemo(() => {
-    return MOCK_GATE_LOGS.filter((log) => {
+    return allLogs.filter((log) => {
       if (filters.gateId && log.gateId !== filters.gateId) return false;
       if (filters.ticketType && log.ticketType !== filters.ticketType)
         return false;
       if (filters.result && log.result !== filters.result) return false;
       return true;
     });
-  }, [filters]);
+  }, [allLogs, filters]);
 
   // Reset to page 1 when filters change
   const handleFilters = (f: GateLogs) => {
@@ -98,6 +116,13 @@ export default function GateLogDashboard() {
         <GateLogFilters filters={filters} onChange={handleFilters} />
       </div>
 
+      {/* Loading / Error */}
+      {loading && (
+        <div className="text-center py-10 text-gray-400">Đang tải dữ liệu...</div>
+      )}
+      {!loading && error && (
+        <div className="text-center py-10 text-red-500">{error}</div>
+      )}
       {/* Summary badge */}
       <div className="flex items-center gap-3 mb-3">
         <p className="text-sm text-gray-500">

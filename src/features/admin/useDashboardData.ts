@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { apiClient } from "@features/httpClient/ApiClient";
+import { API_ENDPOINTS, ApiResponse } from "@features/httpClient/apiEndpoints";
 import type {
   KpiData,
   RevenuePoint,
@@ -7,109 +9,125 @@ import type {
   TimeRange,
 } from "./adminDashboardTypes";
 
-// ── Mock generators ────────────────────────────────────────────────────────────
-
-function mockKpi(range: TimeRange): KpiData {
-  const base = range === "today" ? 45.8 : range === "7d" ? 312.4 : 1280.6;
-  return {
-    revenue: base * 1_000_000,
-    revenueChange: range === "today" ? 12 : range === "7d" ? 8.5 : -2.3,
-    totalTrips:
-      range === "today" ? 125_400 : range === "7d" ? 874_200 : 3_410_000,
-    peakStart: "07:30",
-    peakEnd: "08:30",
-    criticalAlerts: range === "today" ? 5 : range === "7d" ? 3 : 1,
-    isLoading: false,
-    error: null,
-  };
+// ── Backend shapes ─────────────────────────────────────────────────────────────
+interface BackendOrder {
+  orderId?: string;
+  status?: string;
+  totalAmount?: number;
+  amount?: number;
+  createdAt?: string;
+  [key: string]: unknown;
 }
 
-function mockRevenue(range: TimeRange): RevenuePoint[] {
+interface BackendGateLog {
+  logId?: string;
+  stationName?: string;
+  station?: string;
+  result?: string;
+  status?: string;
+  timestamp?: string;
+  scanTime?: string;
+  deviceId?: string;
+  gateId?: string;
+  [key: string]: unknown;
+}
+
+interface BackendDevice {
+  deviceId?: string;
+  status?: string;
+  [key: string]: unknown;
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+async function safeFetch<T>(url: string): Promise<T[]> {
+  try {
+    const res = await apiClient.get<ApiResponse<T[]>>(url);
+    return res.data.results ?? [];
+  } catch {
+    return [];
+  }
+}
+
+function filterByTimeRange(items: { createdAt?: string; timestamp?: string; scanTime?: string }[], range: TimeRange) {
+  const now = new Date();
+  const cutoff = new Date();
+  if (range === "today") cutoff.setHours(0, 0, 0, 0);
+  else if (range === "7d") cutoff.setDate(now.getDate() - 7);
+  else cutoff.setDate(now.getDate() - 30);
+
+  return items.filter((item) => {
+    const raw = item.createdAt ?? item.timestamp ?? item.scanTime;
+    if (!raw) return true; // giữ lại nếu không có timestamp
+    return new Date(raw) >= cutoff;
+  });
+}
+
+function buildRevenue(orders: BackendOrder[], range: TimeRange): RevenuePoint[] {
+  if (orders.length === 0) return [];
+
+  const paidOrders = orders.filter(
+    (o) => (o.status ?? "").toUpperCase() === "PAID" || (o.status ?? "").toUpperCase() === "COMPLETED"
+  );
+
   if (range === "today") {
-    return [
-      { label: "00h", value: 1.2 },
-      { label: "04h", value: 0.3 },
-      { label: "08h", value: 12.4 },
-      { label: "12h", value: 9.8 },
-      { label: "16h", value: 14.2 },
-      { label: "20h", value: 7.9 },
-    ];
+    // Nhóm theo giờ
+    const hourMap: Record<string, number> = {};
+    paidOrders.forEach((o) => {
+      const h = o.createdAt ? new Date(o.createdAt).getHours() : 0;
+      const label = `${String(h).padStart(2, "0")}h`;
+      hourMap[label] = (hourMap[label] ?? 0) + (o.totalAmount ?? o.amount ?? 0);
+    });
+    return Object.entries(hourMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([label, value]) => ({ label, value: +(value / 1_000_000).toFixed(2) }));
   }
-  if (range === "7d") {
-    return [
-      { label: "T2", value: 42.1 },
-      { label: "T3", value: 38.7 },
-      { label: "T4", value: 45.8 },
-      { label: "T5", value: 50.2 },
-      { label: "T6", value: 55.1 },
-      { label: "T7", value: 61.3 },
-      { label: "CN", value: 48.9 },
-    ];
-  }
-  // 30d — show weekly aggregates
-  return Array.from({ length: 5 }, (_, i) => ({
-    label: `T${i + 1}`,
-    value: +(240 + Math.sin(i) * 40).toFixed(1),
+
+  // 7d hoặc 30d → nhóm theo ngày
+  const dayMap: Record<string, number> = {};
+  paidOrders.forEach((o) => {
+    if (!o.createdAt) return;
+    const d = new Date(o.createdAt);
+    const label = range === "7d"
+      ? ["CN", "T2", "T3", "T4", "T5", "T6", "T7"][d.getDay()]
+      : `${d.getDate()}/${d.getMonth() + 1}`;
+    dayMap[label] = (dayMap[label] ?? 0) + (o.totalAmount ?? o.amount ?? 0);
+  });
+  return Object.entries(dayMap).map(([label, value]) => ({
+    label,
+    value: +(value / 1_000_000).toFixed(2),
   }));
 }
 
-function mockGates(): GateActivity[] {
-  return [
-    { station: "Bến Thành", passengers: 24_500 },
-    { station: "Nhà hát Thành phố", passengers: 18_200 },
-    { station: "Ba Son", passengers: 15_900 },
-    { station: "Tân Cảng", passengers: 12_400 },
-    { station: "Suối Tiên", passengers: 10_800 },
-  ];
+function buildGateActivity(logs: BackendGateLog[]): GateActivity[] {
+  const stationMap: Record<string, number> = {};
+  logs.forEach((l) => {
+    const station = l.stationName ?? l.station ?? "Không xác định";
+    stationMap[station] = (stationMap[station] ?? 0) + 1;
+  });
+  return Object.entries(stationMap)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 5)
+    .map(([station, passengers]) => ({ station, passengers }));
 }
 
-function mockAlerts(): Alert[] {
-  return [
-    {
-      id: "#ERR-0941",
-      station: "Bến Thành",
-      device: "Cổng soát vé A-04",
-      content: "Kẹt vé cơ học",
-      severity: "critical",
-      time: "08:15:22",
-    },
-    {
-      id: "#ERR-0938",
-      station: "Tân Cảng",
-      device: "Máy bán vé TVM-02",
-      content: "Lỗi kết nối Server",
-      severity: "critical",
-      time: "08:02:10",
-    },
-    {
-      id: "#ERR-0935",
-      station: "Ba Son",
-      device: "UPS trung tâm",
-      content: "Pin dự phòng yếu",
-      severity: "warning",
-      time: "07:55:45",
-    },
-    {
-      id: "#ERR-0930",
-      station: "Nhà hát Thành phố",
-      device: "Camera C-11",
-      content: "Mất tín hiệu hình ảnh",
-      severity: "warning",
-      time: "07:30:00",
-    },
-    {
-      id: "#ERR-0928",
-      station: "Tân Cảng",
-      device: "Màn hình LED-03",
-      content: "Hiển thị không đúng lịch",
-      severity: "info",
-      time: "07:18:33",
-    },
-  ];
+function buildAlerts(devices: BackendDevice[]): Alert[] {
+  return devices
+    .filter((d) => {
+      const s = (d.status ?? "").toUpperCase();
+      return s === "ERROR" || s === "OFFLINE" || s === "MAINTENANCE";
+    })
+    .slice(0, 5)
+    .map((d, i) => ({
+      id: `#ERR-${String(i + 1).padStart(4, "0")}`,
+      station: (d as Record<string, unknown>).stationName as string ?? "—",
+      device: (d as Record<string, unknown>).name as string ?? d.deviceId ?? "Thiết bị",
+      content: (d.status ?? "").toUpperCase() === "OFFLINE" ? "Mất kết nối" : "Cần bảo trì",
+      severity: (d.status ?? "").toUpperCase() === "ERROR" ? "critical" : "warning" as const,
+      time: new Date().toLocaleTimeString("vi-VN"),
+    }));
 }
 
 // ── Hook ────────────────────────────────────────────────────────────────────────
-
 export interface DashboardData {
   kpi: KpiData;
   revenue: RevenuePoint[];
@@ -123,41 +141,80 @@ export interface DashboardData {
 
 export function useDashboardData(range: TimeRange): DashboardData {
   const [kpiLoading, setKpiLoading] = useState(true);
-  const [kpiError] = useState<string | null>(null);
-  const [kpi, setKpi] = useState<KpiData>(mockKpi(range));
-
+  const [kpiError, setKpiError] = useState<string | null>(null);
+  const [kpi, setKpi] = useState<KpiData>({
+    revenue: 0, revenueChange: 0, totalTrips: 0,
+    peakStart: "—", peakEnd: "—", criticalAlerts: 0,
+    isLoading: true, error: null,
+  });
   const [revenueLoading, setRevenueLoading] = useState(true);
-  const [revenueError] = useState<string | null>(null);
+  const [revenueError, setRevenueError] = useState<string | null>(null);
   const [revenue, setRevenue] = useState<RevenuePoint[]>([]);
-  const [gates] = useState<GateActivity[]>(mockGates());
-  const [alerts] = useState<Alert[]>(mockAlerts());
+  const [gates, setGates] = useState<GateActivity[]>([]);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setKpiLoading(true);
     setRevenueLoading(true);
-    const t1 = setTimeout(() => {
-      setKpi(mockKpi(range));
+
+    Promise.all([
+      safeFetch<BackendOrder>(API_ENDPOINTS.orders.status),
+      safeFetch<BackendGateLog>(API_ENDPOINTS.gates.logs),
+      safeFetch<BackendDevice>(API_ENDPOINTS.devices.staff),
+    ]).then(([orders, gateLogs, devices]) => {
+      // Filter theo time range
+      const filteredOrders = filterByTimeRange(orders, range);
+      const filteredLogs = filterByTimeRange(gateLogs, range);
+
+      // KPI: Revenue
+      const paidOrders = filteredOrders.filter(
+        (o) => (o.status ?? "").toUpperCase() === "PAID" || (o.status ?? "").toUpperCase() === "COMPLETED"
+      );
+      const totalRevenue = paidOrders.reduce(
+        (sum, o) => sum + (o.totalAmount ?? o.amount ?? 0), 0
+      );
+
+      // KPI: Trips = số log success
+      const successLogs = filteredLogs.filter(
+        (l) => (l.result ?? l.status ?? "").toLowerCase() === "success"
+      );
+
+      // Critical alerts = số thiết bị lỗi
+      const criticalCount = devices.filter((d) => {
+        const s = (d.status ?? "").toUpperCase();
+        return s === "ERROR" || s === "OFFLINE";
+      }).length;
+
+      setKpi({
+        revenue: totalRevenue,
+        revenueChange: 0, // Cần 2 kỳ để tính → để 0 cho đến khi BE có API analytics
+        totalTrips: successLogs.length,
+        peakStart: "07:30",
+        peakEnd: "08:30",
+        criticalAlerts: criticalCount,
+        isLoading: false,
+        error: null,
+      });
+      setKpiError(null);
+
+      // Revenue chart
+      setRevenue(buildRevenue(filteredOrders, range));
+      setRevenueError(null);
+
+      // Gate activity
+      setGates(buildGateActivity(filteredLogs));
+
+      // Device alerts
+      setAlerts(buildAlerts(devices));
+    }).catch((err) => {
+      const msg = err?.message ?? "Không thể tải dữ liệu dashboard.";
+      setKpiError(msg);
+      setRevenueError(msg);
+    }).finally(() => {
       setKpiLoading(false);
-    }, 600);
-    const t2 = setTimeout(() => {
-      setRevenue(mockRevenue(range));
       setRevenueLoading(false);
-    }, 900);
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-    };
+    });
   }, [range]);
 
-  return {
-    kpi,
-    revenue,
-    gates,
-    alerts,
-    revenueLoading,
-    revenueError,
-    kpiLoading,
-    kpiError,
-  };
+  return { kpi, revenue, gates, alerts, revenueLoading, revenueError, kpiLoading, kpiError };
 }
