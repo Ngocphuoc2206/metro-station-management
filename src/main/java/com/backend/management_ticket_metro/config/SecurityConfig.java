@@ -31,6 +31,8 @@ public class SecurityConfig {
             "/api/v1/auth/refresh",
             "/actuator/health",
             "/actuator/health/**",
+            "/api/v1/schedules",
+            "/api/v1/routes/*/schedule"
             "/api/v1/live/**"
     };
 

@@ -82,6 +82,10 @@ public enum ErrorCode {
     GATE_NOT_FOUND(1058, "Gate not found"),
     GATE_NOT_ACTIVE(1059, "Gate is not active"),
 
+
+    CREATE_SCHEDULE_FAILED(1060, "Create schedule failed"),
+    SCHEDULE_NOT_FOUND(1061, "Schedule not found"),
+    DIRECTION_INVALID(1062, "Invalid direction value"),
     // Staff Shift
     SHIFT_NOT_FOUND(1060, "Shift not found"),
     SHIFT_ALREADY_CHECKED_IN(1061, "Staff has already checked in for this shift"),
