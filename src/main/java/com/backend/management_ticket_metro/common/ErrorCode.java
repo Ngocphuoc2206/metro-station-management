@@ -87,11 +87,11 @@ public enum ErrorCode {
     SCHEDULE_NOT_FOUND(1061, "Schedule not found"),
     DIRECTION_INVALID(1062, "Invalid direction value"),
     // Staff Shift
-    SHIFT_NOT_FOUND(1060, "Shift not found"),
-    SHIFT_ALREADY_CHECKED_IN(1061, "Staff has already checked in for this shift"),
-    SHIFT_NOT_CHECKED_IN(1062, "Staff has not checked in yet"),
-    SHIFT_ALREADY_CHECKED_OUT(1063, "Staff has already checked out for this shift"),
-    INVALID_SHIFT_STATUS(1064, "Invalid shift status for this action"),
+    SHIFT_NOT_FOUND(1063, "Shift not found"),
+    SHIFT_ALREADY_CHECKED_IN(1064, "Staff has already checked in for this shift"),
+    SHIFT_NOT_CHECKED_IN(1065, "Staff has not checked in yet"),
+    SHIFT_ALREADY_CHECKED_OUT(1066, "Staff has already checked out for this shift"),
+    INVALID_SHIFT_STATUS(1067, "Invalid shift status for this action"),
 
     // Uncategorized
     UNCATEGORIZED_EXCEPTION  (9999, "UNCATEGORIZED_EXCEPTION!")
