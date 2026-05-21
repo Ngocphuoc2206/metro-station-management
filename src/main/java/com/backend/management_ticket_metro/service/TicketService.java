@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -32,6 +33,7 @@ public class TicketService {
     private final QRCodeService qrCodeService;
     private final OrderRepository orderRepository;
     private final OrderMapper orderMapper;
+    private final StationRepository stationRepository;
 
     // Issuing Tickets
     @Transactional
@@ -264,6 +266,90 @@ public class TicketService {
                 .recentTickets(recentTickets)
                 .recentTrips(recentTrips)
                 .latestOrder(latestOrder)
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<TripResponse> getMyTripHistory(
+            int page, int limit, LocalDateTime from, LocalDateTime to, String stationId, String ticketId) {
+
+        User user = getCurrentUser();
+
+        // 1. Fetch all valid ticket usage logs based on filter criteria
+        List<TicketUsage> rawLogs = ticketUsageRepository.findTripHistoryRaw(user, ticketId, stationId, from, to);
+
+        // Cache station names in a map to avoid redundant DB queries inside the loop, optimizing performance
+        Map<String, String> stationNameMap = stationRepository.findAll().stream()
+                .collect(Collectors.toMap(Station::getStationId, Station::getName));
+
+        // 2. Group ticket usage logs by Ticket ID
+        Map<String, List<TicketUsage>> logsByTicket = rawLogs.stream()
+                .collect(Collectors.groupingBy(tu -> tu.getTicket().getId()));
+
+        List<TripResponse> allTrips = new ArrayList<>();
+
+        // 3. Execute TAP_IN and TAP_OUT pairing algorithm for each ticket
+        for (Map.Entry<String, List<TicketUsage>> entry : logsByTicket.entrySet()) {
+            String tId = entry.getKey();
+            // Logs for this ticket are sorted in descending order (Newest first)
+            List<TicketUsage> ticketLogs = entry.getValue();
+
+            TicketUsage tempTapOut = null;
+
+            for (TicketUsage log : ticketLogs) {
+                String currentStationName = stationNameMap.getOrDefault(log.getStationId(), "Unknown Station");
+
+                if (log.getGateId() != null && log.getGateId().contains("OUT")) {
+                    // If a tap-out log is found, temporarily hold it
+                    tempTapOut = log;
+                } else {
+                    // If a tap-in log is found
+                    if (tempTapOut != null) {
+                        // If a tap-out log was previously held -> The trip is completed
+                        allTrips.add(TripResponse.builder()
+                                .id("TRIP-" + log.getId().substring(0, 8))
+                                .ticketId(tId)
+                                .originStation(currentStationName)
+                                .destinationStation(stationNameMap.getOrDefault(tempTapOut.getStationId(), "Unknown Station"))
+                                .checkIn(log.getScannedAt())
+                                .checkOut(tempTapOut.getScannedAt())
+                                .status("COMPLETED")
+                                .build());
+                        tempTapOut = null; // Reset the temporary variable
+                    } else {
+                        // If a tap-in log is found without a corresponding tap-out -> The trip is in transit
+                        allTrips.add(TripResponse.builder()
+                                .id("TRIP-" + log.getId().substring(0, 8))
+                                .ticketId(tId)
+                                .originStation(currentStationName)
+                                .destinationStation("In Transit")
+                                .checkIn(log.getScannedAt())
+                                .checkOut(null)
+                                .status("IN_PROGRESS")
+                                .build());
+                    }
+                }
+            }
+        }
+
+        // 4. Sort all paired trips by the latest check-in time first
+        allTrips.sort((t1, t2) -> t2.getCheckIn().compareTo(t1.getCheckIn()));
+
+        //  5. Perform manual pagination on the resulting list
+        int totalItems = allTrips.size();
+        int fromIndex = (page - 1) * limit;
+        int toIndex = Math.min(fromIndex + limit, totalItems);
+
+        List<TripResponse> pagedTrips = new ArrayList<>();
+        if (fromIndex < totalItems) {
+            pagedTrips = allTrips.subList(fromIndex, toIndex);
+        }
+
+        return PageResponse.<TripResponse>builder()
+                .items(pagedTrips)
+                .page(page)
+                .limit(limit)
+                .total(totalItems)
                 .build();
     }
 }
