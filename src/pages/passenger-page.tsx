@@ -1,8 +1,11 @@
 /* eslint-disable @next/next/no-img-element */
 import Head from "next/head";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import PassengerShell from "@components/templates/PassengerShell";
+import { myTicketApi } from "@features/myTicket/myTicketApi";
+import type { MyTicketDto, QrTokenResult } from "@features/myTicket/myTicketTypes";
+import { orderApi } from "@features/order/orderApi";
 import {
   Bell,
   CalendarClock,
@@ -25,6 +28,7 @@ type StatCard = {
 };
 
 type TicketCard = {
+  rawId?: string;
   status: "Hoạt động" | "Chưa dùng" | "Hết hạn";
   code: string;
   type: string;
@@ -33,13 +37,6 @@ type TicketCard = {
   disabled?: boolean;
 };
 
-const stats: StatCard[] = [
-  { label: "Vé đang hoạt động", value: "2", tone: "green" },
-  { label: "Tổng chuyến tháng này", value: "48", tone: "blue" },
-  { label: "Chi phí tháng này", value: "320.000đ", tone: "amber" },
-  { label: "Thông báo", value: "3", subLabel: "mới", tone: "red" },
-];
-
 const statIcons = {
   green: Ticket,
   blue: TrainFront,
@@ -47,30 +44,6 @@ const statIcons = {
   red: Bell,
 };
 
-const recentTickets: TicketCard[] = [
-  {
-    status: "Hoạt động",
-    code: "#MNX-2938",
-    type: "Vé Lượt",
-    route: "Bến Thành → Suối Tiên",
-    tone: "green",
-  },
-  {
-    status: "Chưa dùng",
-    code: "#MNX-3102",
-    type: "Vé Lượt",
-    route: "Ga Ba Son → Ga Văn Thánh",
-    tone: "amber",
-  },
-  {
-    status: "Hết hạn",
-    code: "#MNX-1823",
-    type: "Vé Ngày",
-    route: "Toàn hệ thống Metro",
-    tone: "red",
-    disabled: true,
-  },
-];
 
 const toneClass = {
   green: {
@@ -95,30 +68,210 @@ const toneClass = {
   },
 };
 
-const tableRows = [
-  {
-    date: "12/10/2023, 08:30",
-    from: "Bến Thành",
-    to: "Suối Tiên",
-    fare: "15.000đ",
-  },
-  {
-    date: "11/10/2023, 17:45",
-    from: "Ga Văn Thánh",
-    to: "Bến Thành",
-    fare: "12.000đ",
-  },
-  {
-    date: "11/10/2023, 07:15",
-    from: "Bến Thành",
-    to: "Ga Văn Thánh",
-    fare: "12.000đ",
-  },
-];
+
+type OrderRow = {
+  id?: string;
+  status?: string;
+  total?: number;
+  createdAt?: string;
+  data?: unknown;
+};
+
+const mapTicketStatus = (status?: string): TicketCard["status"] => {
+  const v = (status ?? "").toLowerCase();
+  if (v.includes("expired") || v.includes("inactive") || v.includes("invalid")) return "Hết hạn";
+  if (v.includes("active") || v.includes("valid") || v.includes("using") || v.includes("in_use")) return "Hoạt động";
+  if (v.includes("new") || v.includes("unused") || v.includes("created")) return "Chưa dùng";
+  return "Chưa dùng";
+};
+
+const mapTicketTone = (status: TicketCard["status"]): TicketCard["tone"] => {
+  if (status === "Hoạt động") return "green";
+  if (status === "Chưa dùng") return "amber";
+  return "red";
+};
+
+const mapTicketTypeLabel = (ticketTypeId?: string) => {
+  const v = (ticketTypeId ?? "").toLowerCase();
+  if (v.includes("month") || v.includes("thang")) return "Vé Tháng";
+  if (v.includes("day") || v.includes("ngay")) return "Vé Ngày";
+  return "Vé Lượt";
+};
+
+const formatMoneyVnd = (value?: number) => {
+  if (typeof value !== "number") return "0đ";
+  return new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+    maximumFractionDigits: 0,
+  }).format(value);
+};
+
+const formatDateTime = (iso?: string) => {
+  if (!iso) return "--";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return new Intl.DateTimeFormat("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
+};
+
+const safeArray = <T,>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
+
+const extractOrders = (value: unknown): OrderRow[] => {
+  if (Array.isArray(value)) return value as OrderRow[];
+  if (value && typeof value === "object") {
+    const anyValue = value as Record<string, unknown>;
+    const items = anyValue.items ?? anyValue.data ?? anyValue.results;
+    return safeArray<OrderRow>(items);
+  }
+  return [];
+};
+
+const extractStationsFromOrderData = (data: unknown): { from?: string; to?: string } => {
+  if (!data || typeof data !== "object") return {};
+  const anyData = data as Record<string, unknown>;
+
+  const from = anyData.originStationName ?? anyData.fromStationName ?? anyData.originName ?? anyData.from;
+  const to = anyData.destinationStationName ?? anyData.toStationName ?? anyData.destinationName ?? anyData.to;
+
+  return {
+    from: typeof from === "string" ? from : undefined,
+    to: typeof to === "string" ? to : undefined,
+  };
+};
+
+const secondsUntil = (iso?: string) => {
+  if (!iso) return 0;
+  const target = new Date(iso).getTime();
+  if (Number.isNaN(target)) return 0;
+  return Math.max(0, Math.floor((target - Date.now()) / 1000));
+};
 
 export default function PassengerPage() {
   const [selectedTicket, setSelectedTicket] = useState<TicketCard | null>(null);
   const [remainingSeconds, setRemainingSeconds] = useState(119);
+
+  const [tickets, setTickets] = useState<MyTicketDto[]>([]);
+  const [orders, setOrders] = useState<OrderRow[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const [qrToken, setQrToken] = useState<QrTokenResult | null>(null);
+  const [qrImageUrl, setQrImageUrl] = useState<string | null>(null);
+  const [qrError, setQrError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      setIsLoading(true);
+      setLoadError(null);
+
+      try {
+        const [ticketList, orderStatusRes] = await Promise.all([
+          myTicketApi.list(),
+          orderApi.getStatus(),
+        ]);
+
+        if (cancelled) return;
+        setTickets(ticketList);
+        setOrders(extractOrders(orderStatusRes));
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Không thể tải dữ liệu dashboard";
+        if (!cancelled) setLoadError(message);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const derivedStats: StatCard[] = useMemo(() => {
+    const activeCount = tickets.filter((t) => mapTicketStatus(t.status) === "Hoạt động").length;
+    const orderCount = orders.length;
+    const spend = orders.reduce((sum, o) => sum + (typeof o.total === "number" ? o.total : 0), 0);
+
+    return [
+      { label: "Vé đang hoạt động", value: String(activeCount), tone: "green" },
+      { label: "Đơn hàng", value: String(orderCount), tone: "blue" },
+      { label: "Chi phí", value: formatMoneyVnd(spend), tone: "amber" },
+      { label: "Thông báo", value: "0", subLabel: "mới", tone: "red" },
+    ];
+  }, [orders, tickets]);
+
+  const derivedRecentTickets: TicketCard[] = useMemo(() => {
+    return tickets.slice(0, 3).map((t) => {
+      const status = mapTicketStatus(t.status);
+      const tone = mapTicketTone(status);
+      return {
+        rawId: t.id,
+        status,
+        code: t.code ? `#${t.code}` : `#${t.id}`,
+        type: mapTicketTypeLabel(t.ticketTypeId),
+        route: "--",
+        tone,
+        disabled: status === "Hết hạn",
+      };
+    });
+  }, [tickets]);
+
+  const derivedTableRows = useMemo(() => {
+    return orders.slice(0, 3).map((o) => {
+      const stations = extractStationsFromOrderData(o.data);
+      return {
+        date: formatDateTime(o.createdAt),
+        from: stations.from ?? "--",
+        to: stations.to ?? "--",
+        fare: formatMoneyVnd(o.total),
+      };
+    });
+  }, [orders]);
+
+  useEffect(() => {
+    if (!selectedTicket?.rawId) {
+      setQrToken(null);
+      setQrImageUrl(null);
+      setQrError(null);
+      return;
+    }
+
+    let cancelled = false;
+    const loadQr = async () => {
+      setQrError(null);
+      setQrToken(null);
+      setQrImageUrl(null);
+      try {
+        const tokenRes = await myTicketApi.createQrToken(selectedTicket.rawId as string);
+        if (cancelled) return;
+        setQrToken(tokenRes);
+
+        const qrcode = await import("qrcode");
+        const dataUrl = await qrcode.toDataURL(tokenRes.token, {
+          margin: 1,
+          width: 192,
+        });
+        if (!cancelled) setQrImageUrl(dataUrl);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Không thể tạo QR";
+        if (!cancelled) setQrError(message);
+      }
+    };
+
+    loadQr();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedTicket?.rawId]);
 
   useEffect(() => {
     if (!selectedTicket) {
@@ -126,13 +279,13 @@ export default function PassengerPage() {
     }
 
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setRemainingSeconds(119);
+    setRemainingSeconds(qrToken?.expiresAt ? secondsUntil(qrToken.expiresAt) : 119);
     const timer = setInterval(() => {
       setRemainingSeconds((previous) => (previous > 0 ? previous - 1 : 0));
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [selectedTicket]);
+  }, [qrToken?.expiresAt, selectedTicket]);
 
   const countdown = `${String(Math.floor(remainingSeconds / 60)).padStart(2, "0")}:${String(remainingSeconds % 60).padStart(2, "0")}`;
 
@@ -166,8 +319,20 @@ export default function PassengerPage() {
               </Link>
             </div>
 
+            {loadError ? (
+              <div className="rounded-3xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                {loadError}
+              </div>
+            ) : null}
+
+            {isLoading ? (
+              <div className="rounded-3xl border border-slate-200 bg-white/80 px-4 py-3 text-sm font-semibold text-slate-700">
+                Đang tải dữ liệu...
+              </div>
+            ) : null}
+
             <div className="grid gap-6 lg:grid-cols-4">
-              {stats.map((stat) => {
+              {derivedStats.map((stat) => {
                 const StatIcon = statIcons[stat.tone];
                 return (
                   <article
@@ -213,7 +378,7 @@ export default function PassengerPage() {
                   </div>
 
                   <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
-                    {recentTickets.map((ticket) => (
+                    {derivedRecentTickets.map((ticket) => (
                       <article
                         key={ticket.code}
                         className={`rounded-3xl border border-white/60 border-t-4 bg-white/85 p-5 shadow-[0px_10px_30px_-18px_rgba(15,23,42,0.35)] backdrop-blur ${
@@ -241,9 +406,7 @@ export default function PassengerPage() {
                         <button
                           type="button"
                           onClick={() => {
-                            if (!ticket.disabled) {
-                              setSelectedTicket(ticket);
-                            }
+                            if (!ticket.disabled) setSelectedTicket(ticket);
                           }}
                           className={`inline-flex w-full items-center justify-center gap-1 rounded-2xl py-2 text-xs font-bold ${
                             ticket.disabled
@@ -281,7 +444,7 @@ export default function PassengerPage() {
                           <div className="px-6 py-4">Trạng thái</div>
                         </div>
 
-                        {tableRows.map((row, index) => (
+                        {derivedTableRows.map((row, index) => (
                           <div
                             key={row.date + row.from}
                             className={`grid grid-cols-5 text-sm text-slate-900 ${index > 0 ? "border-t border-slate-100" : ""}`}
@@ -398,12 +561,19 @@ export default function PassengerPage() {
                 <div className="mb-6 flex justify-center">
                   <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
                     <img
-                      src="https://placehold.co/192x192"
-                      alt="Ticket QR Code"
+                      src={qrImageUrl ?? "https://placehold.co/192x192?text=QR+Loading"}
+                      alt={qrImageUrl ? "Ticket QR" : "Đang tải QR"}
                       className="h-48 w-48"
                     />
                   </div>
                 </div>
+
+                {qrError ? (
+                  <div className="mb-6 flex items-center justify-center gap-2 rounded-xl border border-red-100 bg-red-50 px-4 py-3">
+                    <CircleAlert className="h-4 w-4 text-red-500" />
+                    <p className="text-sm font-bold text-red-600">{qrError}</p>
+                  </div>
+                ) : null}
 
                 <div className="mb-6 text-center">
                   <p className="text-xs font-bold uppercase tracking-wider text-slate-400">

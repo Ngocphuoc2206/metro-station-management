@@ -1,6 +1,8 @@
 import Head from "next/head";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { myTicketApi } from "@features/myTicket/myTicketApi";
+import type { MyTicketDto, TicketHistoryRow } from "@features/myTicket/myTicketTypes";
 import {
   Bell,
   CalendarDays,
@@ -40,6 +42,7 @@ const BrandMark = ({ className = "h-8 w-8" }: { className?: string }) => (
 );
 
 type HistoryRow = {
+  id?: string;
   date: string;
   from: string;
   inTime: string;
@@ -49,53 +52,43 @@ type HistoryRow = {
   status: string;
 };
 
-const rows: HistoryRow[] = [
-  {
-    date: "12/10/2023",
-    from: "Bến Thành",
-    inTime: "08:30:12",
-    to: "Suối Tiên",
-    outTime: "09:15:45",
-    price: "15.000đ",
-    status: "Thành công",
-  },
-  {
-    date: "11/10/2023",
-    from: "Ga Văn Thánh",
-    inTime: "17:45:20",
-    to: "Bến Thành",
-    outTime: "18:10:05",
-    price: "12.000đ",
-    status: "Thành công",
-  },
-  {
-    date: "11/10/2023",
-    from: "Bến Thành",
-    inTime: "07:15:55",
-    to: "Ga Văn Thánh",
-    outTime: "07:40:30",
-    price: "12.000đ",
-    status: "Thành công",
-  },
-  {
-    date: "10/10/2023",
-    from: "Suối Tiên",
-    inTime: "18:30:12",
-    to: "Bến Thành",
-    outTime: "19:20:11",
-    price: "15.000đ",
-    status: "Thành công",
-  },
-  {
-    date: "09/10/2023",
-    from: "Bến Thành",
-    inTime: "08:05:44",
-    to: "Ga Ba Son",
-    outTime: "08:15:30",
-    price: "9.000đ",
-    status: "Thành công",
-  },
-];
+const formatDate = (iso?: string) => {
+  if (!iso) return "--/--/----";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return new Intl.DateTimeFormat("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
+};
+
+const formatTime = (iso?: string) => {
+  if (!iso) return "--:--:--";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "--:--:--";
+  return new Intl.DateTimeFormat("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(date);
+};
+
+const mapHistoryRow = (row: TicketHistoryRow): HistoryRow => {
+  const station = row.stationName ?? row.stationId ?? "--";
+  const time = row.time;
+  return {
+    id: row.id,
+    date: formatDate(time),
+    from: station,
+    inTime: formatTime(time),
+    to: station,
+    outTime: "--:--:--",
+    price: "--",
+    status: row.result ?? row.action ?? "--",
+  };
+};
 
 const navItems = [
   { label: "Dashboard", active: false, href: "/passenger-page", icon: LayoutDashboard },
@@ -108,6 +101,64 @@ const navItems = [
 
 export default function PassengerHistoryPage() {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [rows, setRows] = useState<HistoryRow[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [tickets, setTickets] = useState<MyTicketDto[]>([]);
+  const [activeTicketId, setActiveTicketId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadTickets = async () => {
+      setIsLoading(true);
+      setLoadError(null);
+      try {
+        const list = await myTicketApi.list();
+        if (cancelled) return;
+        setTickets(list);
+
+        const active = list.find((t) => (t.status ?? "").toLowerCase().includes("active"));
+        setActiveTicketId((active ?? list[0])?.id ?? null);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Không thể tải vé";
+        if (!cancelled) setLoadError(message);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+
+    loadTickets();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!activeTicketId) return;
+    let cancelled = false;
+    const loadHistory = async () => {
+      setIsLoading(true);
+      setLoadError(null);
+      try {
+        const history = await myTicketApi.getHistory(activeTicketId);
+        const mapped = history.map(mapHistoryRow);
+        if (!cancelled) {
+          setRows(mapped);
+          setSelectedIndex(null);
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Không thể tải lịch sử";
+        if (!cancelled) setLoadError(message);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+
+    loadHistory();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTicketId]);
 
   const selectedTrip = useMemo(
     () => (selectedIndex === null ? null : rows[selectedIndex]),
@@ -252,6 +303,17 @@ export default function PassengerHistoryPage() {
                   </div>
 
                   <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
+                    {loadError ? (
+                      <div className="border-b border-red-100 bg-red-50 px-6 py-3 text-sm font-semibold text-red-700">
+                        {loadError}
+                      </div>
+                    ) : null}
+                    {isLoading ? (
+                      <div className="border-b border-slate-100 bg-slate-50 px-6 py-3 text-sm font-semibold text-slate-700">
+                        Đang tải dữ liệu...
+                      </div>
+                    ) : null}
+
                     <div className="overflow-x-auto">
                       <div className="min-w-[956px]">
                         <div className="grid grid-cols-[144px_160px_112px_160px_112px_112px_160px] bg-slate-50 text-xs font-bold uppercase text-slate-500">

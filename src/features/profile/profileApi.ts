@@ -26,7 +26,7 @@ export const profileApi = {
 
   updateMySettings: async (payload: UpdateMySettingsRequest): Promise<unknown> => {
     const res = await apiClient.put(API_ENDPOINTS.my.settings, payload);
-    return unwrapApiResponse(res.data);
+    return unwrapApiResponse<MyProfileDto>(res.data);
   },
 
   uploadAvatar: async (file: File): Promise<unknown> => {

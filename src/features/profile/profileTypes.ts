@@ -17,4 +17,8 @@ export type UpdateMyPasswordRequest = {
   newPassword: string;
 };
 
+/**
+ * Backend: NotificationSettingsRequest (PUT /api/v1/my/settings).
+ * Field names are backend-owned; keep flexible to avoid FE breakage.
+ */
 export type UpdateMySettingsRequest = Record<string, unknown>;

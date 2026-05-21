@@ -2,6 +2,7 @@ import Head from "next/head";
 import { useEffect, useMemo, useRef, useState } from "react";
 import StaffPortalShell from "@components/templates/StaffPortalShell";
 import { CheckCircle2, XCircle, AlertTriangle, Camera, CameraOff, Loader2 } from "lucide-react";
+import { staffGateApi } from "@features/staffGate/staffGateApi";
 
 type TapMode = "TAP-IN" | "TAP-OUT";
 
@@ -16,6 +17,8 @@ type ScanLogRow = {
 
 const stations = ["Ga Bến Thành", "Ga Ba Son", "Ga Văn Thánh"];
 const gates = ["Gate A-01", "Gate A-02", "Gate B-01"];
+
+const DEFAULT_DEVICE_ID = "WEB_SCANNER";
 
 const initialLog: ScanLogRow[] = [
   {
@@ -167,6 +170,7 @@ export default function StaffScanPage() {
   const [isCameraOn, setIsCameraOn] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isCameraStarting, setIsCameraStarting] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
   const [lastValidation, setLastValidation] = useState<ValidationResult>({
     status: "SUCCESS",
     title: "Chấp nhận",
@@ -181,31 +185,124 @@ export default function StaffScanPage() {
 
   const todayLabel = useMemo(() => formatTodayVi(), []);
 
-  const runScan = (rawToken: string) => {
+  const runScan = async (rawToken: string) => {
     const time = new Date().toLocaleTimeString("vi-VN", { hour12: false });
+    const trimmed = rawToken.trim();
 
-    const { ticketId, gateId, validation } = validateScan({
-      rawToken,
-      gateLabel: gate,
-      stationLabel: station,
-      mode,
-    });
+    if (!trimmed) {
+      const { ticketId, gateId, validation } = validateScan({
+        rawToken,
+        gateLabel: gate,
+        stationLabel: station,
+        mode,
+      });
 
-    setLastValidation(validation);
+      setLastValidation(validation);
+      setLog((prev) =>
+        [
+          {
+            time,
+            gateId,
+            ticketId,
+            action: mode,
+            result: validation.status,
+            message: validation.message,
+          },
+          ...prev,
+        ].slice(0, 10)
+      );
+      return;
+    }
 
-    setLog((prev) =>
-      [
-        {
-          time,
-          gateId,
-          ticketId,
-          action: mode,
-          result: validation.status,
-          message: validation.message,
-        },
-        ...prev,
-      ].slice(0, 10)
-    );
+    setIsScanning(true);
+    try {
+      const result = await staffGateApi.scan({
+        qrContent: trimmed,
+        deviceId: DEFAULT_DEVICE_ID,
+        stationId: station,
+        gateId: gate,
+      });
+
+      const anyRes = result as Record<string, unknown>;
+      const statusRaw = String(
+        anyRes.status ?? anyRes.result ?? anyRes.code ?? "SUCCESS",
+      ).toUpperCase();
+
+      const ok =
+        statusRaw.includes("SUCCESS") ||
+        statusRaw.includes("ACCEPT") ||
+        statusRaw === "1000";
+
+      const ticketId = String(
+        anyRes.ticketId ?? anyRes.ticketCode ?? anyRes.ticket ?? trimmed.slice(0, 12).toUpperCase(),
+      );
+      const gateId = String(anyRes.gateId ?? gate.replace("Gate ", ""));
+      const message = String(anyRes.message ?? anyRes.reason ?? (ok ? "ACCEPTED" : "REJECTED"));
+
+      const validation: ValidationResult = ok
+        ? {
+            status: "SUCCESS",
+            title: "Chấp nhận",
+            subtitle: "Giao dịch thành công - Mở cổng",
+            message,
+            tone: "green",
+          }
+        : {
+            status: "INVALID",
+            title: "Từ chối",
+            subtitle: "Quét vé thất bại",
+            message,
+            tone: "red",
+          };
+
+      setLastValidation(validation);
+      setLog((prev) =>
+        [
+          {
+            time,
+            gateId,
+            ticketId,
+            action: mode,
+            result: validation.status,
+            message: validation.message,
+          },
+          ...prev,
+        ].slice(0, 10)
+      );
+    } catch (err) {
+      // fallback to local validation to keep tool usable when backend is down
+      const { ticketId, gateId, validation } = validateScan({
+        rawToken,
+        gateLabel: gate,
+        stationLabel: station,
+        mode,
+      });
+
+      const message = err instanceof Error ? err.message : "Không thể gọi API /staff/gates/scan";
+      const fallbackValidation: ValidationResult = {
+        ...validation,
+        subtitle: "Không thể gọi API - dùng chế độ mô phỏng",
+        message,
+        tone: "amber",
+      };
+
+      setLastValidation(fallbackValidation);
+      setLog((prev) =>
+        [
+          {
+            time,
+            gateId,
+            ticketId,
+            action: mode,
+            result: fallbackValidation.status,
+            message: fallbackValidation.message,
+          },
+          ...prev,
+        ].slice(0, 10)
+      );
+    } finally {
+      setIsScanning(false);
+    }
   };
 
   const stopCamera = () => {
@@ -252,7 +349,9 @@ export default function StaffScanPage() {
         const mod = await import("@zxing/browser");
         if (cancelled) return;
 
-        const reader = new mod.BrowserMultiFormatReader(undefined, 200);
+        const reader = new mod.BrowserMultiFormatReader(undefined, {
+          delayBetweenScanAttempts: 200,
+        });
         scannerReaderRef.current = reader;
 
         const controls = await reader.decodeFromConstraints(

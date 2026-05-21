@@ -1,5 +1,8 @@
 import Head from "next/head";
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { publicApi } from "@features/public/publicApi";
+import type { RouteDto, StationDto } from "@features/public/publicTypes";
 import {
   Bell,
   CalendarDays,
@@ -71,6 +74,45 @@ const summaryCards = [
 ];
 
 export default function PassengerSchedulePage() {
+  const [routes, setRoutes] = useState<RouteDto[]>([]);
+  const [stations, setStations] = useState<StationDto[]>([]);
+  const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
+  const [selectedStationId, setSelectedStationId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const [r, s] = await Promise.all([
+          publicApi.getRoutes(),
+          publicApi.getStations(),
+        ]);
+        if (cancelled) return;
+        setRoutes(r);
+        setStations(s);
+        setSelectedRouteId((prev) => prev ?? r[0]?.id ?? null);
+        setSelectedStationId((prev) => prev ?? s[0]?.id ?? null);
+      } catch {
+        // keep page usable with static placeholders
+      }
+    };
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const selectedRouteName = useMemo(() => {
+    const route = routes.find((x) => x.id === selectedRouteId);
+    return route?.name ?? "Tuyến số 1 (Bến Thành - Suối Tiên)";
+  }, [routes, selectedRouteId]);
+
+  const selectedStationName = useMemo(() => {
+    const st = stations.find((x) => x.id === selectedStationId);
+    return st?.name ?? "Ga Bến Thành";
+  }, [stations, selectedStationId]);
+
   return (
     <>
       <Head>
@@ -195,8 +237,8 @@ export default function PassengerSchedulePage() {
                       <button className="group flex h-11 w-full min-w-0 items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 text-left text-sm text-slate-900 transition hover:border-blue-200 hover:bg-blue-50/40">
                         <span className="flex min-w-0 items-center gap-2">
                           <TrainTrack className="h-4 w-4 shrink-0 text-slate-400 group-hover:text-blue-600" />
-                          <span className="min-w-0 truncate" title="Tuyến số 1 (Bến Thành - Suối Tiên)">
-                            Tuyến số 1 (Bến Thành - Suối Tiên)
+                          <span className="min-w-0 truncate" title={selectedRouteName}>
+                            {selectedRouteName}
                           </span>
                         </span>
                         <ChevronDown className="h-4 w-4 shrink-0 text-slate-500" />
@@ -206,7 +248,7 @@ export default function PassengerSchedulePage() {
                     <label className="space-y-1.5">
                       <span className="px-1 text-[11px] font-bold uppercase tracking-wide text-slate-500">Chọn ga</span>
                       <button className="group flex h-11 w-full min-w-0 items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 text-left text-sm text-slate-900 transition hover:border-blue-200 hover:bg-blue-50/40">
-                        <span className="min-w-0 truncate">Ga Bến Thành</span>
+                        <span className="min-w-0 truncate">{selectedStationName}</span>
                         <ChevronDown className="h-4 w-4 shrink-0 text-slate-500" />
                       </button>
                     </label>
@@ -251,7 +293,7 @@ export default function PassengerSchedulePage() {
                   <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
                     <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
                       <h2 className="text-lg font-bold text-slate-900">Lịch tàu theo thời gian thực</h2>
-                      <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Ga Bến Thành</span>
+                        <span className="text-xs font-bold uppercase tracking-wide text-slate-500">{selectedStationName}</span>
                     </div>
                     <div className="overflow-x-auto">
                       <table className="min-w-full text-left">
