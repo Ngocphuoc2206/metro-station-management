@@ -33,11 +33,13 @@ public class SecurityConfig {
             "/actuator/health/**",
             "/api/v1/schedules",
             "/api/v1/routes/*/schedule"
+            "/api/v1/live/**"
     };
 
     private static final String[] PUBLIC_GET_ENDPOINTS = {
             "/actuator/health",
-            "/actuator/health/**"
+            "/actuator/health/**",
+            "/api/v1/live/**"
     };
 
     @Bean
@@ -79,7 +81,11 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource(){
         CorsConfiguration corsConfiguration = new CorsConfiguration();
-        corsConfiguration.setAllowedOrigins(List.of("http://localhost:3000"));
+        corsConfiguration.setAllowedOrigins(List.of(
+                "http://15.134.61.110",
+                "http://15.134.61.110:3000",
+                "http://localhost:3000"
+        ));
         corsConfiguration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         corsConfiguration.setAllowedHeaders(List.of("*"));
         corsConfiguration.setAllowCredentials(true);
