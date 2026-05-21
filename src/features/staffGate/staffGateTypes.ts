@@ -5,5 +5,29 @@ export type ScanTicketRequest = {
   gateId: string;
 };
 
-// Backend response shape wasn't provided; keep flexible.
-export type ScanTicketResult = Record<string, unknown>;
+
+// Backend: GateScanLogResponse
+export type GateScanLogResponse = {
+  id: string;
+  gateId: string;
+  gateCode: string;
+  stationId: string;
+  stationName: string;
+  ticketId: string;
+  ticketCode: string;
+  action: string;
+  result: string;
+  message: string;
+  scannedAt: string;
+};
+
+// Backend: GateResponse
+export type GateResponse = {
+  gateId: string;
+  gateCode: string;
+  name: string;
+  stationId: string;
+  stationName: string;
+  action: string;
+  status: string;
+};

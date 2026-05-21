@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import StaffPortalShell from "@components/templates/StaffPortalShell";
 import { CheckCircle2, XCircle, AlertTriangle, Camera, CameraOff, Loader2 } from "lucide-react";
 import { staffGateApi } from "@features/staffGate/staffGateApi";
+import type { GateScanLogResponse } from "@features/staffGate/staffGateTypes";
 
 type TapMode = "TAP-IN" | "TAP-OUT";
 
@@ -223,21 +224,13 @@ export default function StaffScanPage() {
         gateId: gate,
       });
 
-      const anyRes = result as Record<string, unknown>;
-      const statusRaw = String(
-        anyRes.status ?? anyRes.result ?? anyRes.code ?? "SUCCESS",
-      ).toUpperCase();
+      const typed = result as GateScanLogResponse;
+      const statusRaw = String(typed.result ?? "").toUpperCase();
+      const ok = statusRaw === "SUCCESS" || statusRaw === "ACCEPTED";
 
-      const ok =
-        statusRaw.includes("SUCCESS") ||
-        statusRaw.includes("ACCEPT") ||
-        statusRaw === "1000";
-
-      const ticketId = String(
-        anyRes.ticketId ?? anyRes.ticketCode ?? anyRes.ticket ?? trimmed.slice(0, 12).toUpperCase(),
-      );
-      const gateId = String(anyRes.gateId ?? gate.replace("Gate ", ""));
-      const message = String(anyRes.message ?? anyRes.reason ?? (ok ? "ACCEPTED" : "REJECTED"));
+      const ticketId = typed.ticketCode || typed.ticketId || trimmed.slice(0, 12).toUpperCase();
+      const gateId = typed.gateCode || typed.gateId || gate.replace("Gate ", "");
+      const message = typed.message || (ok ? "ACCEPTED" : "REJECTED");
 
       const validation: ValidationResult = ok
         ? {
@@ -256,14 +249,25 @@ export default function StaffScanPage() {
           };
 
       setLastValidation(validation);
+
+      const mappedResult: ScanLogRow["result"] = ok
+        ? "SUCCESS"
+        : statusRaw === "EXPIRED" || statusRaw === "USED" || statusRaw === "NOT_ALLOWED"
+          ? (statusRaw as ScanLogRow["result"])
+          : "INVALID";
+
+      const mappedAction: TapMode =
+        statusRaw && (String(typed.action ?? "").toUpperCase() === "TAP-OUT")
+          ? "TAP-OUT"
+          : "TAP-IN";
       setLog((prev) =>
         [
           {
             time,
             gateId,
             ticketId,
-            action: mode,
-            result: validation.status,
+            action: typed.action ? mappedAction : mode,
+            result: mappedResult,
             message: validation.message,
           },
           ...prev,

@@ -19,6 +19,9 @@ export type UpdateMyPasswordRequest = {
 
 /**
  * Backend: NotificationSettingsRequest (PUT /api/v1/my/settings).
- * Field names are backend-owned; keep flexible to avoid FE breakage.
+ * Fields based on backend DTO.
  */
-export type UpdateMySettingsRequest = Record<string, unknown>;
+export type UpdateMySettingsRequest = {
+  emailNotification?: boolean;
+  smsNotification?: boolean;
+};
