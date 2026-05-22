@@ -2,6 +2,8 @@ import type { NextPage } from "next";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
 import PassengerShell from "@components/templates/PassengerShell";
+import { orderApi } from "@features/order/orderApi";
+import { paymentApi } from "@features/payment/paymentApi";
 import {
   ArrowLeft,
   ArrowRight,
@@ -15,8 +17,10 @@ import {
 } from "lucide-react";
 
 type JourneyState = {
-  originStation: string;
-  destinationStation: string;
+  originStationId: string;
+  originStationName: string;
+  destinationStationId: string;
+  destinationStationName: string;
   travelDate: string;
   passengerCount: string;
   isRoundTrip: boolean;
@@ -42,11 +46,18 @@ const STEP1_STORAGE_KEY = "metro-buy-ticket-step1";
 const STEP2_STORAGE_KEY = "metro-buy-ticket-step2";
 
 const emptyJourneyState: JourneyState = {
-  originStation: "",
-  destinationStation: "",
+  originStationId: "",
+  originStationName: "",
+  destinationStationId: "",
+  destinationStationName: "",
   travelDate: "",
   passengerCount: "",
   isRoundTrip: false,
+};
+
+const parsePassengerCount = (value: string) => {
+  const match = value.match(/\d+/);
+  return match ? Number(match[0]) : 1;
 };
 
 const TICKET_DEFAULT_BY_ID: Record<string, TicketInfo> = {
@@ -95,12 +106,14 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
   const [selectedPaymentMethod, setSelectedPaymentMethod] =
     useState<PaymentMethod>("ewallet");
   const [promotionCode, setPromotionCode] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
   useEffect(() => {
     const fromQuery = {
-      originStation:
+      originStationId:
         typeof router.query.from === "string" ? router.query.from : "",
-      destinationStation:
+      destinationStationId:
         typeof router.query.to === "string" ? router.query.to : "",
       travelDate:
         typeof router.query.date === "string" ? router.query.date : "",
@@ -112,14 +125,18 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
     };
 
     const hasAllFromQuery =
-      fromQuery.originStation &&
-      fromQuery.destinationStation &&
+      fromQuery.originStationId &&
+      fromQuery.destinationStationId &&
       fromQuery.travelDate &&
       fromQuery.passengerCount;
 
     if (hasAllFromQuery) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setJourneyState(fromQuery);
+      setJourneyState({
+        ...fromQuery,
+        originStationName: "",
+        destinationStationName: "",
+      });
     }
 
     if (typeof window === "undefined") {
@@ -132,8 +149,8 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
         try {
           const parsedStep1 = JSON.parse(rawStep1) as JourneyState;
           if (
-            parsedStep1.originStation &&
-            parsedStep1.destinationStation &&
+            parsedStep1.originStationId &&
+            parsedStep1.destinationStationId &&
             parsedStep1.travelDate &&
             parsedStep1.passengerCount
           ) {
@@ -163,8 +180,8 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
 
   const hasJourneyState = useMemo(() => {
     return Boolean(
-      journeyState.originStation &&
-      journeyState.destinationStation &&
+      journeyState.originStationId &&
+      journeyState.destinationStationId &&
       journeyState.travelDate &&
       journeyState.passengerCount,
     );
@@ -211,13 +228,78 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
       return;
     }
 
-    await router.push({
-      pathname: "/passenger-page/payment-success",
-      query: {
-        ...router.query,
-        ticketType: selectedTicket.id,
-      },
-    });
+    setIsProcessing(true);
+    setPaymentError(null);
+
+    try {
+      const passengerNum = parsePassengerCount(journeyState.passengerCount);
+
+      const order = await orderApi.create({
+        fromStationId: journeyState.originStationId,
+        toStationId: journeyState.destinationStationId,
+        ticketTypeId: selectedTicket.id,
+        passengerCount: passengerNum,
+        isRoundTrip: journeyState.isRoundTrip,
+        travelDate: journeyState.travelDate,
+        promotionCode: promotionCode.trim() || undefined,
+        paymentMethod: selectedPaymentMethod,
+      });
+
+      const payment = await paymentApi.init({
+        orderId: order.id,
+        method: selectedPaymentMethod,
+        returnUrl:
+          typeof window !== "undefined" ? `${window.location.origin}/passenger-page/payment-success` : undefined,
+      });
+
+      if (payment.redirectUrl || payment.checkoutUrl) {
+        const url = payment.redirectUrl ?? payment.checkoutUrl;
+        if (url) {
+          window.location.href = url;
+          return;
+        }
+      }
+
+      // Poll payment status (basic)
+      const start = Date.now();
+      const timeoutMs = 30_000;
+      const intervalMs = 2_000;
+
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const latest = await paymentApi.getById(payment.id);
+        const status = String(latest.status ?? "").toUpperCase();
+
+        if (["SUCCESS", "SUCCEEDED", "PAID", "COMPLETED"].includes(status)) {
+          break;
+        }
+
+        if (["FAILED", "CANCELED", "CANCELLED", "ERROR"].includes(status)) {
+          throw new Error("Thanh toán thất bại hoặc bị huỷ");
+        }
+
+        if (Date.now() - start > timeoutMs) {
+          throw new Error("Thanh toán đang xử lý quá lâu, vui lòng thử lại");
+        }
+
+        await new Promise((r) => setTimeout(r, intervalMs));
+      }
+
+      await router.push({
+        pathname: "/passenger-page/payment-success",
+        query: {
+          ...router.query,
+          ticketType: selectedTicket.id,
+          orderId: order.id,
+          paymentId: payment.id,
+        },
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Không thể khởi tạo thanh toán";
+      setPaymentError(message);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -256,6 +338,12 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
                 </h2>
 
                 <div className="flex flex-col gap-4">
+                  {paymentError ? (
+                    <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 outline outline-1 outline-offset-[-1px] outline-red-100">
+                      {paymentError}
+                    </div>
+                  ) : null}
+
                   <button
                     type="button"
                     onClick={() => setSelectedPaymentMethod("ewallet")}
@@ -461,8 +549,8 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
                           Hành trình
                         </p>
                         <p className="text-sm font-medium leading-5 text-neutral-900">
-                          {journeyState.originStation} -{" "}
-                          {journeyState.destinationStation}
+                          {journeyState.originStationName || journeyState.originStationId} -{" "}
+                          {journeyState.destinationStationName || journeyState.destinationStationId}
                         </p>
                       </div>
                     </div>
@@ -519,14 +607,14 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
                   <button
                     type="button"
                     onClick={handleConfirmPayment}
-                    disabled={!hasJourneyState}
+                    disabled={!hasJourneyState || isProcessing}
                     className={`inline-flex items-center justify-center gap-3 rounded-xl py-4 text-base font-bold text-white transition ${
-                      hasJourneyState
+                      hasJourneyState && !isProcessing
                         ? "bg-blue-600 hover:bg-blue-700"
                         : "cursor-not-allowed bg-slate-300"
                     }`}
                   >
-                    Xác nhận thanh toán
+                    {isProcessing ? "Đang xử lý..." : "Xác nhận thanh toán"}
                     <ArrowRight className="h-4 w-4" />
                   </button>
 

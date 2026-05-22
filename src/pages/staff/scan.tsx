@@ -1,7 +1,9 @@
 import Head from "next/head";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import StaffPortalShell from "@components/templates/StaffPortalShell";
-import { CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
+import { CheckCircle2, XCircle, AlertTriangle, Camera, CameraOff, Loader2 } from "lucide-react";
+import { staffGateApi } from "@features/staffGate/staffGateApi";
+import type { GateScanLogResponse } from "@features/staffGate/staffGateTypes";
 
 type TapMode = "TAP-IN" | "TAP-OUT";
 
@@ -16,6 +18,8 @@ type ScanLogRow = {
 
 const stations = ["Ga Bến Thành", "Ga Ba Son", "Ga Văn Thánh"];
 const gates = ["Gate A-01", "Gate A-02", "Gate B-01"];
+
+const DEFAULT_DEVICE_ID = "WEB_SCANNER";
 
 const initialLog: ScanLogRow[] = [
   {
@@ -164,6 +168,10 @@ export default function StaffScanPage() {
   const [token, setToken] = useState("");
   const [mode, setMode] = useState<TapMode>("TAP-IN");
   const [log, setLog] = useState<ScanLogRow[]>(initialLog);
+  const [isCameraOn, setIsCameraOn] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [isCameraStarting, setIsCameraStarting] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
   const [lastValidation, setLastValidation] = useState<ValidationResult>({
     status: "SUCCESS",
     title: "Chấp nhận",
@@ -172,7 +180,224 @@ export default function StaffScanPage() {
     tone: "green",
   });
 
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const scannerControlsRef = useRef<{ stop: () => void } | null>(null);
+  const scannerReaderRef = useRef<unknown | null>(null);
+
   const todayLabel = useMemo(() => formatTodayVi(), []);
+
+  const runScan = async (rawToken: string) => {
+    const time = new Date().toLocaleTimeString("vi-VN", { hour12: false });
+    const trimmed = rawToken.trim();
+
+    if (!trimmed) {
+      const { ticketId, gateId, validation } = validateScan({
+        rawToken,
+        gateLabel: gate,
+        stationLabel: station,
+        mode,
+      });
+
+      setLastValidation(validation);
+      setLog((prev) =>
+        [
+          {
+            time,
+            gateId,
+            ticketId,
+            action: mode,
+            result: validation.status,
+            message: validation.message,
+          },
+          ...prev,
+        ].slice(0, 10)
+      );
+      return;
+    }
+
+    setIsScanning(true);
+    try {
+      const result = await staffGateApi.scan({
+        qrContent: trimmed,
+        deviceId: DEFAULT_DEVICE_ID,
+        stationId: station,
+        gateId: gate,
+      });
+
+      const typed = result as GateScanLogResponse;
+      const statusRaw = String(typed.result ?? "").toUpperCase();
+      const ok = statusRaw === "SUCCESS" || statusRaw === "ACCEPTED";
+
+      const ticketId = typed.ticketCode || typed.ticketId || trimmed.slice(0, 12).toUpperCase();
+      const gateId = typed.gateCode || typed.gateId || gate.replace("Gate ", "");
+      const message = typed.message || (ok ? "ACCEPTED" : "REJECTED");
+
+      const validation: ValidationResult = ok
+        ? {
+            status: "SUCCESS",
+            title: "Chấp nhận",
+            subtitle: "Giao dịch thành công - Mở cổng",
+            message,
+            tone: "green",
+          }
+        : {
+            status: "INVALID",
+            title: "Từ chối",
+            subtitle: "Quét vé thất bại",
+            message,
+            tone: "red",
+          };
+
+      setLastValidation(validation);
+
+      const mappedResult: ScanLogRow["result"] = ok
+        ? "SUCCESS"
+        : statusRaw === "EXPIRED" || statusRaw === "USED" || statusRaw === "NOT_ALLOWED"
+          ? (statusRaw as ScanLogRow["result"])
+          : "INVALID";
+
+      const mappedAction: TapMode =
+        statusRaw && (String(typed.action ?? "").toUpperCase() === "TAP-OUT")
+          ? "TAP-OUT"
+          : "TAP-IN";
+      setLog((prev) =>
+        [
+          {
+            time,
+            gateId,
+            ticketId,
+            action: typed.action ? mappedAction : mode,
+            result: mappedResult,
+            message: validation.message,
+          },
+          ...prev,
+        ].slice(0, 10)
+      );
+    } catch (err) {
+      // fallback to local validation to keep tool usable when backend is down
+      const { ticketId, gateId, validation } = validateScan({
+        rawToken,
+        gateLabel: gate,
+        stationLabel: station,
+        mode,
+      });
+
+      const message = err instanceof Error ? err.message : "Không thể gọi API /staff/gates/scan";
+      const fallbackValidation: ValidationResult = {
+        ...validation,
+        subtitle: "Không thể gọi API - dùng chế độ mô phỏng",
+        message,
+        tone: "amber",
+      };
+
+      setLastValidation(fallbackValidation);
+      setLog((prev) =>
+        [
+          {
+            time,
+            gateId,
+            ticketId,
+            action: mode,
+            result: fallbackValidation.status,
+            message: fallbackValidation.message,
+          },
+          ...prev,
+        ].slice(0, 10)
+      );
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  const stopCamera = () => {
+    try {
+      scannerControlsRef.current?.stop();
+    } finally {
+      scannerControlsRef.current = null;
+      scannerReaderRef.current = null;
+
+      const videoEl = videoRef.current;
+      const stream = videoEl?.srcObject;
+      if (stream && typeof stream === "object" && "getTracks" in stream) {
+        try {
+          (stream as MediaStream).getTracks().forEach((t) => t.stop());
+        } catch {
+          // ignore
+        }
+      }
+      if (videoEl) {
+        videoEl.srcObject = null;
+      }
+      setIsCameraOn(false);
+      setIsCameraStarting(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isCameraOn) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const start = async () => {
+      setCameraError(null);
+      setIsCameraStarting(true);
+
+      try {
+        const videoEl = videoRef.current;
+        if (!videoEl) {
+          throw new Error("Không tìm thấy phần tử video");
+        }
+
+        const mod = await import("@zxing/browser");
+        if (cancelled) return;
+
+        const reader = new mod.BrowserMultiFormatReader(undefined, {
+          delayBetweenScanAttempts: 200,
+        });
+        scannerReaderRef.current = reader;
+
+        const controls = await reader.decodeFromConstraints(
+          {
+            audio: false,
+            video: { facingMode: { ideal: "environment" } },
+          },
+          videoEl,
+          (result, error, controlsFromCb) => {
+            if (cancelled) return;
+            if (result) {
+              const text = result.getText();
+              setToken(text);
+              runScan(text);
+              (controlsFromCb ?? controls).stop();
+              setIsCameraOn(false);
+              setIsCameraStarting(false);
+            }
+            if (error) {
+              // ignore decode errors until a result is found
+            }
+          }
+        );
+
+        scannerControlsRef.current = controls;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Không thể mở camera";
+        setCameraError(message);
+        setIsCameraOn(false);
+      } finally {
+        if (!cancelled) setIsCameraStarting(false);
+      }
+    };
+
+    start();
+
+    return () => {
+      cancelled = true;
+      stopCamera();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCameraOn]);
 
   return (
     <>
@@ -257,32 +482,66 @@ export default function StaffScanPage() {
                   />
                 </div>
 
+                <div className="mt-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold leading-5 text-slate-700">Quét bằng camera</p>
+                    <button
+                      type="button"
+                      className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-bold outline outline-1 outline-offset-[-1px] transition ${
+                        isCameraOn
+                          ? "bg-slate-900 text-white outline-slate-900"
+                          : "bg-white text-slate-900 outline-slate-200"
+                      }`}
+                      onClick={() => {
+                        if (isCameraOn) stopCamera();
+                        else setIsCameraOn(true);
+                      }}
+                    >
+                      {isCameraOn ? (
+                        <CameraOff className="h-4 w-4" aria-hidden="true" />
+                      ) : (
+                        <Camera className="h-4 w-4" aria-hidden="true" />
+                      )}
+                      {isCameraOn ? "Tắt camera" : "Mở camera"}
+                    </button>
+                  </div>
+
+                  {cameraError ? (
+                    <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700 outline outline-1 outline-offset-[-1px] outline-red-100">
+                      {cameraError}
+                    </div>
+                  ) : null}
+
+                  {isCameraOn ? (
+                    <div className="overflow-hidden rounded-2xl bg-slate-900 outline outline-1 outline-offset-[-1px] outline-slate-200">
+                      <div className="flex items-center justify-between px-4 py-2">
+                        <div className="text-xs font-bold uppercase tracking-wide text-white/80">
+                          Camera preview
+                        </div>
+                        {isCameraStarting ? (
+                          <div className="inline-flex items-center gap-2 text-xs font-semibold text-white/80">
+                            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                            Đang khởi động...
+                          </div>
+                        ) : (
+                          <div className="text-xs font-semibold text-white/60">Đưa mã QR vào khung</div>
+                        )}
+                      </div>
+                      <video
+                        ref={videoRef}
+                        className="h-56 w-full object-cover"
+                        muted
+                        playsInline
+                      />
+                    </div>
+                  ) : null}
+                </div>
+
                 <button
                   type="button"
                   className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-6 py-3 text-base font-bold leading-6 text-white"
                   onClick={() => {
-                    const time = new Date().toLocaleTimeString("vi-VN", { hour12: false });
-
-                    const { ticketId, gateId, validation } = validateScan({
-                      rawToken: token,
-                      gateLabel: gate,
-                      stationLabel: station,
-                      mode,
-                    });
-
-                    setLastValidation(validation);
-
-                    setLog((prev) => [
-                      {
-                        time,
-                        gateId,
-                        ticketId,
-                        action: mode,
-                        result: validation.status,
-                        message: validation.message,
-                      },
-                      ...prev,
-                    ].slice(0, 10));
+                    runScan(token);
                   }}
                 >
                   <span className="h-5 w-5 rounded bg-white" aria-hidden="true" />

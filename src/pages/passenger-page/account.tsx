@@ -1,5 +1,8 @@
 import Head from "next/head";
 import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
+import { profileApi } from "@features/profile/profileApi";
+import type { MyProfileDto } from "@features/profile/profileTypes";
 import {
   Bell,
   Camera,
@@ -66,6 +69,127 @@ const linkedPayments = [
 ];
 
 export default function PassengerAccountPage() {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const [profile, setProfile] = useState<MyProfileDto | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
+
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+
+  const [language, setLanguage] = useState("vi");
+  const [darkMode, setDarkMode] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const data = await profileApi.getMyProfile();
+        if (cancelled) return;
+        setProfile(data);
+        setFullName(data.fullName ?? "");
+        setPhone(data.phone ?? "");
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Không thể tải profile";
+        if (!cancelled) setError(message);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handlePickAvatar = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleAvatarSelected = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsSaving(true);
+      setError(null);
+      await profileApi.uploadAvatar(file);
+      const refreshed = await profileApi.getMyProfile();
+      setProfile(refreshed);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Upload avatar thất bại";
+      setError(message);
+    } finally {
+      setIsSaving(false);
+      // allow re-select same file
+      event.target.value = "";
+    }
+  };
+
+  const handleCancel = () => {
+    setError(null);
+    setFullName(profile?.fullName ?? "");
+    setPhone(profile?.phone ?? "");
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmNewPassword("");
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    setError(null);
+    try {
+      await profileApi.updateMyProfile({
+        fullName: fullName.trim() || undefined,
+        phone: phone.trim() || undefined,
+      });
+
+      const wantsPasswordChange =
+        currentPassword.length > 0 || newPassword.length > 0 || confirmNewPassword.length > 0;
+
+      if (wantsPasswordChange) {
+        if (!currentPassword || !newPassword) {
+          throw new Error("Vui lòng nhập đủ mật khẩu hiện tại và mật khẩu mới.");
+        }
+        if (newPassword !== confirmNewPassword) {
+          throw new Error("Xác nhận mật khẩu mới không khớp.");
+        }
+
+        await profileApi.updateMyPassword({
+          currentPassword,
+          newPassword,
+        });
+
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmNewPassword("");
+      }
+
+      const refreshed = await profileApi.getMyProfile();
+      setProfile(refreshed);
+      setFullName(refreshed.fullName ?? "");
+      setPhone(refreshed.phone ?? "");
+
+      window.alert("Đã lưu thay đổi.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Lưu thất bại";
+      setError(message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <>
       <Head>
@@ -145,6 +269,18 @@ export default function PassengerAccountPage() {
 
             <section className="flex-1 p-4 sm:p-8">
               <div className="mx-auto w-full max-w-[1200px] space-y-5">
+                {error ? (
+                  <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                    {error}
+                  </div>
+                ) : null}
+
+                {isLoading ? (
+                  <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700">
+                    Đang tải profile...
+                  </div>
+                ) : null}
+
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 text-sm font-medium text-slate-500">
                     <span>Hành khách</span>
@@ -190,11 +326,15 @@ export default function PassengerAccountPage() {
                             <div className="rounded-full bg-white p-1.5 shadow-sm ring-1 ring-slate-200">
                               <img
                                 className="h-20 w-20 rounded-full object-cover sm:h-24 sm:w-24"
-                                src="https://placehold.co/128x128"
+                                src={profile?.avatarUrl ?? "https://placehold.co/128x128"}
                                 alt="Avatar"
                               />
                             </div>
-                            <button className="absolute -bottom-1 -right-1 flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg ring-4 ring-white transition hover:bg-blue-700">
+                            <button
+                              type="button"
+                              onClick={handlePickAvatar}
+                              className="absolute -bottom-1 -right-1 flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg ring-4 ring-white transition hover:bg-blue-700"
+                            >
                               <Camera className="h-4 w-4" />
                             </button>
                           </div>
@@ -213,19 +353,31 @@ export default function PassengerAccountPage() {
                           </div>
                         </div>
 
-                        <button className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+                        <button
+                          type="button"
+                          onClick={handlePickAvatar}
+                          className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                        >
                           Thay đổi ảnh
                         </button>
                       </div>
                     </div>
+
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleAvatarSelected}
+                    />
 
                     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                       <label className="space-y-2">
                         <span className="text-sm font-bold text-slate-700">Họ tên</span>
                         <input
                           className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none"
-                          value="Anh Yang Say Hi (Dzz)"
-                          readOnly
+                          value={fullName}
+                          onChange={(e) => setFullName(e.target.value)}
                         />
                       </label>
 
@@ -233,7 +385,7 @@ export default function PassengerAccountPage() {
                         <span className="text-sm font-bold text-slate-700">Email</span>
                         <input
                           className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none"
-                          value="anhyangsayhi@gmail.com"
+                          value={profile?.email ?? ""}
                           readOnly
                         />
                       </label>
@@ -242,8 +394,8 @@ export default function PassengerAccountPage() {
                         <span className="text-sm font-bold text-slate-700">Số điện thoại</span>
                         <input
                           className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none"
-                          value="0901 234 567"
-                          readOnly
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
                         />
                       </label>
                     </div>
@@ -264,27 +416,30 @@ export default function PassengerAccountPage() {
                     <label className="space-y-2">
                       <span className="text-sm font-bold text-slate-700">Mật khẩu hiện tại</span>
                       <input
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-gray-500 outline-none"
-                        value="••••••••"
-                        readOnly
+                        type="password"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none"
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
                       />
                     </label>
 
                     <label className="space-y-2">
                       <span className="text-sm font-bold text-slate-700">Mật khẩu mới</span>
                       <input
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-gray-500 outline-none"
-                        value="Nhập mật khẩu mới"
-                        readOnly
+                        type="password"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
                       />
                     </label>
 
                     <label className="space-y-2">
                       <span className="text-sm font-bold text-slate-700">Xác nhận mật khẩu mới</span>
                       <input
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-gray-500 outline-none"
-                        value="Xác nhận lại"
-                        readOnly
+                        type="password"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none"
+                        value={confirmNewPassword}
+                        onChange={(e) => setConfirmNewPassword(e.target.value)}
                       />
                     </label>
                   </div>
@@ -300,10 +455,17 @@ export default function PassengerAccountPage() {
                     <div className="space-y-5">
                       <label className="space-y-2">
                         <span className="text-sm font-bold text-slate-700">Ngôn ngữ</span>
-                        <button className="flex h-10 w-full items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-900">
-                          <span>Tiếng Việt</span>
-                          <ChevronDown className="h-4 w-4 text-slate-500" />
-                        </button>
+                        <div className="relative">
+                          <select
+                            value={language}
+                            onChange={(e) => setLanguage(e.target.value)}
+                            className="h-10 w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-4 pr-10 text-sm text-slate-900"
+                          >
+                            <option value="vi">Tiếng Việt</option>
+                            <option value="en">English</option>
+                          </select>
+                          <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                        </div>
                       </label>
 
                       <div className="flex items-center justify-between rounded-xl px-1">
@@ -311,8 +473,15 @@ export default function PassengerAccountPage() {
                           <p className="text-sm font-bold text-slate-700">Chế độ tối</p>
                           <p className="text-xs text-slate-500">Giao diện phù hợp ban đêm</p>
                         </div>
-                        <button className="relative h-6 w-11 rounded-full bg-slate-200">
-                          <span className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full border border-gray-300 bg-white" />
+                        <button
+                          type="button"
+                          onClick={() => setDarkMode((prev) => !prev)}
+                          className={`relative h-6 w-11 rounded-full ${darkMode ? "bg-blue-600" : "bg-slate-200"}`}
+                          aria-pressed={darkMode}
+                        >
+                          <span
+                            className={`absolute top-0.5 h-5 w-5 rounded-full border border-gray-300 bg-white transition ${darkMode ? "left-5" : "left-0.5"}`}
+                          />
                         </button>
                       </div>
                     </div>
@@ -360,11 +529,21 @@ export default function PassengerAccountPage() {
 
             <div className="sticky bottom-0 z-10 border-t border-slate-200 bg-white/95 px-4 py-4 shadow-[0px_-4px_10px_rgba(0,0,0,0.03)] backdrop-blur sm:px-8">
               <div className="mx-auto flex w-full max-w-[1200px] justify-end gap-3">
-                <button className="rounded-xl border border-slate-200 bg-white px-8 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50">
+                <button
+                  type="button"
+                  disabled={isSaving}
+                  onClick={handleCancel}
+                  className="rounded-xl border border-slate-200 bg-white px-8 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+                >
                   Hủy
                 </button>
-                <button className="rounded-xl bg-blue-600 px-8 py-2.5 text-sm font-bold text-white shadow-[0px_10px_15px_-3px_rgba(19,127,236,0.20)] hover:bg-blue-700">
-                  Lưu thay đổi
+                <button
+                  type="button"
+                  disabled={isSaving}
+                  onClick={handleSave}
+                  className="rounded-xl bg-blue-600 px-8 py-2.5 text-sm font-bold text-white shadow-[0px_10px_15px_-3px_rgba(19,127,236,0.20)] hover:bg-blue-700 disabled:opacity-60"
+                >
+                  {isSaving ? "Đang lưu..." : "Lưu thay đổi"}
                 </button>
               </div>
             </div>

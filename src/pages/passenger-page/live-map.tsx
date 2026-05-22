@@ -1,6 +1,8 @@
 import Head from "next/head";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import PassengerShell from "@components/templates/PassengerShell";
+import { publicApi } from "@features/public/publicApi";
+import type { RouteDto, StationDto } from "@features/public/publicTypes";
 import {
   Activity,
   Bell,
@@ -111,8 +113,36 @@ const stationDotClass: Record<Station["status"], string> = {
 };
 
 export default function PassengerLiveMapPage() {
+  const [routes, setRoutes] = useState<RouteDto[]>([]);
+  const [stationsApi, setStationsApi] = useState<StationDto[]>([]);
+  const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
+
   const [selectedTrainId, setSelectedTrainId] = useState(trains[0].id);
   const [selectedStationId, setSelectedStationId] = useState(stations[0].id);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        const [r, s] = await Promise.all([
+          publicApi.getRoutes(),
+          publicApi.getStations(),
+        ]);
+        if (cancelled) return;
+        setRoutes(r);
+        setStationsApi(s);
+        setSelectedRouteId((prev) => prev ?? r[0]?.id ?? null);
+      } catch {
+        // ignore - keep static demo map
+      }
+    };
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const selectedTrain = useMemo(
     () => trains.find((train) => train.id === selectedTrainId) ?? trains[0],
@@ -125,6 +155,16 @@ export default function PassengerLiveMapPage() {
       stations[0],
     [selectedStationId],
   );
+
+  const resolvedRouteName = useMemo(() => {
+    const r = routes.find((x) => x.id === selectedRouteId);
+    return r?.name ?? "Tuyến 01: Bến Thành - Suối Tiên";
+  }, [routes, selectedRouteId]);
+
+  const stationNameByIndex = useMemo(() => {
+    if (!stationsApi.length) return null;
+    return (index: number) => stationsApi[index]?.name;
+  }, [stationsApi]);
 
   return (
     <>
@@ -194,7 +234,7 @@ export default function PassengerLiveMapPage() {
                   </span>
                   <div>
                     <h2 className="text-lg font-bold text-slate-900">
-                      Tuyến 01: Bến Thành - Suối Tiên
+                      {resolvedRouteName}
                     </h2>
                     <p className="text-xs text-slate-500">
                       Theo dõi vị trí tàu, trạng thái ga và mật độ hành khách.
@@ -248,7 +288,7 @@ export default function PassengerLiveMapPage() {
                     strokeLinejoin="round"
                   />
 
-                  {stations.map((station) => (
+                  {stations.map((station, index) => (
                     <g
                       key={station.id}
                       role="button"
@@ -275,7 +315,7 @@ export default function PassengerLiveMapPage() {
                         textAnchor="middle"
                         className="fill-white text-[15px] font-bold"
                       >
-                        {station.name}
+                        {stationNameByIndex?.(index) ?? station.name}
                       </text>
                     </g>
                   ))}

@@ -22,7 +22,7 @@ export interface RefreshResponse {
 
 // ─── Flag môi trường ──────────────────────────────────────────────────────────
 // Đặt NEXT_PUBLIC_USE_MOCK_AUTH=true trong .env.local khi backend chưa chạy
-const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK_AUTH === "true";
+export const USE_MOCK_AUTH = process.env.NEXT_PUBLIC_USE_MOCK_AUTH === "true";
 
 // ─── Mock data cho phát triển UI ─────────────────────────────────────────────
 const MOCK_ACCOUNTS: Record<
@@ -155,7 +155,7 @@ function getPrimaryRole(
 
 export async function loginUser(data: LoginRequest): Promise<LoginResponse> {
   // MOCK MODE
-  if (USE_MOCK) {
+  if (USE_MOCK_AUTH) {
     await new Promise((r) => setTimeout(r, 600));
     const account = MOCK_ACCOUNTS[data.email.toLowerCase()];
     if (!account || data.password.length < 6) {
@@ -183,12 +183,16 @@ export async function loginUser(data: LoginRequest): Promise<LoginResponse> {
       data,
     );
     const results = res.data.results as LoginResultsLike;
+    const jwtPayload = decodeJwtPayload(results.token);
+    const tokenEmail =
+      typeof jwtPayload?.sub === "string" ? jwtPayload.sub : undefined;
+    const email = results.email ?? tokenEmail ?? data.email;
     return {
       success: true,
       data: {
         token: results.token,
-        name: results.fullName,
-        email: results.email,
+        name: results.fullName ?? email,
+        email,
         role: getPrimaryRole(results),
       },
     };
@@ -209,7 +213,7 @@ export async function registerUser(
   data: SignupRequest
 ): Promise<SignupResponse> {
   // MOCK MODE
-  if (USE_MOCK) {
+  if (USE_MOCK_AUTH) {
     await new Promise((r) => setTimeout(r, 600));
     return { success: true };
   }

@@ -8,8 +8,13 @@ export const apiClient = axios.create({
 });
 
 // ── Request interceptor: gắn token vào mọi request ───────────────────────────
+function isLoginRequest(url?: string) {
+  const path = url?.replace(/[?#].*$/, "").replace(/\/+$/, "");
+  return path?.endsWith("/auth/login") ?? false;
+}
+
 apiClient.interceptors.request.use((config) => {
-  if (typeof window !== "undefined") {
+  if (typeof window !== "undefined" && !isLoginRequest(config.url)) {
     const token = localStorage.getItem("authToken");
     if (token) {
       config.headers["Authorization"] = `Bearer ${token}`;
