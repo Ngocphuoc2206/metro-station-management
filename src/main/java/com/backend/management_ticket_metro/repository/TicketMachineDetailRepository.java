@@ -6,5 +6,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 
 public interface TicketMachineDetailRepository extends JpaRepository<TicketMachineDetail,String> {
-    Optional<TicketMachineDetail> findByDeviceId(String deviceId);
+    Optional<TicketMachineDetail> findByDevices_DeviceId(String deviceId);
 }

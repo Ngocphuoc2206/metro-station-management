@@ -7,5 +7,5 @@ import org.springframework.expression.spel.ast.OpAnd;
 import java.util.Optional;
 
 public interface GateDetailRepository extends JpaRepository<GateDetail,String> {
-    Optional<GateDetail> findByDeviceId(String deviceId);
+    Optional<GateDetail> findByDevices_DeviceId(String deviceId);
 }
