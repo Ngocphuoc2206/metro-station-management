@@ -1,6 +1,10 @@
 import Link from "next/link";
 
-export const UserHero = () => {
+type UserHeroProps = {
+  statsText?: string;
+};
+
+export const UserHero = ({ statsText }: UserHeroProps) => {
   return (
     <section className="mx-auto inline-flex w-full max-w-[1120px] flex-col items-center justify-start gap-8 lg:flex-row">
       <div className="flex flex-1 flex-col items-start justify-center gap-6">
@@ -18,6 +22,12 @@ export const UserHero = () => {
             <br className="hidden lg:block" />
             hết.
           </p>
+
+          {statsText ? (
+            <p className="w-full text-sm font-semibold leading-6 text-slate-600">
+              {statsText}
+            </p>
+          ) : null}
         </div>
 
         <div className="inline-flex w-full flex-wrap items-start justify-start gap-4">
