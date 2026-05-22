@@ -3,6 +3,10 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
 import PassengerShell from "@components/templates/PassengerShell";
+import { fareCalcApi } from "@features/fare/fareCalcApi";
+import { orderApi } from "@features/order/orderApi";
+import { publicApi } from "@features/public/publicApi";
+import type { TicketTypeDto } from "@features/public/publicTypes";
 import {
   ArrowRight,
   Check,
@@ -13,15 +17,17 @@ import {
 } from "lucide-react";
 
 type JourneyState = {
-  originStation: string;
-  destinationStation: string;
+  originStationId: string;
+  originStationName: string;
+  destinationStationId: string;
+  destinationStationName: string;
   travelDate: string;
   passengerCount: string;
   isRoundTrip: boolean;
 };
 
-type TicketType = {
-  id: "single" | "day" | "month";
+type TicketTypeCard = {
+  id: string;
   name: string;
   subtitle: string;
   description: string[];
@@ -34,47 +40,31 @@ const STEP1_STORAGE_KEY = "metro-buy-ticket-step1";
 const STEP2_STORAGE_KEY = "metro-buy-ticket-step2";
 
 const emptyState: JourneyState = {
-  originStation: "",
-  destinationStation: "",
+  originStationId: "",
+  originStationName: "",
+  destinationStationId: "",
+  destinationStationName: "",
   travelDate: "",
   passengerCount: "",
   isRoundTrip: false,
 };
 
-const TICKET_TYPES: TicketType[] = [
-  {
-    id: "single",
-    name: "Vé lượt",
-    subtitle: "Single Journey",
-    description: [
-      "Dành cho hành khách di chuyển một lần",
-      "giữa hai ga đã chọn.",
-    ],
-    price: 15000,
-  },
-  {
-    id: "day",
-    name: "Vé ngày",
-    subtitle: "Day Pass",
-    description: [
-      "Đi lại không giới hạn trong 24h",
-      "Áp dụng cho tất cả các tuyến",
-    ],
-    price: 40000,
-    highlighted: true,
-    badge: "Best Value",
-  },
-  {
-    id: "month",
-    name: "Vé tháng",
-    subtitle: "Month Pass",
-    description: [
-      "Di chuyển không giới hạn trong 30 ngày.",
-      "Phù hợp cho người đi làm.",
-    ],
-    price: 200000,
-  },
-];
+const parsePassengerCount = (value: string) => {
+  const match = value.match(/\d+/);
+  return match ? Number(match[0]) : 1;
+};
+
+const toTicketCard = (t: TicketTypeDto): TicketTypeCard => {
+  const price = typeof t.price === "number" ? t.price : 0;
+  return {
+    id: t.id,
+    name: t.name,
+    subtitle: t.code ?? "",
+    description: t.conditions ? [t.conditions] : ["Áp dụng theo quy định của MetroNext."],
+    price,
+    highlighted: t.status ? String(t.status).toLowerCase() === "active" : false,
+  };
+};
 
 const formatDate = (date: string) => {
   if (!date) {
@@ -96,14 +86,19 @@ const formatCurrency = (amount: number) => {
 const MetroBuyTicketsStep2Page: NextPage = () => {
   const router = useRouter();
   const [journeyState, setJourneyState] = useState<JourneyState>(emptyState);
-  const [selectedTicketId, setSelectedTicketId] =
-    useState<TicketType["id"]>("day");
+  const [ticketTypes, setTicketTypes] = useState<TicketTypeCard[]>([]);
+  const [isLoadingTickets, setIsLoadingTickets] = useState(true);
+  const [ticketsError, setTicketsError] = useState<string | null>(null);
+
+  const [selectedTicketId, setSelectedTicketId] = useState<string>("");
+  const [pricingTotal, setPricingTotal] = useState<number | null>(null);
+  const [isLoadingPricing, setIsLoadingPricing] = useState(false);
 
   useEffect(() => {
     const fromQuery = {
-      originStation:
+      originStationId:
         typeof router.query.from === "string" ? router.query.from : "",
-      destinationStation:
+      destinationStationId:
         typeof router.query.to === "string" ? router.query.to : "",
       travelDate:
         typeof router.query.date === "string" ? router.query.date : "",
@@ -115,14 +110,18 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
     };
 
     const hasAllFromQuery =
-      fromQuery.originStation &&
-      fromQuery.destinationStation &&
+      fromQuery.originStationId &&
+      fromQuery.destinationStationId &&
       fromQuery.travelDate &&
       fromQuery.passengerCount;
 
     if (hasAllFromQuery) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setJourneyState(fromQuery);
+      setJourneyState({
+        ...fromQuery,
+        originStationName: "",
+        destinationStationName: "",
+      });
     }
 
     if (typeof window === "undefined") {
@@ -135,8 +134,8 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
         try {
           const parsedStep1 = JSON.parse(rawStep1Data) as JourneyState;
           if (
-            parsedStep1.originStation &&
-            parsedStep1.destinationStation &&
+            parsedStep1.originStationId &&
+            parsedStep1.destinationStationId &&
             parsedStep1.travelDate &&
             parsedStep1.passengerCount
           ) {
@@ -152,21 +151,45 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
     if (rawStep2Data) {
       try {
         const parsedStep2 = JSON.parse(rawStep2Data) as {
-          selectedTicketId?: TicketType["id"];
+          selectedTicketId?: string;
         };
-        if (
-          parsedStep2.selectedTicketId &&
-          TICKET_TYPES.some(
-            (ticket) => ticket.id === parsedStep2.selectedTicketId,
-          )
-        ) {
-          setSelectedTicketId(parsedStep2.selectedTicketId);
-        }
+        if (parsedStep2.selectedTicketId) setSelectedTicketId(parsedStep2.selectedTicketId);
       } catch {
-        setSelectedTicketId("day");
+        setSelectedTicketId("");
       }
     }
   }, [router.query]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadTickets = async () => {
+      setIsLoadingTickets(true);
+      setTicketsError(null);
+      try {
+        const raw = await publicApi.getTicketTypes();
+        const cards = raw.map(toTicketCard).filter((t) => t.price >= 0);
+        if (!cancelled) {
+          setTicketTypes(cards);
+          if (!selectedTicketId && cards.length > 0) {
+            setSelectedTicketId(cards.find((c) => c.highlighted)?.id ?? cards[0].id);
+          }
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Không thể tải danh sách vé";
+        if (!cancelled) setTicketsError(message);
+      } finally {
+        if (!cancelled) setIsLoadingTickets(false);
+      }
+    };
+
+    loadTickets();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -181,25 +204,69 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
 
   const hasJourneyState = useMemo(() => {
     return Boolean(
-      journeyState.originStation &&
-      journeyState.destinationStation &&
+      journeyState.originStationId &&
+      journeyState.destinationStationId &&
       journeyState.travelDate &&
       journeyState.passengerCount,
     );
   }, [journeyState]);
 
   const selectedTicket = useMemo(() => {
-    return (
-      TICKET_TYPES.find((ticket) => ticket.id === selectedTicketId) ??
-      TICKET_TYPES[1]
-    );
-  }, [selectedTicketId]);
+    return ticketTypes.find((ticket) => ticket.id === selectedTicketId) ?? null;
+  }, [selectedTicketId, ticketTypes]);
+
+  useEffect(() => {
+    if (!hasJourneyState || !selectedTicket) {
+      setPricingTotal(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadPricing = async () => {
+      setIsLoadingPricing(true);
+      try {
+        const passengerNum = parsePassengerCount(journeyState.passengerCount);
+
+        const fare = await fareCalcApi.calculate({
+          fromStationId: journeyState.originStationId,
+          toStationId: journeyState.destinationStationId,
+          ticketTypeId: selectedTicket.id,
+          passengerCount: passengerNum,
+          isRoundTrip: journeyState.isRoundTrip,
+          travelDate: journeyState.travelDate,
+        });
+
+        const preview = await orderApi.preview({
+          fromStationId: journeyState.originStationId,
+          toStationId: journeyState.destinationStationId,
+          ticketTypeId: selectedTicket.id,
+          passengerCount: passengerNum,
+          isRoundTrip: journeyState.isRoundTrip,
+          travelDate: journeyState.travelDate,
+        });
+
+        const total = Number(preview.total ?? fare.total ?? selectedTicket.price);
+        if (!cancelled) setPricingTotal(Number.isFinite(total) ? total : selectedTicket.price);
+      } catch {
+        if (!cancelled) setPricingTotal(selectedTicket.price);
+      } finally {
+        if (!cancelled) setIsLoadingPricing(false);
+      }
+    };
+
+    loadPricing();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasJourneyState, journeyState, selectedTicket]);
 
   const serviceFee = 0;
-  const totalPrice = selectedTicket.price + serviceFee;
+  const totalPrice = pricingTotal ?? selectedTicket?.price ?? 0;
 
   const handleContinue = async () => {
-    if (!hasJourneyState) {
+    if (!hasJourneyState || !selectedTicket) {
       return;
     }
 
@@ -209,6 +276,7 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
         JSON.stringify({
           selectedTicketId: selectedTicket.id,
           selectedTicketName: selectedTicket.name,
+          selectedTicketSubtitle: selectedTicket.subtitle,
           selectedTicketPrice: selectedTicket.price,
         }),
       );
@@ -251,7 +319,7 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
           <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
             <div className="flex min-w-0 flex-col gap-6">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                {TICKET_TYPES.map((ticket) => {
+                {ticketTypes.map((ticket) => {
                   const isSelected = selectedTicketId === ticket.id;
                   return (
                     <article
@@ -317,6 +385,18 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
                     </article>
                   );
                 })}
+
+                {isLoadingTickets ? (
+                  <div className="md:col-span-3 rounded-xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600 outline outline-1 outline-offset-[-1px] outline-slate-200">
+                    Đang tải loại vé...
+                  </div>
+                ) : null}
+
+                {ticketsError ? (
+                  <div className="md:col-span-3 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 outline outline-1 outline-offset-[-1px] outline-red-100">
+                    {ticketsError}
+                  </div>
+                ) : null}
               </div>
 
               <article className="relative h-32 overflow-hidden rounded-xl">
@@ -349,8 +429,8 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
                           Ga đi - Ga đến
                         </p>
                         <p className="text-sm font-medium leading-5 text-neutral-900">
-                          {journeyState.originStation} -{" "}
-                          {journeyState.destinationStation}
+                          {journeyState.originStationName || journeyState.originStationId} -{" "}
+                          {journeyState.destinationStationName || journeyState.destinationStationId}
                         </p>
                       </div>
                     </div>
@@ -362,7 +442,7 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
                           Loại vé
                         </p>
                         <p className="text-sm font-medium leading-5 text-neutral-900">
-                          {selectedTicket.name} ({selectedTicket.subtitle})
+                          {selectedTicket?.name ?? "--"} ({selectedTicket?.subtitle ?? ""})
                         </p>
                       </div>
                     </div>
@@ -384,7 +464,7 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
                   <div className="flex items-center justify-between">
                     <span className="text-slate-500">Tạm tính:</span>
                     <span className="font-semibold text-neutral-900">
-                      {formatCurrency(selectedTicket.price)}
+                      {formatCurrency(selectedTicket?.price ?? 0)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
