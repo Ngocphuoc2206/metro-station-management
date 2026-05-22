@@ -1,21 +1,9 @@
 import { apiClient } from "@features/httpClient/ApiClient";
 import { API_ENDPOINTS, ApiResponse, withPathParam } from "@features/httpClient/apiEndpoints";
+import type { GateLog, GateAction, GateResult, TicketType } from "./gateLogTypes";
 
-// ── Types (GateLog) ───────────────────────────────────────────────────────────
-export interface GateLog {
-  id: string;
-  timestamp: string;
-  gateId: string;
-  ticketId: string;
-  action: "enter" | "exit" | string;
-  result: "success" | "rejected" | string;
-  ticketType: string;
-  passengerName?: string;
-  station?: string;
-  rejectionReason?: string;
-  deviceFirmware?: string;
-  transactionMs?: number;
-}
+// Re-export for convenience
+export type { GateLog };
 
 export interface GateLogFilters {
   stationId?: string;
@@ -52,24 +40,37 @@ interface BackendGateLog {
   [key: string]: unknown;
 }
 
-function mapToUI(b: BackendGateLog): GateLog {
-  const rawResult = b.result ?? b.status ?? "success";
-  const result = rawResult.toLowerCase().includes("fail") ||
-    rawResult.toLowerCase().includes("reject") ||
-    rawResult.toLowerCase().includes("invalid")
+function normalizeAction(raw?: string): GateAction {
+  const v = (raw ?? "").toLowerCase();
+  return v.includes("exit") || v.includes("out") ? "exit" : "enter";
+}
+
+function normalizeResult(raw?: string): GateResult {
+  const v = (raw ?? "").toLowerCase();
+  return v.includes("fail") || v.includes("reject") || v.includes("invalid")
     ? "rejected"
     : "success";
+}
 
+function normalizeTicketType(raw?: string): TicketType {
+  const v = (raw ?? "").toLowerCase();
+  if (v.includes("nfc")) return "nfc";
+  if (v.includes("month") || v.includes("thang")) return "monthly";
+  if (v.includes("day") || v.includes("ngay")) return "daily";
+  return "qr";
+}
+
+function mapToUI(b: BackendGateLog): GateLog {
   return {
     id: b.logId ?? b.id ?? `LOG-${Date.now()}`,
     timestamp: b.timestamp ?? b.scanTime ?? b.createdAt ?? "",
     gateId: b.gateId ?? b.gate ?? "—",
     ticketId: b.ticketId ?? b.ticketCode ?? "—",
-    action: b.action ?? b.type ?? "enter",
-    result,
-    ticketType: b.ticketType ?? "qr",
+    action: normalizeAction(b.action ?? b.type),
+    result: normalizeResult(b.result ?? b.status),
+    ticketType: normalizeTicketType(b.ticketType),
     passengerName: b.passengerName ?? b.userName,
-    station: b.stationName ?? b.station,
+    station: b.stationName ?? b.station ?? "—",
     rejectionReason: b.rejectionReason ?? b.reason,
     deviceFirmware: b.firmwareVersion,
     transactionMs: b.processingTime,

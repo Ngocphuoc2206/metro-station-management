@@ -48,7 +48,10 @@ async function safeFetch<T>(url: string): Promise<T[]> {
   }
 }
 
-function filterByTimeRange(items: { createdAt?: string; timestamp?: string; scanTime?: string }[], range: TimeRange) {
+function filterByTimeRange<T extends { createdAt?: string; timestamp?: string; scanTime?: string }>(
+  items: T[],
+  range: TimeRange
+): T[] {
   const now = new Date();
   const cutoff = new Date();
   if (range === "today") cutoff.setHours(0, 0, 0, 0);
