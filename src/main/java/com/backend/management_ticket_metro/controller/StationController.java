@@ -6,6 +6,7 @@ import com.backend.management_ticket_metro.dto.response.StationResponse;
 import com.backend.management_ticket_metro.service.StationService;
 import jakarta.validation.Valid;
 import lombok.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -30,6 +31,7 @@ public class StationController {
                 .build();
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN')")
     @PostMapping("/admin/stations")
     public ApiResponse<StationResponse> createStation(@Valid @RequestBody StationRequest request) {
         return ApiResponse.<StationResponse>builder()
@@ -37,6 +39,7 @@ public class StationController {
                 .build();
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN')")
     @PutMapping("/admin/stations/{id}")
     public ApiResponse<StationResponse> updateStation(
             @PathVariable String id, @RequestBody StationRequest request) {
