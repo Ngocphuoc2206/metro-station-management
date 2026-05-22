@@ -35,5 +35,5 @@ public class Station {
     private StationStatus status;
 
     @OneToMany(mappedBy = "station", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<Device> devices;
+    private List<Devices> devices;
 }

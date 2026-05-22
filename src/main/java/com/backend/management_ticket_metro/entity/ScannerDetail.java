@@ -19,7 +19,7 @@ public class ScannerDetail {
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "device_id")
-    private Device device;
+    private Devices devices;
 
     private int battery_level;
     private String os_version;

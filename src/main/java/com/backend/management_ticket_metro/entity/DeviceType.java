@@ -20,6 +20,6 @@ public class DeviceType {
     private String description;
 
     @OneToMany(mappedBy = "type", cascade = CascadeType.ALL)
-    private List<Device> devices;
+    private List<Devices> devices;
 }
 

@@ -19,7 +19,7 @@ public class TicketMachineDetail {
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "device_id")
-    private Device device;
+    private Devices devices;
 
     private int card_stock_level;
     private String accepted_payment_methods;

@@ -18,7 +18,7 @@ public class DeviceStatusLog {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "device_id")
-    private Device device;
+    private Devices devices;
 
     private String previousStatus;
     private String currentStatus;

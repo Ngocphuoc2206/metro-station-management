@@ -16,7 +16,7 @@ public class GateDetail {
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "device_id")
-    private Device device;
+    private Devices devices;
 
     private String direction_mode;
     private String gate_type;
