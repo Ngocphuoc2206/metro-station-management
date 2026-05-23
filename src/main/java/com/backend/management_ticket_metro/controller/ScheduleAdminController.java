@@ -6,11 +6,13 @@ import com.backend.management_ticket_metro.dto.response.ScheduleResponse;
 import com.backend.management_ticket_metro.service.ScheduleService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/admin/schedules")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('ADMIN')")
 public class ScheduleAdminController {
     private final ScheduleService scheduleService;
 

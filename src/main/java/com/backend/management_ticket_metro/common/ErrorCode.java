@@ -93,6 +93,9 @@ public enum ErrorCode {
     SHIFT_ALREADY_CHECKED_OUT(1066, "Staff has already checked out for this shift"),
     INVALID_SHIFT_STATUS(1067, "Invalid shift status for this action"),
 
+    INCIDENT_NOT_FOUND(1068, "Incident not found"),
+    INVALID_INCIDENT_STATUS(1069, "Invalid incident status modification"),
+    COMMENT_EMPTY(1070, "Comment content cannot be empty or blank"),
     // Uncategorized
     UNCATEGORIZED_EXCEPTION  (9999, "UNCATEGORIZED_EXCEPTION!")
     ;
