@@ -243,7 +243,7 @@ export async function checkEmailExists(
 // ─── Introspect Token (FE-06) ─────────────────────────────────────────────────
 // Gọi server để kiểm tra token còn hợp lệ không
 export async function introspectToken(token: string): Promise<IntrospectResponse> {
-  if (USE_MOCK) return { valid: true };
+  if (USE_MOCK_AUTH) return { valid: true };
 
   try {
     const res = await apiClient.post<{ code: number; results: IntrospectResponse }>(
@@ -259,7 +259,7 @@ export async function introspectToken(token: string): Promise<IntrospectResponse
 // ─── Refresh Token (FE-06) ────────────────────────────────────────────────────
 // Dùng refreshToken cũ để lấy accessToken mới
 export async function refreshAccessToken(refreshToken: string): Promise<RefreshResponse | null> {
-  if (USE_MOCK) return null;
+  if (USE_MOCK_AUTH) return null;
 
   try {
     const res = await apiClient.post<{ code: number; results: RefreshResponse }>(
@@ -279,7 +279,7 @@ export async function logoutUser(): Promise<void> {
 
   const token = localStorage.getItem("authToken");
 
-  if (token && !USE_MOCK) {
+  if (token && !USE_MOCK_AUTH) {
     try {
       await apiClient.post(API_ENDPOINTS.auth.logout, { token });
     } catch {
