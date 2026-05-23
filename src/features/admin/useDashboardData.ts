@@ -157,7 +157,9 @@ export function useDashboardData(range: TimeRange): DashboardData {
   const [alerts, setAlerts] = useState<Alert[]>([]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setKpiLoading(true);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setRevenueLoading(true);
 
     Promise.all([

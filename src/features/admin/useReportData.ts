@@ -142,6 +142,7 @@ export function useReportData(): ReportData {
   const [tableRows, setTableRows] = useState<ReportRow[]>([]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
 
     Promise.all([

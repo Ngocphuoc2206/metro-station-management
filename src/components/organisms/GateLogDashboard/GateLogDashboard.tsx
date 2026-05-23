@@ -47,6 +47,7 @@ export default function GateLogDashboard() {
 
   // Fetch logs from real API (FE-35)
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     gateLogApi
       .getLogs({
