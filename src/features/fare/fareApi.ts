@@ -1,63 +1,111 @@
-import { FareMatrixData, Zone, FareRule } from "./fareTypes";
+import { apiClient } from "@features/httpClient/ApiClient";
+import { API_ENDPOINTS, ApiResponse, withPathParam } from "@features/httpClient/apiEndpoints";
+import { FareMatrixData, FareRule, Zone } from "./fareTypes";
 
-const initialZones: Zone[] = [
-  { id: "z1", name: "Zone 1", order: 1 },
-  { id: "z2", name: "Zone 2", order: 2 },
-  { id: "z3", name: "Zone 3", order: 3 },
-  { id: "z4", name: "Zone 4", order: 4 },
-  { id: "z5", name: "Zone 5", order: 5 },
-];
+// ── Backend response shape ────────────────────────────────────────────────────
+interface BackendFare {
+  fareId: string;
+  fromStationId?: string;
+  toStationId?: string;
+  fromZoneId?: string;
+  toZoneId?: string;
+  price: number;
+  amount?: number;
+  updatedAt?: string;
+  [key: string]: unknown;
+}
 
-// Seed initial rules matching UI
-const generateInitialRules = (): FareRule[] => {
-  const rules: FareRule[] = [];
-  const matrix: Record<string, number[]> = {
-    "z1": [0, 15000, 20000, 25000, 30000],
-    "z2": [15000, 0, 15000, 20000, 25000],
-    "z3": [20000, 15000, 0, 15000, 20000],
-    "z4": [25000, 20000, 15000, 0, 15000],
-    "z5": [30000, 25000, 20000, 15000, 0],
-  };
-
-  initialZones.forEach((from, i) => {
-    initialZones.forEach((to, j) => {
-      rules.push({
-        id: `rule-${from.id}-${to.id}`,
-        fromZoneId: from.id,
-        toZoneId: to.id,
-        price: matrix[from.id][j],
-      });
-    });
+// ── Map Backend → UI ──────────────────────────────────────────────────────────
+function mapToFareMatrix(fares: BackendFare[]): FareMatrixData {
+  // Trích xuất zone IDs duy nhất từ danh sách fares
+  const zoneSet = new Set<string>();
+  fares.forEach((f) => {
+    if (f.fromZoneId) zoneSet.add(f.fromZoneId);
+    if (f.toZoneId) zoneSet.add(f.toZoneId);
   });
-  return rules;
-};
 
-let fakeDb: FareMatrixData = {
-  zones: initialZones,
-  rules: generateInitialRules(),
-  lastUpdated: "15/10/2024 14:22",
-};
+  const zones: Zone[] = Array.from(zoneSet)
+    .sort()
+    .map((id, i) => ({ id, name: `Zone ${i + 1}`, order: i + 1 }));
 
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+  const rules: FareRule[] = fares.map((f) => ({
+    id: f.fareId,
+    fromZoneId: f.fromZoneId ?? f.fromStationId ?? "",
+    toZoneId: f.toZoneId ?? f.toStationId ?? "",
+    price: f.price ?? f.amount ?? 0,
+  }));
+
+  const lastEntry = fares[0];
+  const lastUpdated = lastEntry?.updatedAt
+    ? new Date(lastEntry.updatedAt as string).toLocaleString("vi-VN")
+    : new Date().toLocaleString("vi-VN");
+
+  return { zones, rules, lastUpdated };
+}
 
 export const fareApi = {
+  // ── GET fares (FE-20) — Dùng GET /fares/calculate để lấy toàn bộ ──────────
   getFareMatrix: async (): Promise<FareMatrixData> => {
-    await delay(700); // simulate network
-    return { ...fakeDb };
+    try {
+      const res = await apiClient.get<ApiResponse<BackendFare[]>>(
+        API_ENDPOINTS.fares.calculate
+      );
+      return mapToFareMatrix(res.data.results ?? []);
+    } catch {
+      // Fallback nếu API chưa sẵn sàng
+      return { zones: [], rules: [], lastUpdated: "—" };
+    }
   },
 
-  updateFareMatrix: async (data: FareMatrixData): Promise<FareMatrixData> => {
-    await delay(1200); // simulate slow save
-
-    // Update timestamp
-    const now = new Date();
-    const formattedDate = `${now.getDate().toString().padStart(2, "0")}/${(now.getMonth() + 1).toString().padStart(2, "0")}/${now.getFullYear()} ${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
-
-    fakeDb = {
-      ...data,
-      lastUpdated: formattedDate,
+  // ── POST /admin/fares (FE-20) ─────────────────────────────────────────────
+  createFare: async (data: Omit<FareRule, "id">): Promise<FareRule> => {
+    const res = await apiClient.post<ApiResponse<BackendFare>>(
+      API_ENDPOINTS.fares.admin,
+      {
+        fromZoneId: data.fromZoneId,
+        toZoneId: data.toZoneId,
+        price: data.price,
+      }
+    );
+    return {
+      id: res.data.results.fareId,
+      fromZoneId: data.fromZoneId,
+      toZoneId: data.toZoneId,
+      price: res.data.results.price,
     };
+  },
 
-    return { ...fakeDb };
+  // ── PUT /admin/fares/{id} (FE-20) ─────────────────────────────────────────
+  updateFare: async (id: string, price: number): Promise<FareRule> => {
+    const res = await apiClient.put<ApiResponse<BackendFare>>(
+      withPathParam(API_ENDPOINTS.fares.admin, id),
+      { price }
+    );
+    const b = res.data.results;
+    return {
+      id: b.fareId,
+      fromZoneId: b.fromZoneId ?? "",
+      toZoneId: b.toZoneId ?? "",
+      price: b.price,
+    };
+  },
+
+  // ── Legacy: updateFareMatrix (gọi nhiều PUT liên tiếp) ────────────────────
+  updateFareMatrix: async (data: FareMatrixData): Promise<FareMatrixData> => {
+    await Promise.all(
+      data.rules.map((rule) =>
+        apiClient
+          .put<ApiResponse<BackendFare>>(
+            withPathParam(API_ENDPOINTS.fares.admin, rule.id),
+            { price: rule.price }
+          )
+          .catch(() => null) // Bỏ qua lỗi từng rule, tiếp tục update
+      )
+    );
+
+    return {
+      ...data,
+      lastUpdated: new Date().toLocaleString("vi-VN"),
+    };
   },
 };

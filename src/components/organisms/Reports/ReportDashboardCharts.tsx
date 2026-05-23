@@ -1,59 +1,20 @@
-const revenueData = [
-  { date: "01 Th10", actual: 40, forecast: 55 },
-  { date: "08 Th10", actual: 60, forecast: 65 },
-  { date: "15 Th10", actual: 55, forecast: 70 },
-  { date: "22 Th10", actual: 80, forecast: 90 },
-  { date: "31 Th10", actual: 70, forecast: 85 },
-];
+import type { RevenueChartPoint, StationPassengerPoint, HourlyTrafficPoint } from "@features/admin/useReportData";
 
-const stationData = [
-  { name: "B.Thành", value: 4000 },
-  { name: "N.Hát", value: 3000 },
-  { name: "Ba Son", value: 2000 },
-  { name: "T.Cảng", value: 2780 },
-  { name: "S.Tiên", value: 1890 },
-];
-
-const histogramData = [
-  { time: "00:00", val: 10 },
-  { time: "", val: 12 },
-  { time: "", val: 8 },
-  { time: "", val: 5 },
-  { time: "", val: 40 },
-  { time: "04:00", val: 70 },
-  { time: "", val: 180 },
-  { time: "", val: 240 },
-  { time: "", val: 210 },
-  { time: "", val: 100 },
-  { time: "08:00", val: 60 },
-  { time: "", val: 50 },
-  { time: "", val: 40 },
-  { time: "", val: 45 },
-  { time: "", val: 50 },
-  { time: "12:00", val: 55 },
-  { time: "", val: 60 },
-  { time: "", val: 150 },
-  { time: "", val: 190 },
-  { time: "", val: 210 },
-  { time: "16:00", val: 230 },
-  { time: "", val: 160 },
-  { time: "", val: 70 },
-  { time: "", val: 40 },
-  { time: "", val: 20 },
-  { time: "20:00", val: 15 },
-  { time: "", val: 10 },
-  { time: "", val: 5 },
-];
+interface Props {
+  revenueData: RevenueChartPoint[];
+  stationData: StationPassengerPoint[];
+  histogramData: HourlyTrafficPoint[];
+}
 
 const chartWidth = 500;
 const chartHeight = 180;
 const chartPadding = { top: 12, right: 12, bottom: 34, left: 36 };
 
 const toLinePoints = (
-  data: typeof revenueData,
+  data: RevenueChartPoint[],
   key: "actual" | "forecast",
 ) => {
-  const max = 100;
+  const max = Math.max(...data.map((d) => d[key]), 1);
   const innerWidth = chartWidth - chartPadding.left - chartPadding.right;
   const innerHeight = chartHeight - chartPadding.top - chartPadding.bottom;
 
@@ -68,9 +29,9 @@ const toLinePoints = (
     .join(" ");
 };
 
-export default function ReportDashboardCharts() {
-  const maxStationValue = Math.max(...stationData.map((item) => item.value));
-  const maxHistogramValue = Math.max(...histogramData.map((item) => item.val));
+export default function ReportDashboardCharts({ revenueData, stationData, histogramData }: Props) {
+  const maxStationValue = Math.max(...stationData.map((item) => item.value), 1);
+  const maxHistogramValue = Math.max(...histogramData.map((item) => item.val), 1);
 
   return (
     <div className="flex flex-col gap-6 w-full">

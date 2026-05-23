@@ -1,109 +1,116 @@
-import { Route } from "./routeTypes";
+import { apiClient } from "@features/httpClient/ApiClient";
+import { API_ENDPOINTS, ApiResponse, withPathParam } from "@features/httpClient/apiEndpoints";
+import { Route, RouteStation } from "./routeTypes";
 
-const fakeRoutes: Route[] = [
-  {
-    id: "r1",
-    name: "Line 01 - Metro Blue",
-    description: "Bến Thành - Suối Tiên",
-    color: "#3b82f6", // blue-500
-    status: "active",
-    stationsCount: 14,
-    startTime: "05:00 AM",
-    endTime: "11:30 PM",
-    headwayMinutes: 5,
-    stations: [
-      {
-        id: "rs1",
-        stationId: "sta1",
-        stationName: "Ga Bến Thành",
-        stationDetail: "Ga trung tâm / Kết nối Line 01, 02, 03",
-        sequenceOrder: 1,
-      },
-      {
-        id: "rs2",
-        stationId: "sta2",
-        stationName: "Ga Nhà hát Thành phố",
-        stationDetail: "Ga ngầm / Quận 1",
-        sequenceOrder: 2,
-      },
-      {
-        id: "rs3",
-        stationId: "sta3",
-        stationName: "Ga Ba Son",
-        stationDetail: "Ga ngầm / Quận 1",
-        sequenceOrder: 3,
-      },
-    ],
-  },
-  {
-    id: "r2",
-    name: "Line 02 - Metro Green",
-    description: "Bến Thành - Tham Lương",
-    color: "#22c55e", // green-500
-    status: "inactive",
-    stationsCount: 11,
-    startTime: "05:30 AM",
-    endTime: "11:00 PM",
-    headwayMinutes: 8,
-    stations: [
-      {
-        id: "rs4",
-        stationId: "sta1",
-        stationName: "Ga Bến Thành",
-        stationDetail: "Ga trung tâm / Kết nối Line 01, 02, 03",
-        sequenceOrder: 1,
-      },
-      {
-        id: "rs5",
-        stationId: "sta4",
-        stationName: "Ga Tao Đàn",
-        stationDetail: "Ga ngầm / Quận 1",
-        sequenceOrder: 2,
-      },
-    ],
-  },
-  {
-    id: "r3",
-    name: "Line 03a - South West",
-    description: "Bến Thành - Tân Kiên",
-    color: "#ef4444", // red-500
-    status: "maintenance",
-    stationsCount: 18,
-    startTime: "06:00 AM",
-    endTime: "10:30 PM",
-    headwayMinutes: 10,
-    stations: [],
-  },
-];
+// ── Backend response shapes ───────────────────────────────────────────────────
+interface BackendRouteStation {
+  id?: string;
+  stationId: string;
+  stationName?: string;
+  name?: string;
+  description?: string;
+  sequenceOrder?: number;
+  order?: number;
+}
 
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+interface BackendRoute {
+  routeId: string;
+  name: string;
+  description?: string;
+  color?: string;
+  status?: string;
+  startTime?: string;
+  endTime?: string;
+  headwayMinutes?: number;
+  frequency?: number;
+  stations?: BackendRouteStation[];
+  stationCount?: number;
+  [key: string]: unknown;
+}
+
+// ── Map Backend → UI ──────────────────────────────────────────────────────────
+function mapStationToUI(s: BackendRouteStation, idx: number): RouteStation {
+  return {
+    id: s.id ?? `rs-${s.stationId}-${idx}`,
+    stationId: s.stationId,
+    stationName: s.stationName ?? s.name ?? "Ga không tên",
+    stationDetail: s.description ?? "",
+    sequenceOrder: s.sequenceOrder ?? s.order ?? idx + 1,
+  };
+}
+
+function mapToUI(b: BackendRoute): Route {
+  const stations = (b.stations ?? []).map(mapStationToUI);
+  return {
+    id: b.routeId,
+    name: b.name,
+    description: b.description ?? "",
+    color: b.color ?? "#3b82f6",
+    status: normalizeStatus(b.status),
+    stationsCount: b.stationCount ?? stations.length,
+    startTime: b.startTime ?? "05:00",
+    endTime: b.endTime ?? "23:00",
+    headwayMinutes: b.headwayMinutes ?? b.frequency ?? 10,
+    stations,
+  };
+}
+
+function normalizeStatus(s?: string): "active" | "inactive" | "maintenance" {
+  const v = s?.toUpperCase() ?? "";
+  if (v.includes("ACTIVE") || v === "OPERATING") return "active";
+  if (v.includes("MAINT")) return "maintenance";
+  return "inactive";
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapToBackend(data: Partial<Route>): Record<string, unknown> {
+  return {
+    name: data.name,
+    description: data.description,
+    color: data.color,
+    status: data.status?.toUpperCase(),
+    startTime: data.startTime,
+    endTime: data.endTime,
+    headwayMinutes: data.headwayMinutes,
+    stations: data.stations?.map((s, i) => ({
+      stationId: s.stationId,
+      sequenceOrder: s.sequenceOrder ?? i + 1,
+    })),
+  };
+}
 
 export const routeApi = {
+  // ── GET /routes (FE-22) ───────────────────────────────────────────────────
   getRoutes: async (): Promise<Route[]> => {
-    await delay(600);
-    return [...fakeRoutes];
+    const res = await apiClient.get<ApiResponse<BackendRoute[]>>(
+      API_ENDPOINTS.routes.base
+    );
+    return (res.data.results ?? []).map(mapToUI);
   },
 
-  createRoute: async (
-    data: Omit<Route, "id" | "stationsCount" | "stations">,
-  ): Promise<Route> => {
-    await delay(800);
-    const newRoute: Route = {
-      ...data,
-      id: `r${Date.now()}`,
-      stationsCount: 0,
-      stations: [],
-    };
-    fakeRoutes.push(newRoute);
-    return newRoute;
+  // ── GET /routes/{id} (FE-22) ──────────────────────────────────────────────
+  getRouteById: async (id: string): Promise<Route> => {
+    const res = await apiClient.get<ApiResponse<BackendRoute>>(
+      withPathParam(API_ENDPOINTS.routes.base, id)
+    );
+    return mapToUI(res.data.results);
   },
 
+  // ── POST /routes/admin (FE-22) ────────────────────────────────────────────
+  createRoute: async (data: Omit<Route, "id" | "stationsCount" | "stations">): Promise<Route> => {
+    const res = await apiClient.post<ApiResponse<BackendRoute>>(
+      API_ENDPOINTS.routes.admin,
+      mapToBackend(data)
+    );
+    return mapToUI(res.data.results);
+  },
+
+  // ── PUT /routes/admin/{id} (FE-22) ────────────────────────────────────────
   updateRoute: async (id: string, updates: Partial<Route>): Promise<Route> => {
-    await delay(800);
-    const index = fakeRoutes.findIndex((r) => r.id === id);
-    if (index === -1) throw new Error("Route not found");
-
-    fakeRoutes[index] = { ...fakeRoutes[index], ...updates };
-    return fakeRoutes[index];
+    const res = await apiClient.put<ApiResponse<BackendRoute>>(
+      withPathParam(API_ENDPOINTS.routes.admin, id),
+      mapToBackend(updates)
+    );
+    return mapToUI(res.data.results);
   },
 };

@@ -10,6 +10,16 @@ import type {
   RegisterApiResponse,
 } from "./types";
 
+export interface IntrospectResponse {
+  valid: boolean;
+  expiresAt?: string;
+}
+
+export interface RefreshResponse {
+  token: string;
+  refreshToken?: string;
+}
+
 // ─── Flag môi trường ──────────────────────────────────────────────────────────
 // Đặt NEXT_PUBLIC_USE_MOCK_AUTH=true trong .env.local khi backend chưa chạy
 export const USE_MOCK_AUTH = process.env.NEXT_PUBLIC_USE_MOCK_AUTH === "true";
@@ -228,4 +238,58 @@ export async function checkEmailExists(
   _email: string
 ): Promise<CheckEmailResponse> {
   return { exists: false };
+}
+
+// ─── Introspect Token (FE-06) ─────────────────────────────────────────────────
+// Gọi server để kiểm tra token còn hợp lệ không
+export async function introspectToken(token: string): Promise<IntrospectResponse> {
+  if (USE_MOCK_AUTH) return { valid: true };
+
+  try {
+    const res = await apiClient.post<{ code: number; results: IntrospectResponse }>(
+      API_ENDPOINTS.auth.introspect,
+      { token }
+    );
+    return res.data.results;
+  } catch {
+    return { valid: false };
+  }
+}
+
+// ─── Refresh Token (FE-06) ────────────────────────────────────────────────────
+// Dùng refreshToken cũ để lấy accessToken mới
+export async function refreshAccessToken(refreshToken: string): Promise<RefreshResponse | null> {
+  if (USE_MOCK_AUTH) return null;
+
+  try {
+    const res = await apiClient.post<{ code: number; results: RefreshResponse }>(
+      API_ENDPOINTS.auth.refresh,
+      { refreshToken }
+    );
+    return res.data.results;
+  } catch {
+    return null;
+  }
+}
+
+// ─── Logout (FE-06) ──────────────────────────────────────────────────────────
+// Báo server hủy token, xóa localStorage
+export async function logoutUser(): Promise<void> {
+  if (typeof window === "undefined") return;
+
+  const token = localStorage.getItem("authToken");
+
+  if (token && !USE_MOCK_AUTH) {
+    try {
+      await apiClient.post(API_ENDPOINTS.auth.logout, { token });
+    } catch {
+      // Dù server lỗi vẫn xóa local session
+    }
+  }
+
+  localStorage.removeItem("authToken");
+  localStorage.removeItem("refreshToken");
+  localStorage.removeItem("userRole");
+  localStorage.removeItem("userName");
+  sessionStorage.clear();
 }
