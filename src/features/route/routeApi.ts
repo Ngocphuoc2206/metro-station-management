@@ -48,6 +48,7 @@ function mapToUI(b: BackendRoute): Route {
     id: b.routeId,
     // Backend dùng routeName, fallback về name nếu có
     name: b.routeName ?? b.name ?? "(Không tên)",
+    routeCode: b.routeCode,
     description: b.description ?? "",
     color: b.color ?? "#3b82f6",
     status: normalizeStatus(b.status),
@@ -81,8 +82,8 @@ function mapToBackend(data: Partial<Route> & { routeCode?: string }): Record<str
   if (data.stations && data.stations.length > 0) {
     payload.stations = data.stations.map((s) => ({
       stationId: s.stationId,
-      travelTimeNext: (s as Record<string, unknown>).travelTimeNext ?? 0,
-      distanceNext: (s as Record<string, unknown>).distanceNext ?? 0,
+      travelTimeNext: s.travelTimeNext ?? 0,
+      distanceNext: s.distanceNext ?? 0,
     }));
   }
 
@@ -107,7 +108,7 @@ export const routeApi = {
   },
 
   // ── POST /routes/admin (FE-22) ────────────────────────────────────────────
-  createRoute: async (data: Omit<Route, "id" | "stationsCount" | "stations">): Promise<Route> => {
+  createRoute: async (data: Omit<Route, "id" | "stationsCount">): Promise<Route> => {
     const res = await apiClient.post<ApiResponse<BackendRoute>>(
       API_ENDPOINTS.routes.admin,
       mapToBackend(data)

@@ -4,11 +4,14 @@ export interface RouteStation {
   stationName: string;
   stationDetail: string; // e.g. "Ga trung tâm / Kết nối Line 01, 02"
   sequenceOrder: number;
+  travelTimeNext?: number;
+  distanceNext?: number;
 }
 
 export interface Route {
   id: string;
   name: string; // e.g. "Line 01 - Metro Blue"
+  routeCode?: string;
   description: string;
   color: string; // e.g. "#3b82f6" (blue)
   status: "active" | "inactive" | "maintenance"; // "Đang hoạt động", "Tạm dừng", "Dự án"

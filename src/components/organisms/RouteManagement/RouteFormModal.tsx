@@ -82,7 +82,7 @@ export default function RouteFormModal({ isOpen, onClose, route, onSubmit }: Pro
       if (route) {
         reset({
           name: route.name,
-          routeCode: (route as Record<string, unknown>).routeCode as string ?? "",
+          routeCode: route.routeCode ?? "",
           color: route.color,
           status: route.status,
           description: route.description,
@@ -91,8 +91,8 @@ export default function RouteFormModal({ isOpen, onClose, route, onSubmit }: Pro
         const existing: SelectedStation[] = (route.stations ?? []).map((s) => ({
           stationId: s.stationId,
           stationName: s.stationName,
-          travelTimeNext: (s as Record<string, unknown>).travelTimeNext as number ?? 0,
-          distanceNext: (s as Record<string, unknown>).distanceNext as number ?? 0,
+          travelTimeNext: s.travelTimeNext ?? 0,
+          distanceNext: s.distanceNext ?? 0,
         }));
         setSelectedStations(existing);
       } else {
