@@ -62,8 +62,9 @@ export const fareApi = {
     const res = await apiClient.post<ApiResponse<BackendFare>>(
       API_ENDPOINTS.fares.admin,
       {
-        fromZoneId: data.fromZoneId,
-        toZoneId: data.toZoneId,
+        // Backend spec: originStationId, destinationStationId, price
+        originStationId: data.fromZoneId,
+        destinationStationId: data.toZoneId,
         price: data.price,
       }
     );

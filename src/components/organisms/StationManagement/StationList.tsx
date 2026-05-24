@@ -84,7 +84,7 @@ export default function StationList() {
   const handletoggleConfirm = async () => {
     if (!targetStation) return;
     const newStatus = targetStation.status === "active" ? "inactive" : "active";
-    await stationApi.toggleStatus(targetStation.id, newStatus);
+    await stationApi.toggleStatus(targetStation, newStatus);
     setIsConfirmOpen(false);
     loadData(); // update grid
   };

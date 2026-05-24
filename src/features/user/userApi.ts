@@ -61,13 +61,12 @@ export const userApi = {
   },
 
   updateUser: async (id: string, updates: Partial<User>): Promise<User> => {
-    // Admin update status
+    // Admin update status via PATCH /users/{userId}/status?status=BLOCKED|ACTIVE
     if (updates.status) {
-      const statusToUpdate = updates.status.toUpperCase() as
-        | "ACTIVE"
-        | "INACTIVE";
+      // Backend spec: ACTIVE | BLOCKED (không phải INACTIVE)
+      const statusParam = updates.status === "active" ? "ACTIVE" : "BLOCKED";
       const res = await apiClient.patch<ApiResponse<BackendUser>>(
-        `${withPathParam(API_ENDPOINTS.users.base, id)}/status?status=${statusToUpdate}`,
+        `${withPathParam(API_ENDPOINTS.users.base, id)}/status?status=${statusParam}`,
       );
       return mapBackendUserToUI(res.data.results);
     }

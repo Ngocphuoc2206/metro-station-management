@@ -15,7 +15,10 @@ interface BackendRouteStation {
 
 interface BackendRoute {
   routeId: string;
-  name: string;
+  // Backend trả về routeName / routeCode (không phải 'name')
+  routeName?: string;
+  routeCode?: string;
+  name?: string; // fallback nếu backend thả về 'name'
   description?: string;
   color?: string;
   status?: string;
@@ -43,7 +46,8 @@ function mapToUI(b: BackendRoute): Route {
   const stations = (b.stations ?? []).map(mapStationToUI);
   return {
     id: b.routeId,
-    name: b.name,
+    // Backend dùng routeName, fallback về name nếu có
+    name: b.routeName ?? b.name ?? "(Không tên)",
     description: b.description ?? "",
     color: b.color ?? "#3b82f6",
     status: normalizeStatus(b.status),
@@ -63,20 +67,26 @@ function normalizeStatus(s?: string): "active" | "inactive" | "maintenance" {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapToBackend(data: Partial<Route>): Record<string, unknown> {
-  return {
-    name: data.name,
-    description: data.description,
+function mapToBackend(data: Partial<Route> & { routeCode?: string }): Record<string, unknown> {
+  const payload: Record<string, unknown> = {
+    // Backend spec: routeName, routeCode (không phải 'name')
+    routeName: data.name,
+    routeCode: data.routeCode ?? "",
     color: data.color,
+    // ENUM: ACTIVE | INACTIVE
     status: data.status?.toUpperCase(),
-    startTime: data.startTime,
-    endTime: data.endTime,
-    headwayMinutes: data.headwayMinutes,
-    stations: data.stations?.map((s, i) => ({
-      stationId: s.stationId,
-      sequenceOrder: s.sequenceOrder ?? i + 1,
-    })),
   };
+
+  // Chỉ gửi stations khi có dữ liệu — backend reject empty array []
+  if (data.stations && data.stations.length > 0) {
+    payload.stations = data.stations.map((s) => ({
+      stationId: s.stationId,
+      travelTimeNext: (s as Record<string, unknown>).travelTimeNext ?? 0,
+      distanceNext: (s as Record<string, unknown>).distanceNext ?? 0,
+    }));
+  }
+
+  return payload;
 }
 
 export const routeApi = {

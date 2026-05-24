@@ -10,7 +10,9 @@ import RouteFormModal from "./RouteFormModal";
 export default function RouteManagement() {
   const [routes, setRoutes] = useState<Route[]>([]);
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
+  const [selectedRouteDetail, setSelectedRouteDetail] = useState<Route | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingDetail, setLoadingDetail] = useState(false);
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -35,23 +37,53 @@ export default function RouteManagement() {
     }
   };
 
-  const selectedRoute = routes.find((r) => r.id === selectedRouteId);
+  // Khi chọn tuyến → fetch GET /routes/{id} để lấy stations
+  useEffect(() => {
+    if (!selectedRouteId) {
+      setSelectedRouteDetail(null);
+      return;
+    }
+    setLoadingDetail(true);
+    routeApi.getRouteById(selectedRouteId)
+      .then((detail) => {
+        setSelectedRouteDetail(detail);
+        // Cập nhật stationsCount trong danh sách tuyến bên trái
+        setRoutes((prev) =>
+          prev.map((r) =>
+            r.id === detail.id
+              ? { ...r, stationsCount: detail.stations?.length ?? detail.stationsCount }
+              : r
+          )
+        );
+      })
+      .catch(console.error)
+      .finally(() => setLoadingDetail(false));
+  }, [selectedRouteId]);
+
+  const selectedRoute = selectedRouteDetail ?? routes.find((r) => r.id === selectedRouteId) ?? null;
 
   const handleCreateOrUpdateRoute = async (formData: any) => {
     try {
       if (routeToEdit) {
-        const updated = await routeApi.updateRoute(routeToEdit.id, formData);
+        const updated = await routeApi.updateRoute(routeToEdit.id, {
+          ...formData,
+          stations: formData.stations, // từ station picker
+        });
         setRoutes((prev) =>
           prev.map((r) => (r.id === updated.id ? updated : r)),
         );
       } else {
         const newRoute = await routeApi.createRoute({
-          ...formData,
-          startTime: "05:00 AM",
-          endTime: "11:30 PM",
-          headwayMinutes: 5,
-          description: formData.description || "Tuyến dự kiến",
+          name: formData.name,
+          routeCode: formData.routeCode,
           color: formData.color,
+          status: formData.status,
+          description: formData.description || "",
+          startTime: "05:00",
+          endTime: "23:00",
+          headwayMinutes: 10,
+          // stations từ station picker — BE yêu cầu có ít nhất 1 ga
+          stations: formData.stations,
         });
         setRoutes([...routes, newRoute]);
         setSelectedRouteId(newRoute.id);
@@ -162,11 +194,20 @@ export default function RouteManagement() {
         {selectedRoute ? (
           <div className="flex-1 flex flex-col xl:flex-row gap-6 h-full w-full">
             {/* Middle: Sequence */}
-            <StationSequence
-              stations={selectedRoute.stations}
-              routeColor={selectedRoute.color}
-              onUpdate={handleUpdateSequence}
-            />
+            {loadingDetail ? (
+              <div className="flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 flex items-center justify-center min-h-[500px]">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3" />
+                  <p className="text-sm text-gray-500">Đang tải lộ trình...</p>
+                </div>
+              </div>
+            ) : (
+              <StationSequence
+                stations={selectedRoute?.stations ?? []}
+                routeColor={selectedRoute?.color ?? "#3b82f6"}
+                onUpdate={handleUpdateSequence}
+              />
+            )}
 
             {/* Right: Params */}
             <div className="shrink-0 h-full overflow-y-auto px-1">

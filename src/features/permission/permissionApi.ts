@@ -79,13 +79,14 @@ export const permissionApi = {
   },
 
   // ── PUT /permissions/roles/{roleId} (FE-25) ───────────────────────────────
+  // Backend spec: body là mảng string thẳng ["VIEW_STATION", "CREATE_STATION", ...]
   updateRolePermissions: async (
     roleId: RoleId,
     newPermissions: string[]
   ): Promise<RoleDetail> => {
     const res = await apiClient.put<ApiResponse<BackendRole>>(
       withPathParam(API_ENDPOINTS.permissions.roles, roleId),
-      { permissions: newPermissions }
+      newPermissions  // Gửi array thẳng, KHÔNG bọc trong object
     );
     return mapToRole(res.data.results);
   },
