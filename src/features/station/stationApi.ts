@@ -28,12 +28,27 @@ function mapToUI(b: BackendStation): Station {
 }
 
 // ── Map UI form → Backend payload ─────────────────────────────────────────────
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapToBackend(data: Partial<Station>): Record<string, unknown> {
+function mapToBackend(data: Partial<Station> & { latitude?: number; longitude?: number }): Record<string, unknown> {
+  // Form lưu tọa độ dạng string "lat, lng" trong field location
+  // Backend cần latitude và longitude là số riêng biệt
+  let latitude: number | undefined = data.latitude;
+  let longitude: number | undefined = data.longitude;
+
+  if (!latitude && !longitude && data.location) {
+    const parts = data.location.split(",");
+    if (parts.length === 2) {
+      latitude = parseFloat(parts[0].trim());
+      longitude = parseFloat(parts[1].trim());
+    }
+  }
+
   return {
     name: data.name,
+    // 'zone' trong UI tương ứng với 'address' trên backend
     address: data.zone ?? data.location,
-    location: data.location ?? data.zone,
+    latitude: isNaN(latitude ?? NaN) ? undefined : latitude,
+    longitude: isNaN(longitude ?? NaN) ? undefined : longitude,
+    // ENUM: ACTIVE | INACTIVE | MAINTENANCE
     status: data.status?.toUpperCase(),
   };
 }
@@ -91,10 +106,11 @@ export const stationApi = {
   },
 
   // ── PATCH status via PUT /admin/stations/{id} ──────────────────────────────
-  toggleStatus: async (id: string, newStatus: "active" | "inactive"): Promise<Station> => {
+  // Backend PUT yêu cầu full payload, không chỉ riêng status
+  toggleStatus: async (station: Station, newStatus: "active" | "inactive"): Promise<Station> => {
     const res = await apiClient.put<ApiResponse<BackendStation>>(
-      withPathParam(API_ENDPOINTS.stations.admin, id),
-      { status: newStatus.toUpperCase() }
+      withPathParam(API_ENDPOINTS.stations.admin, station.id),
+      mapToBackend({ ...station, status: newStatus })
     );
     return mapToUI(res.data.results);
   },

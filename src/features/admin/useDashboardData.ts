@@ -38,6 +38,12 @@ interface BackendDevice {
   [key: string]: unknown;
 }
 
+interface BackendIncident {
+  incidentId?: string;
+  status?: string;
+  [key: string]: unknown;
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────────────
 async function safeFetch<T>(url: string): Promise<T[]> {
   try {
@@ -166,7 +172,9 @@ export function useDashboardData(range: TimeRange): DashboardData {
       safeFetch<BackendOrder>(API_ENDPOINTS.orders.status),
       safeFetch<BackendGateLog>(API_ENDPOINTS.gates.logs),
       safeFetch<BackendDevice>(API_ENDPOINTS.devices.staff),
-    ]).then(([orders, gateLogs, devices]) => {
+      // FE-18: lấy sự cố đang mở theo spec GET /staff/incidents?status=OPEN
+      safeFetch<BackendIncident>("/staff/incidents?status=OPEN"),
+    ]).then(([orders, gateLogs, devices, openIncidents]) => {
       // Filter theo time range
       const filteredOrders = filterByTimeRange(orders, range);
       const filteredLogs = filterByTimeRange(gateLogs, range);
@@ -184,11 +192,12 @@ export function useDashboardData(range: TimeRange): DashboardData {
         (l) => (l.result ?? l.status ?? "").toLowerCase() === "success"
       );
 
-      // Critical alerts = số thiết bị lỗi
-      const criticalCount = devices.filter((d) => {
+      // Critical alerts = sự cố OPEN + thiết bị lỗi
+      const errorDevices = devices.filter((d) => {
         const s = (d.status ?? "").toUpperCase();
         return s === "ERROR" || s === "OFFLINE";
       }).length;
+      const criticalCount = openIncidents.length + errorDevices;
 
       setKpi({
         revenue: totalRevenue,
