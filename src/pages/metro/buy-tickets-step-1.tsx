@@ -2,6 +2,7 @@ import type { NextPage } from "next";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
 import PassengerShell from "@components/templates/PassengerShell";
+import { fareCalcApi } from "@features/fare/fareCalcApi";
 import { publicApi } from "@features/public/publicApi";
 import type { StationDto } from "@features/public/publicTypes";
 import {
@@ -12,6 +13,7 @@ import {
   MapPin,
   User,
 } from "lucide-react";
+import axios from "axios";
 
 const PASSENGER_OPTIONS = [
   "1 người lớn",
@@ -22,6 +24,7 @@ const PASSENGER_OPTIONS = [
 ];
 
 const STORAGE_KEY = "metro-buy-ticket-step1";
+const ESTIMATED_FARE_TICKET_TYPE = "single";
 
 const formatDate = (date: string) => {
   if (!date) {
@@ -36,6 +39,10 @@ const formatDate = (date: string) => {
   return `${day}/${month}/${year}`;
 };
 
+const formatCurrency = (amount: number) => {
+  return `${new Intl.NumberFormat("vi-VN").format(amount)}đ`;
+};
+
 const MetroBuyTicketsStep1Page: NextPage = () => {
   const router = useRouter();
   const [stations, setStations] = useState<StationDto[]>([]);
@@ -47,6 +54,9 @@ const MetroBuyTicketsStep1Page: NextPage = () => {
   const [travelDate, setTravelDate] = useState("");
   const [passengerCount, setPassengerCount] = useState(PASSENGER_OPTIONS[0]);
   const [isRoundTrip, setIsRoundTrip] = useState(false);
+  const [estimatedFare, setEstimatedFare] = useState<number | null>(null);
+  const [isLoadingFare, setIsLoadingFare] = useState(false);
+  const [fareError, setFareError] = useState<string | null>(null);
 
   const stationsById = useMemo(() => {
     return new Map(stations.map((s) => [s.id, s]));
@@ -83,6 +93,63 @@ const MetroBuyTicketsStep1Page: NextPage = () => {
   const originOptions = useMemo(() => {
     return stations.filter((station) => station.id !== destinationStationId);
   }, [destinationStationId, stations]);
+
+  useEffect(() => {
+    if (
+      !originStationId ||
+      !destinationStationId ||
+      originStationId === destinationStationId
+    ) {
+      setEstimatedFare(null);
+      setIsLoadingFare(false);
+      setFareError(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadEstimatedFare = async () => {
+      setEstimatedFare(null);
+      setIsLoadingFare(true);
+      setFareError(null);
+
+      try {
+        const total = await fareCalcApi.calculate({
+          originId: originStationId,
+          destinationId: destinationStationId,
+          ticketType: ESTIMATED_FARE_TICKET_TYPE,
+        });
+
+        if (!Number.isFinite(total)) {
+          throw new Error("Phản hồi giá vé không hợp lệ");
+        }
+
+        if (!cancelled) {
+          setEstimatedFare(total);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          // Ưu tiên đọc message từ Backend trả về
+    if (axios.isAxiosError(err) && err.response?.data?.message) {
+      setFareError(err.response.data.message);
+    } else {
+      // Fallback nếu không phải lỗi Axios
+      setFareError(err instanceof Error ? err.message : "Không thể tính giá dự kiến");
+    }
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingFare(false);
+        }
+      }
+    };
+
+    loadEstimatedFare();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [destinationStationId, originStationId]);
 
   const isFormReady =
     originStationId.length > 0 &&
@@ -357,9 +424,18 @@ const MetroBuyTicketsStep1Page: NextPage = () => {
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-slate-500">Giá dự kiến:</span>
                     <span className="text-xl leading-7 font-black text-blue-600">
-                      0 ₫
+                      {isLoadingFare
+                        ? "Đang tính..."
+                        : estimatedFare === null
+                          ? "--"
+                          : formatCurrency(estimatedFare)}
                     </span>
                   </div>
+                  {fareError ? (
+                    <p className="text-right text-xs leading-4 text-red-600">
+                      {fareError}
+                    </p>
+                  ) : null}
                   <p className="text-right text-[10px] leading-4 text-slate-500">
                     Giá chính xác sẽ hiển thị ở bước tiếp theo
                   </p>

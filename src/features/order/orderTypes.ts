@@ -1,12 +1,15 @@
-export type OrderPreviewRequest = {
+export type OrderItemRequest = {
+  ticketTypeId: string;
+  quantity: number;
   fromStationId: string;
   toStationId: string;
-  ticketTypeId: string;
-  passengerCount?: number;
-  isRoundTrip?: boolean;
-  travelDate?: string;
-  promotionCode?: string;
 };
+
+export type OrderRequest = {
+  items: OrderItemRequest[];
+};
+
+export type OrderPreviewRequest = OrderRequest;
 
 export type OrderPreviewResult = {
   subtotal: number;
@@ -17,9 +20,7 @@ export type OrderPreviewResult = {
   items?: unknown[];
 };
 
-export type CreateOrderRequest = OrderPreviewRequest & {
-  paymentMethod?: string;
-};
+export type CreateOrderRequest = OrderRequest;
 
 export type OrderDto = {
   id: string;

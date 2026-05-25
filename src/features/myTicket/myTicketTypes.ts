@@ -1,22 +1,26 @@
 export type MyTicketDto = {
   id: string;
-  status?: string;
-  code?: string;
+  code: string;
+  status: string;
   ticketTypeId?: string;
+  ticketTypeName: string;
+  originStationName?: string;
+  destinationStationName?: string;
+  routeName?: string;
   validFrom?: string;
   validTo?: string;
-  data?: unknown;
+  price?: number;
 };
 
 export type TicketHistoryRow = {
-  id?: string;
-  time?: string;
+  id: string;
+  time: string;
   stationId?: string;
-  stationName?: string;
+  stationName: string;
   gateId?: string;
-  action?: string;
-  result?: string;
-  data?: unknown;
+  gateCode?: string;
+  action: string;
+  result: string;
 };
 
 export type QrTokenResult = {

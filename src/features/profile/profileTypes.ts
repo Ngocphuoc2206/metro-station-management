@@ -3,25 +3,32 @@ export type MyProfileDto = {
   email?: string;
   fullName?: string;
   phone?: string;
+  address?: string;
+  dob?: string;
   avatarUrl?: string;
-  settings?: Record<string, unknown>;
+  emailNotification?: boolean;
+  smsNotification?: boolean;
+  settings?: {
+    emailNotification?: boolean;
+    smsNotification?: boolean;
+    [key: string]: unknown;
+  };
 };
 
 export type UpdateMyProfileRequest = {
-  fullName?: string;
-  phone?: string;
+  fullName: string;
+  phone: string;
+  address: string;
+  dob: string;
 };
 
 export type UpdateMyPasswordRequest = {
-  currentPassword: string;
+  oldPassword: string;
   newPassword: string;
+  confirmPassword: string;
 };
 
-/**
- * Backend: NotificationSettingsRequest (PUT /api/v1/my/settings).
- * Fields based on backend DTO.
- */
 export type UpdateMySettingsRequest = {
-  emailNotification?: boolean;
-  smsNotification?: boolean;
+  emailNotification: boolean;
+  smsNotification: boolean;
 };

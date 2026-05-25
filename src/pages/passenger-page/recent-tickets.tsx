@@ -1,48 +1,16 @@
 import Head from "next/head";
 import Link from "next/link";
+import PassengerSidebar from "@components/templates/PassengerSidebar";
 import {
   Bell,
   ChevronRight,
   CircleAlert,
-  History,
-  LayoutDashboard,
   Map,
   Plus,
-  QrCode,
   Search,
   Settings,
   Ticket,
-  TrainFront,
-  UserRound,
 } from "lucide-react";
-
-const BrandMark = ({ className = "h-8 w-8" }: { className?: string }) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 32 32"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <path
-      d="M5.333 16c0-5.97 4.697-10.667 10.667-10.667h8v8c0 5.97-4.697 10.667-10.667 10.667h-8v-8Z"
-      fill="#2563EB"
-    />
-    <path
-      d="M8 18.667c0-5.97 4.697-10.667 10.667-10.667H24v5.333c0 5.97-4.697 10.667-10.667 10.667H8v-5.333Z"
-      fill="#1D4ED8"
-    />
-  </svg>
-);
-
-const navItems = [
-  { label: "Dashboard", active: false, href: "/passenger-page", icon: LayoutDashboard },
-  { label: "Mua vé", active: false, href: "/passenger-page/buy-tickets-step-1" },
-  { label: "Vé của tôi", active: false, href: "/passenger-page/my-tickets", icon: QrCode },
-  { label: "Lịch sử chuyến", active: false, href: "/passenger-page/history", icon: History },
-  { label: "Lịch tàu", active: false, href: "/passenger-page/schedule", icon: TrainFront },
-  { label: "Tài khoản", active: false, href: "/passenger-page/account", icon: UserRound },
-];
 
 export default function RecentTicketsPage() {
   return (
@@ -53,48 +21,7 @@ export default function RecentTicketsPage() {
 
       <div className="min-h-screen w-full bg-[linear-gradient(180deg,#f8fafc_0%,#eef2ff_45%,#f8fafc_100%)]">
         <div className="flex min-h-screen w-full">
-          <aside className="hidden w-64 shrink-0 border-r border-slate-200 bg-white lg:flex lg:flex-col">
-            <div className="flex items-center gap-3 p-6">
-              <div className="flex h-8 w-8 items-center justify-center overflow-hidden">
-                <BrandMark className="h-8 w-8" />
-              </div>
-              <Link href="/" className="text-xl font-bold leading-6 text-neutral-900">
-                MetroNext
-              </Link>
-            </div>
-
-            <nav className="flex-1 space-y-1 px-4">
-              {navItems.map((item) => {
-                const Icon = item.icon ?? Ticket;
-                return (
-                  <Link
-                    key={item.label}
-                    href={item.href}
-                    className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition ${
-                      item.active ? "bg-blue-600/10 text-blue-600" : "text-slate-700 hover:bg-slate-100"
-                    }`}
-                  >
-                    <Icon className="h-4 w-4" />
-                    <span className={`text-sm ${item.active ? "font-semibold" : "font-medium"}`}>{item.label}</span>
-                  </Link>
-                );
-              })}
-            </nav>
-
-            <div className="border-t border-slate-200 p-4">
-              <div className="flex items-center gap-3 rounded-2xl p-2">
-                <img
-                  className="h-10 w-10 rounded-full object-cover"
-                  src="https://placehold.co/40x40"
-                  alt="Passenger avatar"
-                />
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-bold text-neutral-900">Anh Yang Say Hi (Dzz)</p>
-                  <p className="truncate text-xs text-slate-500">Hành khách Gold</p>
-                </div>
-              </div>
-            </div>
-          </aside>
+          <PassengerSidebar />
 
           <main className="flex min-w-0 flex-1 flex-col">
             <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-slate-200/80 bg-white/80 px-4 backdrop-blur sm:px-8">
