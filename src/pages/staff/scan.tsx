@@ -1,7 +1,14 @@
 import Head from "next/head";
 import { useEffect, useMemo, useRef, useState } from "react";
 import StaffPortalShell from "@components/templates/StaffPortalShell";
-import { CheckCircle2, XCircle, AlertTriangle, Camera, CameraOff, Loader2 } from "lucide-react";
+import {
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+  Camera,
+  CameraOff,
+  Loader2,
+} from "lucide-react";
 import { staffGateApi } from "@features/staffGate/staffGateApi";
 import type { GateScanLogResponse } from "@features/staffGate/staffGateTypes";
 
@@ -171,6 +178,7 @@ export default function StaffScanPage() {
   const [isCameraOn, setIsCameraOn] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isCameraStarting, setIsCameraStarting] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isScanning, setIsScanning] = useState(false);
   const [lastValidation, setLastValidation] = useState<ValidationResult>({
     status: "SUCCESS",
@@ -210,7 +218,7 @@ export default function StaffScanPage() {
             message: validation.message,
           },
           ...prev,
-        ].slice(0, 10)
+        ].slice(0, 10),
       );
       return;
     }
@@ -228,8 +236,12 @@ export default function StaffScanPage() {
       const statusRaw = String(typed.result ?? "").toUpperCase();
       const ok = statusRaw === "SUCCESS" || statusRaw === "ACCEPTED";
 
-      const ticketId = typed.ticketCode || typed.ticketId || trimmed.slice(0, 12).toUpperCase();
-      const gateId = typed.gateCode || typed.gateId || gate.replace("Gate ", "");
+      const ticketId =
+        typed.ticketCode ||
+        typed.ticketId ||
+        trimmed.slice(0, 12).toUpperCase();
+      const gateId =
+        typed.gateCode || typed.gateId || gate.replace("Gate ", "");
       const message = typed.message || (ok ? "ACCEPTED" : "REJECTED");
 
       const validation: ValidationResult = ok
@@ -252,12 +264,14 @@ export default function StaffScanPage() {
 
       const mappedResult: ScanLogRow["result"] = ok
         ? "SUCCESS"
-        : statusRaw === "EXPIRED" || statusRaw === "USED" || statusRaw === "NOT_ALLOWED"
+        : statusRaw === "EXPIRED" ||
+            statusRaw === "USED" ||
+            statusRaw === "NOT_ALLOWED"
           ? (statusRaw as ScanLogRow["result"])
           : "INVALID";
 
       const mappedAction: TapMode =
-        statusRaw && (String(typed.action ?? "").toUpperCase() === "TAP-OUT")
+        statusRaw && String(typed.action ?? "").toUpperCase() === "TAP-OUT"
           ? "TAP-OUT"
           : "TAP-IN";
       setLog((prev) =>
@@ -271,7 +285,7 @@ export default function StaffScanPage() {
             message: validation.message,
           },
           ...prev,
-        ].slice(0, 10)
+        ].slice(0, 10),
       );
     } catch (err) {
       // fallback to local validation to keep tool usable when backend is down
@@ -282,7 +296,10 @@ export default function StaffScanPage() {
         mode,
       });
 
-      const message = err instanceof Error ? err.message : "Không thể gọi API /staff/gates/scan";
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Không thể gọi API /staff/gates/scan";
       const fallbackValidation: ValidationResult = {
         ...validation,
         subtitle: "Không thể gọi API - dùng chế độ mô phỏng",
@@ -302,7 +319,7 @@ export default function StaffScanPage() {
             message: fallbackValidation.message,
           },
           ...prev,
-        ].slice(0, 10)
+        ].slice(0, 10),
       );
     } finally {
       setIsScanning(false);
@@ -377,12 +394,13 @@ export default function StaffScanPage() {
             if (error) {
               // ignore decode errors until a result is found
             }
-          }
+          },
         );
 
         scannerControlsRef.current = controls;
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Không thể mở camera";
+        const message =
+          err instanceof Error ? err.message : "Không thể mở camera";
         setCameraError(message);
         setIsCameraOn(false);
       } finally {
@@ -416,7 +434,9 @@ export default function StaffScanPage() {
               <h1 className="text-2xl font-bold leading-8 text-slate-900">
                 Điều khiển cổng (Gate Control)
               </h1>
-              <p className="text-sm font-normal leading-5 text-slate-500">{todayLabel}</p>
+              <p className="text-sm font-normal leading-5 text-slate-500">
+                {todayLabel}
+              </p>
             </div>
 
             <div className="mt-6 grid gap-6 lg:grid-cols-[384px_minmax(0,1fr)]">
@@ -424,7 +444,9 @@ export default function StaffScanPage() {
               <section className="rounded-3xl bg-white p-6 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] outline outline-1 outline-offset-[-1px] outline-slate-200">
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-2">
                   <label className="space-y-1.5">
-                    <span className="block text-sm font-semibold leading-5 text-slate-700">Chọn ga</span>
+                    <span className="block text-sm font-semibold leading-5 text-slate-700">
+                      Chọn ga
+                    </span>
                     <div className="relative">
                       <select
                         value={station}
@@ -448,7 +470,9 @@ export default function StaffScanPage() {
                   </label>
 
                   <label className="space-y-1.5">
-                    <span className="block text-sm font-semibold leading-5 text-slate-700">Cổng (Gate ID)</span>
+                    <span className="block text-sm font-semibold leading-5 text-slate-700">
+                      Cổng (Gate ID)
+                    </span>
                     <div className="relative">
                       <select
                         value={gate}
@@ -473,7 +497,9 @@ export default function StaffScanPage() {
                 </div>
 
                 <div className="mt-4 space-y-1.5">
-                  <p className="text-sm font-semibold leading-5 text-slate-700">QR Token Input</p>
+                  <p className="text-sm font-semibold leading-5 text-slate-700">
+                    QR Token Input
+                  </p>
                   <textarea
                     value={token}
                     onChange={(e) => setToken(e.target.value)}
@@ -484,7 +510,9 @@ export default function StaffScanPage() {
 
                 <div className="mt-4 space-y-2">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold leading-5 text-slate-700">Quét bằng camera</p>
+                    <p className="text-sm font-semibold leading-5 text-slate-700">
+                      Quét bằng camera
+                    </p>
                     <button
                       type="button"
                       className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-bold outline outline-1 outline-offset-[-1px] transition ${
@@ -520,11 +548,16 @@ export default function StaffScanPage() {
                         </div>
                         {isCameraStarting ? (
                           <div className="inline-flex items-center gap-2 text-xs font-semibold text-white/80">
-                            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                            <Loader2
+                              className="h-4 w-4 animate-spin"
+                              aria-hidden="true"
+                            />
                             Đang khởi động...
                           </div>
                         ) : (
-                          <div className="text-xs font-semibold text-white/60">Đưa mã QR vào khung</div>
+                          <div className="text-xs font-semibold text-white/60">
+                            Đưa mã QR vào khung
+                          </div>
                         )}
                       </div>
                       <video
@@ -544,7 +577,10 @@ export default function StaffScanPage() {
                     runScan(token);
                   }}
                 >
-                  <span className="h-5 w-5 rounded bg-white" aria-hidden="true" />
+                  <span
+                    className="h-5 w-5 rounded bg-white"
+                    aria-hidden="true"
+                  />
                   QUÉT VÉ
                 </button>
 
@@ -618,11 +654,20 @@ export default function StaffScanPage() {
 
                   <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-white/20 backdrop-blur-[2px]">
                     {lastValidation.tone === "green" ? (
-                      <CheckCircle2 className="h-12 w-12 text-white" aria-hidden="true" />
+                      <CheckCircle2
+                        className="h-12 w-12 text-white"
+                        aria-hidden="true"
+                      />
                     ) : lastValidation.tone === "amber" ? (
-                      <AlertTriangle className="h-12 w-12 text-white" aria-hidden="true" />
+                      <AlertTriangle
+                        className="h-12 w-12 text-white"
+                        aria-hidden="true"
+                      />
                     ) : (
-                      <XCircle className="h-12 w-12 text-white" aria-hidden="true" />
+                      <XCircle
+                        className="h-12 w-12 text-white"
+                        aria-hidden="true"
+                      />
                     )}
                   </div>
 
@@ -639,7 +684,12 @@ export default function StaffScanPage() {
                     {[
                       { label: "Ticket ID", value: log[0]?.ticketId ?? "-" },
                       { label: "Gate", value: gate },
-                      { label: "Time", value: new Date().toLocaleTimeString("vi-VN", { hour12: false }) },
+                      {
+                        label: "Time",
+                        value: new Date().toLocaleTimeString("vi-VN", {
+                          hour12: false,
+                        }),
+                      },
                       { label: "Station", value: station },
                     ].map((item) => (
                       <div
@@ -665,7 +715,10 @@ export default function StaffScanPage() {
                 <h2 className="text-base font-bold leading-6 text-slate-800">
                   Transaction Log Preview (Last 10 Scans)
                 </h2>
-                <button type="button" className="text-sm font-semibold leading-5 text-blue-600">
+                <button
+                  type="button"
+                  className="text-sm font-semibold leading-5 text-blue-600"
+                >
                   Xem tất cả
                 </button>
               </div>
@@ -729,7 +782,9 @@ export default function StaffScanPage() {
                         >
                           {row.result}
                         </span>
-                        <div className="mt-1 text-xs font-medium leading-4 text-slate-500">{row.message}</div>
+                        <div className="mt-1 text-xs font-medium leading-4 text-slate-500">
+                          {row.message}
+                        </div>
                       </div>
                     </div>
                   ))}
