@@ -14,30 +14,64 @@ const optionalNumber = (value: unknown) => {
     : undefined;
 };
 
-const list = (value: unknown) => (Array.isArray(value) ? value : []);
+const record = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+
+const list = (value: unknown) => {
+  if (Array.isArray(value)) return value;
+
+  const container = record(value);
+  const nested = container.content ?? container.items ?? container.data;
+  return Array.isArray(nested) ? nested : [];
+};
+
+const etaText = (item: Record<string, unknown>) => {
+  const eta = item.eta ?? item.estimatedArrivalTime ?? item.arrivalTime;
+  if (eta !== undefined && eta !== null) return text(eta);
+
+  const minutes = optionalNumber(
+    item.etaMinutes ?? item.estimatedArrivalMinutes ?? item.minutesToNextStation,
+  );
+  return minutes === undefined ? "" : `${minutes} phút`;
+};
 
 const normalizeTrains = (raw: unknown): LiveTrainDto[] =>
   list(raw)
     .map((value) => {
       if (!value || typeof value !== "object") return null;
       const item = value as Record<string, unknown>;
-      const id = text(item.id ?? item.trainId ?? item.code ?? item.trainCode);
+      const position = record(item.position ?? item.location);
+      const id = text(
+        item.id ?? item.trainId ?? item.code ?? item.trainCode ?? item.trainNumber,
+      );
       if (!id) return null;
 
       return {
         id,
-        code: text(item.code ?? item.trainCode ?? id),
+        code: text(item.code ?? item.trainCode ?? item.trainNumber ?? id),
         routeId: text(item.routeId) || undefined,
-        direction: text(item.direction),
-        nextStationId: text(item.nextStationId ?? item.stationId) || undefined,
+        direction: text(item.direction ?? item.directionName),
+        nextStationId:
+          text(item.nextStationId ?? item.currentStationId ?? item.stationId) ||
+          undefined,
         nextStationName: text(
-          item.nextStationName ?? item.nextStation ?? item.stationName ?? item.stationId,
+          item.nextStationName ??
+            item.currentStationName ??
+            item.nextStation ??
+            item.stationName ??
+            item.stationId,
         ),
-        eta: text(item.eta ?? item.estimatedArrivalTime ?? item.arrivalTime),
-        occupancy: optionalNumber(item.occupancy ?? item.occupancyRate ?? item.loadPercent) ?? 0,
-        status: text(item.status),
-        x: optionalNumber(item.x ?? item.positionX),
-        y: optionalNumber(item.y ?? item.positionY),
+        eta: etaText(item),
+        occupancy:
+          optionalNumber(
+            item.occupancy ??
+              item.occupancyRate ??
+              item.occupancyPercent ??
+              item.loadPercent,
+          ) ?? 0,
+        status: text(item.status ?? item.trainStatus ?? item.operatingStatus),
+        x: optionalNumber(item.x ?? item.positionX ?? position.x ?? position.positionX),
+        y: optionalNumber(item.y ?? item.positionY ?? position.y ?? position.positionY),
       };
     })
     .filter(Boolean) as LiveTrainDto[];
@@ -47,15 +81,22 @@ const normalizeStations = (raw: unknown): LiveStationStatusDto[] =>
     .map((value) => {
       if (!value || typeof value !== "object") return null;
       const item = value as Record<string, unknown>;
+      const position = record(item.position ?? item.location);
       const id = text(item.id ?? item.stationId ?? item.code);
       if (!id) return null;
 
       return {
         id,
+        stationId: id,
         name: text(item.name ?? item.stationName ?? id),
-        status: text(item.status ?? item.operatingStatus),
-        x: optionalNumber(item.x ?? item.positionX),
-        y: optionalNumber(item.y ?? item.positionY),
+        status: text(item.status ?? item.stationStatus ?? item.operatingStatus),
+        congestionLevel: optionalNumber(
+          item.congestionLevel ?? item.crowdLevel ?? item.occupancy,
+        ),
+        message: text(item.message ?? item.alertMessage) || undefined,
+        updatedAt: text(item.updatedAt ?? item.lastUpdatedAt ?? item.timestamp) || undefined,
+        x: optionalNumber(item.x ?? item.positionX ?? position.x ?? position.positionX),
+        y: optionalNumber(item.y ?? item.positionY ?? position.y ?? position.positionY),
       };
     })
     .filter(Boolean) as LiveStationStatusDto[];

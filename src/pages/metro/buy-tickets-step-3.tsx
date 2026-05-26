@@ -262,40 +262,25 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
       const payment = await paymentApi.init({
         orderId: order.id,
         method: selectedPaymentMethod,
-        returnUrl:
-          typeof window !== "undefined" ? `${window.location.origin}/passenger-page/payment-success` : undefined,
       });
 
-      if (payment.redirectUrl || payment.checkoutUrl) {
-        const url = payment.redirectUrl ?? payment.checkoutUrl;
-        if (url) {
-          window.location.href = url;
-          return;
-        }
+      if (!payment.paymentId) {
+        throw new Error("Phản hồi khởi tạo thanh toán không có paymentId");
       }
 
-      // Poll payment status (basic)
-      const start = Date.now();
-      const timeoutMs = 30_000;
-      const intervalMs = 2_000;
+      const transactionId =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? `web-${crypto.randomUUID()}`
+          : `web-${Date.now()}`;
+      await paymentApi.callback({
+        paymentId: payment.paymentId,
+        transactionId,
+        isSuccess: true,
+      });
 
-      while (true) {
-        const latest = await paymentApi.getById(payment.id);
-        const status = String(latest.status ?? "").toUpperCase();
-
-        if (["SUCCESS", "SUCCEEDED", "PAID", "COMPLETED"].includes(status)) {
-          break;
-        }
-
-        if (["FAILED", "CANCELED", "CANCELLED", "ERROR"].includes(status)) {
-          throw new Error("Thanh toán thất bại hoặc bị huỷ");
-        }
-
-        if (Date.now() - start > timeoutMs) {
-          throw new Error("Thanh toán đang xử lý quá lâu, vui lòng thử lại");
-        }
-
-        await new Promise((r) => setTimeout(r, intervalMs));
+      const latest = await paymentApi.getById(payment.paymentId);
+      if (String(latest.status ?? "").toUpperCase() !== "SUCCESS") {
+        throw new Error("Thanh toán thất bại hoặc chưa được xác nhận");
       }
 
       await router.push({
@@ -304,7 +289,7 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
           ...router.query,
           ticketType: selectedTicket.id,
           orderId: order.id,
-          paymentId: payment.id,
+          paymentId: payment.paymentId,
         },
       });
     } catch (err) {

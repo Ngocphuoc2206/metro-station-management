@@ -14,8 +14,12 @@ export type LiveTrainDto = {
 
 export type LiveStationStatusDto = {
   id: string;
+  stationId: string;
   name: string;
   status: string;
+  congestionLevel?: number;
+  message?: string;
+  updatedAt?: string;
   x?: number;
   y?: number;
 };

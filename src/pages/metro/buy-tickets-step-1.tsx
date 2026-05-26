@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import PassengerShell from "@components/templates/PassengerShell";
 import { fareCalcApi } from "@features/fare/fareCalcApi";
 import { publicApi } from "@features/public/publicApi";
-import type { StationDto } from "@features/public/publicTypes";
+import type { StationDto, TicketTypeDto } from "@features/public/publicTypes";
 import {
   ArrowRight,
   CalendarDays,
@@ -24,7 +24,20 @@ const PASSENGER_OPTIONS = [
 ];
 
 const STORAGE_KEY = "metro-buy-ticket-step1";
-const ESTIMATED_FARE_TICKET_TYPE = "single";
+
+const normalizedTicketTypeName = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+const ticketTypePriority = (ticket: TicketTypeDto) => {
+  const name = normalizedTicketTypeName(ticket.name);
+  if (name.includes("single") || name.includes("ve luot")) return 0;
+  if (name.includes("daily") || name.includes("ve ngay")) return 1;
+  if (name.includes("monthly") || name.includes("ve thang")) return 2;
+  return 3;
+};
 
 const formatDate = (date: string) => {
   if (!date) {
@@ -48,6 +61,9 @@ const MetroBuyTicketsStep1Page: NextPage = () => {
   const [stations, setStations] = useState<StationDto[]>([]);
   const [isLoadingStations, setIsLoadingStations] = useState(true);
   const [stationsError, setStationsError] = useState<string | null>(null);
+  const [ticketTypes, setTicketTypes] = useState<TicketTypeDto[]>([]);
+  const [isLoadingTicketTypes, setIsLoadingTicketTypes] = useState(true);
+  const [ticketTypesError, setTicketTypesError] = useState<string | null>(null);
 
   const [originStationId, setOriginStationId] = useState("");
   const [destinationStationId, setDestinationStationId] = useState("");
@@ -61,6 +77,12 @@ const MetroBuyTicketsStep1Page: NextPage = () => {
   const stationsById = useMemo(() => {
     return new Map(stations.map((s) => [s.id, s]));
   }, [stations]);
+
+  const estimatedTicketType = useMemo(() => {
+    return ticketTypes
+      .filter((ticket) => ticket.isActive !== false)
+      .sort((left, right) => ticketTypePriority(left) - ticketTypePriority(right))[0];
+  }, [ticketTypes]);
 
   useEffect(() => {
     let cancelled = false;
@@ -80,6 +102,31 @@ const MetroBuyTicketsStep1Page: NextPage = () => {
     };
 
     loadStations();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadTicketTypes = async () => {
+      setIsLoadingTicketTypes(true);
+      setTicketTypesError(null);
+      try {
+        const data = await publicApi.getTicketTypes();
+        if (!cancelled) setTicketTypes(data);
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Không thể tải loại vé để tính giá";
+        if (!cancelled) setTicketTypesError(message);
+      } finally {
+        if (!cancelled) setIsLoadingTicketTypes(false);
+      }
+    };
+
+    loadTicketTypes();
 
     return () => {
       cancelled = true;
@@ -106,6 +153,20 @@ const MetroBuyTicketsStep1Page: NextPage = () => {
       return;
     }
 
+    if (isLoadingTicketTypes) {
+      setEstimatedFare(null);
+      setIsLoadingFare(true);
+      setFareError(null);
+      return;
+    }
+
+    if (!estimatedTicketType) {
+      setEstimatedFare(null);
+      setIsLoadingFare(false);
+      setFareError(ticketTypesError ?? "Không có loại vé hoạt động để tính giá dự kiến");
+      return;
+    }
+
     let cancelled = false;
 
     const loadEstimatedFare = async () => {
@@ -117,7 +178,7 @@ const MetroBuyTicketsStep1Page: NextPage = () => {
         const total = await fareCalcApi.calculate({
           originId: originStationId,
           destinationId: destinationStationId,
-          ticketType: ESTIMATED_FARE_TICKET_TYPE,
+          ticketTypeName: estimatedTicketType.name,
         });
 
         if (!Number.isFinite(total)) {
@@ -149,7 +210,13 @@ const MetroBuyTicketsStep1Page: NextPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [destinationStationId, originStationId]);
+  }, [
+    destinationStationId,
+    estimatedTicketType,
+    isLoadingTicketTypes,
+    originStationId,
+    ticketTypesError,
+  ]);
 
   const isFormReady =
     originStationId.length > 0 &&
@@ -422,7 +489,10 @@ const MetroBuyTicketsStep1Page: NextPage = () => {
 
                 <div className="flex flex-col gap-1 border-t border-slate-200 pt-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-slate-500">Giá dự kiến:</span>
+                    <span className="text-sm text-slate-500">
+                      Giá dự kiến
+                      {estimatedTicketType ? ` (${estimatedTicketType.name})` : ""}:
+                    </span>
                     <span className="text-xl leading-7 font-black text-blue-600">
                       {isLoadingFare
                         ? "Đang tính..."
