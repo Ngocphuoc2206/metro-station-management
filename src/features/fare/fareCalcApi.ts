@@ -5,7 +5,7 @@ import { unwrapApiResponse } from "@features/httpClient/unwrap";
 export type FareCalculateRequest = {
   originId: string;
   destinationId: string;
-  ticketType: string;
+  ticketTypeName: string;
 };
 
 export const fareCalcApi = {
@@ -13,7 +13,8 @@ export const fareCalcApi = {
     const params = {
       originId: payload.originId,
       destinationId: payload.destinationId,
-      ticketType: payload.ticketType,
+      // FareService resolves this query value against TicketType.name.
+      ticketType: payload.ticketTypeName,
     };
 
     const res = await apiClient.get(API_ENDPOINTS.fares.calculate, { params });

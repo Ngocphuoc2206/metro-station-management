@@ -91,10 +91,6 @@ const trains: Train[] = [
   },
 ];
 
-const linePath = stations
-  .map((station) => `${station.x},${station.y}`)
-  .join(" ");
-
 const statusLabel: Record<TrainStatus, string> = {
   "on-time": "Đúng giờ",
   delayed: "Trễ 4 phút",
@@ -297,9 +293,22 @@ export default function PassengerLiveMapPage() {
     return r?.name ?? (selectedRouteId ? `Tuyến ${selectedRouteId}` : "Tất cả tuyến");
   }, [routes, selectedRouteId]);
 
-  const displayLinePath = displayStations.length
+  const availableRoutes = useMemo(() => {
+    const routesById = new Map(routes.map((route) => [route.id, route]));
+    trainLocations.forEach((train) => {
+      if (train.routeId && !routesById.has(train.routeId)) {
+        routesById.set(train.routeId, {
+          id: train.routeId,
+          name: `Tuyến ${train.routeId}`,
+        });
+      }
+    });
+    return Array.from(routesById.values());
+  }, [routes, trainLocations]);
+
+  const displayLinePath = displayStations.length > 1
     ? displayStations.map((station) => `${station.x},${station.y}`).join(" ")
-    : linePath;
+    : "";
   const activeStations = displayStations.filter(
     (station) => station.status !== "maintenance",
   ).length;
@@ -413,7 +422,7 @@ export default function PassengerLiveMapPage() {
                     className="w-full appearance-none rounded-2xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-900 outline-none"
                   >
                     <option value="">Tất cả tuyến</option>
-                    {routes.map((route) => (
+                    {availableRoutes.map((route) => (
                       <option key={route.id} value={route.id}>
                         {route.name}
                       </option>
@@ -432,31 +441,35 @@ export default function PassengerLiveMapPage() {
                   role="img"
                   aria-label="Bản đồ live tuyến metro số 1"
                 >
-                  <polyline
-                    points={displayLinePath}
-                    fill="none"
-                    stroke="rgba(96,165,250,0.22)"
-                    strokeWidth="32"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <polyline
-                    points={displayLinePath}
-                    fill="none"
-                    stroke="#60A5FA"
-                    strokeWidth="10"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <polyline
-                    points={displayLinePath}
-                    fill="none"
-                    stroke="#DBEAFE"
-                    strokeWidth="3"
-                    strokeDasharray="10 16"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
+                  {displayLinePath ? (
+                    <>
+                      <polyline
+                        points={displayLinePath}
+                        fill="none"
+                        stroke="rgba(96,165,250,0.22)"
+                        strokeWidth="32"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <polyline
+                        points={displayLinePath}
+                        fill="none"
+                        stroke="#60A5FA"
+                        strokeWidth="10"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <polyline
+                        points={displayLinePath}
+                        fill="none"
+                        stroke="#DBEAFE"
+                        strokeWidth="3"
+                        strokeDasharray="10 16"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </>
+                  ) : null}
 
                   {displayStations.map((station) => (
                     <g
@@ -545,6 +558,15 @@ export default function PassengerLiveMapPage() {
                     );
                   })}
                 </svg>
+
+                {!isLoadingLive && !liveError && displayStations.length === 0 && displayTrains.length === 0 ? (
+                  <div className="absolute inset-0 z-20 flex items-center justify-center p-6">
+                    <div className="rounded-2xl border border-slate-700 bg-slate-900/90 px-6 py-5 text-center text-sm text-slate-300 shadow-xl">
+                      <Radio className="mx-auto mb-2 h-6 w-6 text-blue-400" />
+                      Chưa có dữ liệu tàu hoặc ga trực tuyến từ hệ thống vận hành.
+                    </div>
+                  </div>
+                ) : null}
 
                 <div className="absolute bottom-5 left-5 z-20 flex flex-wrap gap-2 rounded-2xl bg-white/95 p-3 text-xs font-semibold text-slate-600 shadow-lg backdrop-blur">
                   <span className="inline-flex items-center gap-1.5">

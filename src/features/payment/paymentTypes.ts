@@ -1,19 +1,27 @@
 export type PaymentInitRequest = {
   orderId: string;
   method: string;
-  returnUrl?: string;
-};
-
-export type PaymentInitResult = {
-  id: string;
-  status?: string;
-  redirectUrl?: string;
-  checkoutUrl?: string;
 };
 
 export type PaymentDto = {
-  id: string;
-  status?: string;
+  paymentId: string;
+  amount?: number;
+  clientSecret?: string;
+  createdAt?: string;
+  expiredAt?: string;
+  method?: string;
   orderId?: string;
-  data?: unknown;
+  paymentUrl?: string;
+  provider?: string;
+  providerTransactionId?: string;
+  status?: string;
+  orderStatus?: string;
 };
+
+export type PaymentCallbackRequest = {
+  paymentId: string;
+  transactionId: string;
+  isSuccess: boolean;
+};
+
+export type PaymentInitResult = PaymentDto;
