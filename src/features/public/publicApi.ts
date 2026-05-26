@@ -58,15 +58,24 @@ const normalizeTicketTypes = (raw: unknown): TicketTypeDto[] => {
     .map((item) => {
       if (item && typeof item === "object") {
         const anyItem = item as Record<string, unknown>;
-        const id = String(anyItem.id ?? anyItem.ticketTypeId ?? anyItem.code ?? "");
+        const id = String(anyItem.id ?? anyItem.Id ?? anyItem.ticketTypeId ?? anyItem.code ?? "");
         const name = String(anyItem.name ?? anyItem.ticketTypeName ?? id);
         if (!id) return null;
         return {
           id,
           code: anyItem.code ? String(anyItem.code) : undefined,
           name,
+          description: anyItem.description ? String(anyItem.description) : undefined,
           conditions: anyItem.conditions ? String(anyItem.conditions) : undefined,
           price: typeof anyItem.price === "number" ? anyItem.price : undefined,
+          validityDays:
+            typeof anyItem.validityDays === "number"
+              ? anyItem.validityDays
+              : undefined,
+          isActive:
+            typeof anyItem.isActive === "boolean"
+              ? anyItem.isActive
+              : undefined,
           status: anyItem.status ? String(anyItem.status) : undefined,
           validityDuration:
             typeof anyItem.validityDuration === "number"
@@ -82,13 +91,6 @@ const normalizeTicketTypes = (raw: unknown): TicketTypeDto[] => {
 
 export const publicApi = {
   getStations: async (): Promise<StationDto[]> => {
-    if (USE_MOCK_PUBLIC) {
-      return [
-        { id: "sta-ben-thanh", name: "Bến Thành" },
-        { id: "sta-ba-son", name: "Ba Son" },
-      ];
-    }
-
     const res = await apiClient.get(API_ENDPOINTS.stations.base);
     return normalizeStations(unwrapApiResponse(res.data));
   },
@@ -112,13 +114,6 @@ export const publicApi = {
   },
 
   getTicketTypes: async (): Promise<TicketTypeDto[]> => {
-    if (USE_MOCK_PUBLIC) {
-      return [
-        { id: "day", name: "Vé ngày", price: 40000, status: "active" },
-        { id: "month", name: "Vé tháng", price: 200000, status: "active" },
-      ];
-    }
-
     const res = await apiClient.get(API_ENDPOINTS.ticketTypes.base);
     return normalizeTicketTypes(unwrapApiResponse(res.data));
   },

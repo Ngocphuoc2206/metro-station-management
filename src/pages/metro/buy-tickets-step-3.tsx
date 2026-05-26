@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
 import PassengerShell from "@components/templates/PassengerShell";
 import { orderApi } from "@features/order/orderApi";
+import type { OrderRequest } from "@features/order/orderTypes";
 import { paymentApi } from "@features/payment/paymentApi";
 import {
   ArrowLeft,
@@ -31,6 +32,7 @@ type Step2State = {
   selectedTicketName?: string;
   selectedTicketSubtitle?: string;
   selectedTicketPrice?: number;
+  selectedOrderTotal?: number;
 };
 
 type PaymentMethod = "ewallet" | "card" | "vietqr";
@@ -56,8 +58,35 @@ const emptyJourneyState: JourneyState = {
 };
 
 const parsePassengerCount = (value: string) => {
-  const match = value.match(/\d+/);
-  return match ? Number(match[0]) : 1;
+  const counts = value.match(/\d+/g);
+  return counts ? counts.reduce((total, count) => total + Number(count), 0) : 1;
+};
+
+const buildOrderRequest = (
+  journeyState: JourneyState,
+  ticketTypeId: string,
+): OrderRequest => {
+  const quantity = parsePassengerCount(journeyState.passengerCount);
+  const outbound = {
+    ticketTypeId,
+    quantity,
+    fromStationId: journeyState.originStationId,
+    toStationId: journeyState.destinationStationId,
+  };
+
+  return {
+    items: journeyState.isRoundTrip
+      ? [
+          outbound,
+          {
+            ticketTypeId,
+            quantity,
+            fromStationId: journeyState.destinationStationId,
+            toStationId: journeyState.originStationId,
+          },
+        ]
+      : [outbound],
+  };
 };
 
 const TICKET_DEFAULT_BY_ID: Record<string, TicketInfo> = {
@@ -105,7 +134,6 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
   const [step2State, setStep2State] = useState<Step2State>({});
   const [selectedPaymentMethod, setSelectedPaymentMethod] =
     useState<PaymentMethod>("ewallet");
-  const [promotionCode, setPromotionCode] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
 
@@ -131,7 +159,6 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
       fromQuery.passengerCount;
 
     if (hasAllFromQuery) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setJourneyState({
         ...fromQuery,
         originStationName: "",
@@ -202,7 +229,11 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
     };
   }, [step2State, ticketTypeFromQuery]);
 
-  const subtotal = selectedTicket.price;
+  const subtotal =
+    step2State.selectedOrderTotal ??
+    selectedTicket.price *
+      parsePassengerCount(journeyState.passengerCount) *
+      (journeyState.isRoundTrip ? 2 : 1);
   const serviceFee = 0;
   const totalPrice = subtotal + serviceFee;
 
@@ -215,14 +246,6 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
     });
   };
 
-  const handleApplyPromotion = () => {
-    if (!promotionCode.trim()) {
-      return;
-    }
-
-    setPromotionCode(promotionCode.trim());
-  };
-
   const handleConfirmPayment = async () => {
     if (!hasJourneyState) {
       return;
@@ -232,18 +255,9 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
     setPaymentError(null);
 
     try {
-      const passengerNum = parsePassengerCount(journeyState.passengerCount);
-
-      const order = await orderApi.create({
-        fromStationId: journeyState.originStationId,
-        toStationId: journeyState.destinationStationId,
-        ticketTypeId: selectedTicket.id,
-        passengerCount: passengerNum,
-        isRoundTrip: journeyState.isRoundTrip,
-        travelDate: journeyState.travelDate,
-        promotionCode: promotionCode.trim() || undefined,
-        paymentMethod: selectedPaymentMethod,
-      });
+      const order = await orderApi.create(
+        buildOrderRequest(journeyState, selectedTicket.id),
+      );
 
       const payment = await paymentApi.init({
         orderId: order.id,
@@ -265,7 +279,6 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
       const timeoutMs = 30_000;
       const intervalMs = 2_000;
 
-      // eslint-disable-next-line no-constant-condition
       while (true) {
         const latest = await paymentApi.getById(payment.id);
         const status = String(latest.status ?? "").toUpperCase();
@@ -490,31 +503,6 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
                   </button>
                 </div>
 
-                <div className="flex flex-col gap-2 border-t border-slate-200 pt-10">
-                  <label
-                    htmlFor="promotion-code"
-                    className="text-sm leading-5 font-semibold text-neutral-900"
-                  >
-                    Mã giảm giá
-                  </label>
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <input
-                      id="promotion-code"
-                      type="text"
-                      value={promotionCode}
-                      onChange={(event) => setPromotionCode(event.target.value)}
-                      placeholder="Nhập mã ưu đãi (nếu có)"
-                      className="h-11 flex-1 rounded-xl border border-slate-300 px-3 text-sm text-neutral-900 placeholder:text-gray-500 focus:border-blue-600 focus:outline-none"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleApplyPromotion}
-                      className="rounded-xl bg-slate-200 px-6 py-2.5 text-sm font-bold text-neutral-900 transition hover:bg-slate-300"
-                    >
-                      Áp dụng
-                    </button>
-                  </div>
-                </div>
               </article>
 
               <article className="relative h-24 overflow-hidden rounded-xl">

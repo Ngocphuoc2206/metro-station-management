@@ -3,10 +3,10 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
 import PassengerShell from "@components/templates/PassengerShell";
-import { fareCalcApi } from "@features/fare/fareCalcApi";
 import { orderApi } from "@features/order/orderApi";
+import type { OrderPreviewResult, OrderRequest } from "@features/order/orderTypes";
 import { publicApi } from "@features/public/publicApi";
-import type { TicketTypeDto } from "@features/public/publicTypes";
+import type { StationDto, TicketTypeDto } from "@features/public/publicTypes";
 import {
   ArrowRight,
   Check,
@@ -31,13 +31,18 @@ type TicketTypeCard = {
   name: string;
   subtitle: string;
   description: string[];
-  price: number;
+  price?: number;
   highlighted?: boolean;
   badge?: string;
 };
 
 const STEP1_STORAGE_KEY = "metro-buy-ticket-step1";
 const STEP2_STORAGE_KEY = "metro-buy-ticket-step2";
+const TICKET_TYPE_LABELS: Record<string, string> = {
+  single: "Vé lượt",
+  daily: "Vé ngày",
+  monthly: "Vé tháng",
+};
 
 const emptyState: JourneyState = {
   originStationId: "",
@@ -50,19 +55,53 @@ const emptyState: JourneyState = {
 };
 
 const parsePassengerCount = (value: string) => {
-  const match = value.match(/\d+/);
-  return match ? Number(match[0]) : 1;
+  const counts = value.match(/\d+/g);
+  return counts ? counts.reduce((total, count) => total + Number(count), 0) : 1;
+};
+
+const buildOrderRequest = (
+  journeyState: JourneyState,
+  ticketTypeId: string,
+): OrderRequest => {
+  const quantity = parsePassengerCount(journeyState.passengerCount);
+  const outbound = {
+    ticketTypeId,
+    quantity,
+    fromStationId: journeyState.originStationId,
+    toStationId: journeyState.destinationStationId,
+  };
+
+  return {
+    items: journeyState.isRoundTrip
+      ? [
+          outbound,
+          {
+            ticketTypeId,
+            quantity,
+            fromStationId: journeyState.destinationStationId,
+            toStationId: journeyState.originStationId,
+          },
+        ]
+      : [outbound],
+  };
 };
 
 const toTicketCard = (t: TicketTypeDto): TicketTypeCard => {
-  const price = typeof t.price === "number" ? t.price : 0;
+  const typeName = t.name.toLowerCase();
+  const validityText =
+    typeof t.validityDays === "number"
+      ? `Có hiệu lực ${t.validityDays} ngày`
+      : undefined;
   return {
     id: t.id,
-    name: t.name,
-    subtitle: t.code ?? "",
-    description: t.conditions ? [t.conditions] : ["Áp dụng theo quy định của MetroNext."],
-    price,
-    highlighted: t.status ? String(t.status).toLowerCase() === "active" : false,
+    name: TICKET_TYPE_LABELS[typeName] ?? t.name,
+    subtitle: t.code ?? t.name,
+    description: [
+      t.description ?? t.conditions ?? "Áp dụng theo quy định của MetroNext.",
+      ...(validityText ? [validityText] : []),
+    ],
+    price: t.price,
+    highlighted: typeName === "single",
   };
 };
 
@@ -86,13 +125,15 @@ const formatCurrency = (amount: number) => {
 const MetroBuyTicketsStep2Page: NextPage = () => {
   const router = useRouter();
   const [journeyState, setJourneyState] = useState<JourneyState>(emptyState);
+  const [stations, setStations] = useState<StationDto[]>([]);
   const [ticketTypes, setTicketTypes] = useState<TicketTypeCard[]>([]);
   const [isLoadingTickets, setIsLoadingTickets] = useState(true);
   const [ticketsError, setTicketsError] = useState<string | null>(null);
 
   const [selectedTicketId, setSelectedTicketId] = useState<string>("");
-  const [pricingTotal, setPricingTotal] = useState<number | null>(null);
-  const [isLoadingPricing, setIsLoadingPricing] = useState(false);
+  const [orderPreview, setOrderPreview] = useState<OrderPreviewResult | null>(null);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
   useEffect(() => {
     const fromQuery = {
@@ -115,36 +156,48 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
       fromQuery.travelDate &&
       fromQuery.passengerCount;
 
-    if (hasAllFromQuery) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setJourneyState({
-        ...fromQuery,
-        originStationName: "",
-        destinationStationName: "",
-      });
-    }
-
     if (typeof window === "undefined") {
+      if (hasAllFromQuery) {
+        setJourneyState({
+          ...fromQuery,
+          originStationName: "",
+          destinationStationName: "",
+        });
+      }
       return;
     }
 
-    if (!hasAllFromQuery) {
-      const rawStep1Data = window.sessionStorage.getItem(STEP1_STORAGE_KEY);
-      if (rawStep1Data) {
-        try {
-          const parsedStep1 = JSON.parse(rawStep1Data) as JourneyState;
-          if (
-            parsedStep1.originStationId &&
-            parsedStep1.destinationStationId &&
-            parsedStep1.travelDate &&
-            parsedStep1.passengerCount
-          ) {
-            setJourneyState(parsedStep1);
-          }
-        } catch {
-          setJourneyState(emptyState);
+    const rawStep1Data = window.sessionStorage.getItem(STEP1_STORAGE_KEY);
+    let storedJourney: JourneyState | null = null;
+    if (rawStep1Data) {
+      try {
+        const parsedStep1 = JSON.parse(rawStep1Data) as JourneyState;
+        if (
+          parsedStep1.originStationId &&
+          parsedStep1.destinationStationId &&
+          parsedStep1.travelDate &&
+          parsedStep1.passengerCount
+        ) {
+          storedJourney = parsedStep1;
         }
+      } catch {
+        storedJourney = null;
       }
+    }
+
+    if (hasAllFromQuery) {
+      const matchesStoredStations =
+        storedJourney?.originStationId === fromQuery.originStationId &&
+        storedJourney.destinationStationId === fromQuery.destinationStationId;
+      setJourneyState({
+        ...fromQuery,
+        originStationName: matchesStoredStations ? (storedJourney?.originStationName ?? "") : "",
+        destinationStationName: matchesStoredStations ? (storedJourney?.destinationStationName ?? "") : "",
+      });
+    } else if (storedJourney) {
+      setJourneyState(storedJourney);
+    } else {
+      setJourneyState(emptyState);
     }
 
     const rawStep2Data = window.sessionStorage.getItem(STEP2_STORAGE_KEY);
@@ -163,12 +216,30 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
   useEffect(() => {
     let cancelled = false;
 
+    publicApi.getStations().then((data) => {
+      if (!cancelled) {
+        setStations(data);
+      }
+    }).catch(() => {
+      // Names kept from step 1 remain usable if station lookup fails.
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
     const loadTickets = async () => {
       setIsLoadingTickets(true);
       setTicketsError(null);
       try {
         const raw = await publicApi.getTicketTypes();
-        const cards = raw.map(toTicketCard).filter((t) => t.price >= 0);
+        const cards = raw
+          .filter((ticket) => ticket.isActive !== false)
+          .map(toTicketCard);
         if (!cancelled) {
           setTicketTypes(cards);
           if (!selectedTicketId && cards.length > 0) {
@@ -215,43 +286,59 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
     return ticketTypes.find((ticket) => ticket.id === selectedTicketId) ?? null;
   }, [selectedTicketId, ticketTypes]);
 
+  const stationNamesById = useMemo(
+    () => new Map(stations.map((station) => [station.id, station.name])),
+    [stations],
+  );
+  const originStationName =
+    journeyState.originStationName ||
+    stationNamesById.get(journeyState.originStationId) ||
+    journeyState.originStationId;
+  const destinationStationName =
+    journeyState.destinationStationName ||
+    stationNamesById.get(journeyState.destinationStationId) ||
+    journeyState.destinationStationId;
+
   useEffect(() => {
     if (!hasJourneyState || !selectedTicket) {
-      setPricingTotal(null);
+      setOrderPreview(null);
+      setPreviewError(null);
+      setIsLoadingPreview(false);
       return;
     }
 
     let cancelled = false;
 
     const loadPricing = async () => {
-      setIsLoadingPricing(true);
+      setIsLoadingPreview(true);
+      setPreviewError(null);
+      setOrderPreview(null);
+
       try {
-        const passengerNum = parsePassengerCount(journeyState.passengerCount);
+        const preview = await orderApi.preview(
+          buildOrderRequest(journeyState, selectedTicket.id),
+        );
+        const total = Number(preview.total);
 
-        const fare = await fareCalcApi.calculate({
-          fromStationId: journeyState.originStationId,
-          toStationId: journeyState.destinationStationId,
-          ticketTypeId: selectedTicket.id,
-          passengerCount: passengerNum,
-          isRoundTrip: journeyState.isRoundTrip,
-          travelDate: journeyState.travelDate,
-        });
+        if (!Number.isFinite(total)) {
+          throw new Error("Phản hồi xem trước đơn hàng không có tổng tiền hợp lệ");
+        }
 
-        const preview = await orderApi.preview({
-          fromStationId: journeyState.originStationId,
-          toStationId: journeyState.destinationStationId,
-          ticketTypeId: selectedTicket.id,
-          passengerCount: passengerNum,
-          isRoundTrip: journeyState.isRoundTrip,
-          travelDate: journeyState.travelDate,
-        });
-
-        const total = Number(preview.total ?? fare.total ?? selectedTicket.price);
-        if (!cancelled) setPricingTotal(Number.isFinite(total) ? total : selectedTicket.price);
-      } catch {
-        if (!cancelled) setPricingTotal(selectedTicket.price);
+        if (!cancelled) {
+          setOrderPreview({ ...preview, total });
+        }
+      } catch (err) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Không thể xem trước thông tin đơn hàng";
+        if (!cancelled) {
+          setPreviewError(message);
+        }
       } finally {
-        if (!cancelled) setIsLoadingPricing(false);
+        if (!cancelled) {
+          setIsLoadingPreview(false);
+        }
       }
     };
 
@@ -262,11 +349,12 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
     };
   }, [hasJourneyState, journeyState, selectedTicket]);
 
-  const serviceFee = 0;
-  const totalPrice = pricingTotal ?? selectedTicket?.price ?? 0;
+  const subtotal = orderPreview?.subtotal;
+  const serviceFee = orderPreview ? (orderPreview.serviceFee ?? 0) : undefined;
+  const totalPrice = orderPreview?.total;
 
   const handleContinue = async () => {
-    if (!hasJourneyState || !selectedTicket) {
+    if (!hasJourneyState || !selectedTicket || totalPrice === undefined) {
       return;
     }
 
@@ -278,6 +366,7 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
           selectedTicketName: selectedTicket.name,
           selectedTicketSubtitle: selectedTicket.subtitle,
           selectedTicketPrice: selectedTicket.price,
+          selectedOrderTotal: totalPrice,
         }),
       );
     }
@@ -367,7 +456,9 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
                             isSelected ? "text-blue-600" : "text-neutral-900"
                           }`}
                         >
-                          {formatCurrency(ticket.price)}
+                          {ticket.price === undefined
+                            ? "Theo chặng"
+                            : formatCurrency(ticket.price)}
                         </p>
 
                         <button
@@ -395,6 +486,12 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
                 {ticketsError ? (
                   <div className="md:col-span-3 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 outline outline-1 outline-offset-[-1px] outline-red-100">
                     {ticketsError}
+                  </div>
+                ) : null}
+
+                {previewError ? (
+                  <div className="md:col-span-3 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 outline outline-1 outline-offset-[-1px] outline-red-100">
+                    {previewError}
                   </div>
                 ) : null}
               </div>
@@ -429,8 +526,7 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
                           Ga đi - Ga đến
                         </p>
                         <p className="text-sm font-medium leading-5 text-neutral-900">
-                          {journeyState.originStationName || journeyState.originStationId} -{" "}
-                          {journeyState.destinationStationName || journeyState.destinationStationId}
+                          {originStationName} - {destinationStationName}
                         </p>
                       </div>
                     </div>
@@ -464,13 +560,13 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
                   <div className="flex items-center justify-between">
                     <span className="text-slate-500">Tạm tính:</span>
                     <span className="font-semibold text-neutral-900">
-                      {formatCurrency(selectedTicket?.price ?? 0)}
+                      {subtotal === undefined ? "--" : formatCurrency(subtotal)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-slate-500">Phí dịch vụ:</span>
                     <span className="font-semibold text-neutral-900">
-                      {formatCurrency(serviceFee)}
+                      {serviceFee === undefined ? "--" : formatCurrency(serviceFee)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between border-t border-slate-200 pt-2">
@@ -478,7 +574,11 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
                       Tổng cộng:
                     </span>
                     <span className="text-xl font-black text-blue-600">
-                      {formatCurrency(totalPrice)}
+                      {isLoadingPreview
+                        ? "Đang tải..."
+                        : totalPrice === undefined
+                          ? "--"
+                          : formatCurrency(totalPrice)}
                     </span>
                   </div>
                 </div>
@@ -487,9 +587,17 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
                   <button
                     type="button"
                     onClick={handleContinue}
-                    disabled={!hasJourneyState}
+                    disabled={
+                      !hasJourneyState ||
+                      !selectedTicket ||
+                      totalPrice === undefined ||
+                      isLoadingPreview
+                    }
                     className={`inline-flex items-center justify-center gap-4 rounded-xl py-4 text-base font-bold text-white transition ${
-                      hasJourneyState
+                      hasJourneyState &&
+                      selectedTicket &&
+                      totalPrice !== undefined &&
+                      !isLoadingPreview
                         ? "bg-blue-600 hover:bg-blue-700"
                         : "cursor-not-allowed bg-slate-300"
                     }`}

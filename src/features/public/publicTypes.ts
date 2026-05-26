@@ -13,10 +13,15 @@ export type RouteDto = {
 
 export type TicketTypeDto = {
   id: string;
-  code?: string;
   name: string;
-  conditions?: string;
+  description?: string;
   price?: number;
+  validityDays?: number;
+  isActive?: boolean;
+
+  // Legacy response aliases retained for screens still using the older schema.
+  code?: string;
+  conditions?: string;
   status?: string;
   validityDuration?: number;
   validityUnit?: string;

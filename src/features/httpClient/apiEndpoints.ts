@@ -21,6 +21,17 @@ export const API_ENDPOINTS = {
     settings: endpoint(process.env.NEXT_PUBLIC_MY_SETTINGS_ENDPOINT, "/my/settings"),
     avatar: endpoint(process.env.NEXT_PUBLIC_MY_AVATAR_ENDPOINT, "/my/avatar"),
     tickets: endpoint(process.env.NEXT_PUBLIC_MY_TICKETS_ENDPOINT, "/my/tickets"),
+    trips: endpoint(process.env.NEXT_PUBLIC_MY_TRIPS_ENDPOINT, "/my/trips"),
+  },
+  schedules: {
+    base: endpoint(process.env.NEXT_PUBLIC_SCHEDULES_ENDPOINT, "/schedules"),
+  },
+  live: {
+    trains: endpoint(process.env.NEXT_PUBLIC_LIVE_TRAINS_ENDPOINT, "/live/trains"),
+    stationStatus: endpoint(
+      process.env.NEXT_PUBLIC_LIVE_STATIONS_STATUS_ENDPOINT,
+      "/live/stations/status",
+    ),
   },
   devices: {
     admin: endpoint(process.env.NEXT_PUBLIC_ADMIN_DEVICES_ENDPOINT, "/admin/devices"),
