@@ -1,6 +1,6 @@
 import Head from "next/head";
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CircleAlert, Loader2, QrCode, X } from "lucide-react";
 import PassengerShell from "@components/templates/PassengerShell";
 import { myTicketApi, myTicketErrorMessage } from "@features/myTicket/myTicketApi";
@@ -20,7 +20,7 @@ const formatTime = (value?: string) => {
 
 const ticketStatus = (value: string) => {
   const status = value.toUpperCase();
-  if (["ACTIVE", "VALID", "IN_USE"].some((item) => status.includes(item))) return "Hoạt động";
+  if (["READY", "ACTIVE", "VALID", "IN_USE"].some((item) => status.includes(item))) return "Sẵn sàng sử dụng";
   if (["EXPIRED", "INVALID", "CANCELLED", "INACTIVE"].some((item) => status.includes(item))) return "Hết hạn";
   return "Chưa dùng";
 };
@@ -38,12 +38,6 @@ const routeName = (ticket: MyTicketDto) =>
   [ticket.originStationName, ticket.destinationStationName].filter(Boolean).join(" - ") ||
   "Không giới hạn chặng";
 
-const remainingSeconds = (value?: string) => {
-  if (!value) return 0;
-  const time = new Date(value).getTime();
-  return Number.isNaN(time) ? 0 : Math.max(0, Math.floor((time - Date.now()) / 1000));
-};
-
 export default function MyTicketsPage() {
   const [tickets, setTickets] = useState<MyTicketDto[]>([]);
   const [query, setQuery] = useState("");
@@ -59,6 +53,7 @@ export default function MyTicketsPage() {
   const [qr, setQr] = useState<QrTokenResult | null>(null);
   const [qrImage, setQrImage] = useState<string | null>(null);
   const [qrError, setQrError] = useState<string | null>(null);
+  const [qrLoading, setQrLoading] = useState(false);
   const [seconds, setSeconds] = useState(0);
 
   useEffect(() => {
@@ -91,7 +86,7 @@ export default function MyTicketsPage() {
 
   const stats = useMemo(() => ({
     total: tickets.length,
-    active: tickets.filter((ticket) => ticketStatus(ticket.status) === "Hoạt động").length,
+    active: tickets.filter((ticket) => ticketStatus(ticket.status) === "Sẵn sàng sử dụng").length,
     unused: tickets.filter((ticket) => ticketStatus(ticket.status) === "Chưa dùng").length,
     expired: tickets.filter((ticket) => ticketStatus(ticket.status) === "Hết hạn").length,
   }), [tickets]);
@@ -115,29 +110,48 @@ export default function MyTicketsPage() {
     }
   };
 
-  const openQr = async (ticket: MyTicketDto) => {
-    setQrTicket(ticket);
-    setQr(null);
-    setQrImage(null);
+  const loadQr = useCallback(async (ticket: MyTicketDto, refresh = false) => {
+    if (!refresh) {
+      setQrTicket(ticket);
+      setQr(null);
+      setQrImage(null);
+    }
     setQrError(null);
+    setQrLoading(true);
     try {
       const response = await myTicketApi.createQrToken(ticket.id);
       if (!response.token) throw new Error("Backend không trả QR token.");
-      const generator = await import("qrcode");
-      const image = await generator.toDataURL(response.token, { margin: 1, width: 220 });
+      let image = response.qrCodeUrl;
+      if (!image) {
+        const generator = await import("qrcode");
+        image = await generator.toDataURL(response.token, { margin: 1, width: 220 });
+      }
       setQr(response);
-      setSeconds(remainingSeconds(response.expiresAt));
+      setSeconds(60);
       setQrImage(image);
     } catch (requestError) {
       setQrError(myTicketErrorMessage(requestError, "Không thể tạo QR token"));
+    } finally {
+      setQrLoading(false);
     }
+  }, []);
+
+  const openQr = (ticket: MyTicketDto) => {
+    void loadQr(ticket);
   };
 
   useEffect(() => {
-    if (!qr?.expiresAt) return;
-    const timer = window.setInterval(() => setSeconds(remainingSeconds(qr.expiresAt)), 1000);
+    if (!qr) return;
+    const timer = window.setInterval(() => {
+      setSeconds((previous) => Math.max(previous - 1, 0));
+    }, 1000);
     return () => window.clearInterval(timer);
-  }, [qr?.expiresAt]);
+  }, [qr]);
+
+  useEffect(() => {
+    if (!qrTicket || !qr || seconds > 0 || qrLoading || qrError) return;
+    void loadQr(qrTicket, true);
+  }, [loadQr, qr, qrError, qrLoading, qrTicket, seconds]);
 
   return (
     <>
@@ -151,7 +165,7 @@ export default function MyTicketsPage() {
           <div className="grid gap-4 sm:grid-cols-4">
             {[
               ["Tổng số vé", stats.total, "text-slate-900"],
-              ["Đang hoạt động", stats.active, "text-green-600"],
+              ["Sẵn sàng sử dụng", stats.active, "text-green-600"],
               ["Chưa dùng", stats.unused, "text-amber-600"],
               ["Hết hạn", stats.expired, "text-red-600"],
             ].map(([label, value, color]) => (
@@ -164,7 +178,7 @@ export default function MyTicketsPage() {
           <section className="flex flex-wrap gap-3 rounded-2xl border border-slate-200 bg-white p-4">
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm mã vé hoặc chặng đi" className="h-11 min-w-64 flex-1 rounded-xl border border-slate-200 px-3" />
             <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="h-11 rounded-xl border border-slate-200 px-3">
-              <option value="">Tất cả trạng thái</option><option>Hoạt động</option><option>Chưa dùng</option><option>Hết hạn</option>
+              <option value="">Tất cả trạng thái</option><option>Sẵn sàng sử dụng</option><option>Chưa dùng</option><option>Hết hạn</option>
             </select>
             <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className="h-11 rounded-xl border border-slate-200 px-3">
               <option value="">Tất cả loại vé</option><option>Vé lượt</option><option>Vé ngày</option><option>Vé tháng</option>
@@ -175,7 +189,7 @@ export default function MyTicketsPage() {
             <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
               {visibleTickets.map((ticket) => {
                 const status = ticketStatus(ticket.status);
-                const active = status === "Hoạt động";
+                const active = status === "Sẵn sàng sử dụng";
                 return (
                   <article key={ticket.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                     <div className={`h-1.5 ${active ? "bg-green-500" : status === "Hết hạn" ? "bg-red-500" : "bg-amber-500"}`} />
@@ -224,10 +238,10 @@ export default function MyTicketsPage() {
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center">
             <div className="flex justify-between"><h2 className="text-lg font-bold">Mã QR vào cổng</h2><button onClick={() => setQrTicket(null)}><X className="h-5 w-5" /></button></div>
             <div className="my-6 flex h-56 items-center justify-center rounded-xl border border-slate-200">
-              {qrImage ? <Image src={qrImage} width={220} height={220} unoptimized alt="QR vé động" /> : qrError ? <p className="px-4 text-sm text-red-600">{qrError}</p> : <Loader2 className="h-6 w-6 animate-spin text-blue-600" />}
+              {qrImage ? <Image src={qrImage} width={220} height={220} unoptimized alt="QR vé động" className={qrLoading ? "opacity-40" : ""} /> : qrError ? <p className="px-4 text-sm text-red-600">{qrError}</p> : <Loader2 className="h-6 w-6 animate-spin text-blue-600" />}
             </div>
             <p className="font-bold text-blue-600">#{qrTicket.code}</p>
-            {qr?.expiresAt ? <p className="mt-3 rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-600">Hết hạn sau {String(Math.floor(seconds / 60)).padStart(2, "0")}:{String(seconds % 60).padStart(2, "0")}</p> : null}
+            {qr ? <p className="mt-3 rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-600">{qrLoading ? "Đang đổi mã QR..." : <>Đổi mã mới sau {String(Math.floor(seconds / 60)).padStart(2, "0")}:{String(seconds % 60).padStart(2, "0")}</>}</p> : null}
           </div>
         </div>
       )}

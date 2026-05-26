@@ -25,5 +25,10 @@ export type TicketHistoryRow = {
 
 export type QrTokenResult = {
   token: string;
+  qrContent?: string;
+  qrToken?: string;
+  qrCodeUrl?: string;
+  ticketId?: string;
   expiresAt?: string;
+  ttlSeconds?: number;
 };

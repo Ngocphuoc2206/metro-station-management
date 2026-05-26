@@ -65,9 +65,16 @@ const normalizeHistory = (raw: unknown): TicketHistoryRow | null => {
 
 const normalizeQrToken = (raw: unknown): QrTokenResult => {
   const item = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
+  const qrContent = text(item.qrContent ?? item.content);
+  const qrToken = text(item.qrToken ?? item.token);
   return {
-    token: text(item.token ?? item.qrToken ?? item.content),
+    token: qrContent || qrToken,
+    qrContent: qrContent || undefined,
+    qrToken: qrToken || undefined,
+    qrCodeUrl: text(item.qrCodeUrl) || undefined,
+    ticketId: text(item.ticketId) || undefined,
     expiresAt: text(item.expiresAt ?? item.expiredAt ?? item.expirationTime) || undefined,
+    ttlSeconds: optionalNumber(item.ttlSeconds),
   };
 };
 
