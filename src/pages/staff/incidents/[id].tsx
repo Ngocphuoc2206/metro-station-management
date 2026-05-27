@@ -317,7 +317,7 @@ export default function IncidentDetailPage() {
                           </svg>
                         </div>
                       )}
-                      <span className="text-xs text-gray-600 truncate max-w-[100px] font-medium">
+                      <span className="text-xs text-gray-600 truncate max-w-25 font-medium">
                         {file.name}
                       </span>
                       <button

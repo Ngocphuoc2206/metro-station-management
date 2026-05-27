@@ -1,6 +1,8 @@
 import Head from "next/head";
 import { useEffect, useMemo, useState } from "react";
 import PassengerShell from "@components/templates/PassengerShell";
+import { liveApi, liveErrorMessage } from "@features/live/liveApi";
+import type { LiveStationStatusDto, LiveTrainDto } from "@features/live/liveTypes";
 import { publicApi } from "@features/public/publicApi";
 import type { RouteDto, StationDto } from "@features/public/publicTypes";
 import {
@@ -13,7 +15,6 @@ import {
   Navigation,
   Radio,
   Route,
-  Search,
   TrainFront,
   TriangleAlert,
   Wifi,
@@ -90,10 +91,6 @@ const trains: Train[] = [
   },
 ];
 
-const linePath = stations
-  .map((station) => `${station.x},${station.y}`)
-  .join(" ");
-
 const statusLabel: Record<TrainStatus, string> = {
   "on-time": "Đúng giờ",
   delayed: "Trễ 4 phút",
@@ -112,13 +109,53 @@ const stationDotClass: Record<Station["status"], string> = {
   maintenance: "fill-red-100 stroke-red-500",
 };
 
+const emptyTrain: Train = {
+  id: "",
+  code: "--",
+  direction: "--",
+  nextStation: "--",
+  eta: "--",
+  occupancy: 0,
+  status: "on-time",
+  x: 0,
+  y: 0,
+};
+
+const emptyStation: Station = {
+  id: "",
+  name: "--",
+  x: 0,
+  y: 0,
+  status: "normal",
+};
+
+const mapTrainStatus = (value: string): TrainStatus => {
+  const status = value.toUpperCase();
+  if (status.includes("DELAY")) return "delayed";
+  if (status.includes("ARRIV")) return "arriving";
+  return "on-time";
+};
+
+const mapStationStatus = (value: string): Station["status"] => {
+  const status = value.toUpperCase();
+  if (status.includes("MAINTENANCE") || status.includes("CLOSED")) {
+    return "maintenance";
+  }
+  if (status.includes("BUSY") || status.includes("CROWDED")) return "busy";
+  return "normal";
+};
+
 export default function PassengerLiveMapPage() {
   const [routes, setRoutes] = useState<RouteDto[]>([]);
   const [stationsApi, setStationsApi] = useState<StationDto[]>([]);
-  const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
-
-  const [selectedTrainId, setSelectedTrainId] = useState(trains[0].id);
-  const [selectedStationId, setSelectedStationId] = useState(stations[0].id);
+  const [stationStatuses, setStationStatuses] = useState<LiveStationStatusDto[]>([]);
+  const [trainLocations, setTrainLocations] = useState<LiveTrainDto[]>([]);
+  const [selectedRouteId, setSelectedRouteId] = useState("");
+  const [selectedTrainId, setSelectedTrainId] = useState("");
+  const [selectedStationId, setSelectedStationId] = useState("");
+  const [isLoadingLive, setIsLoadingLive] = useState(true);
+  const [liveError, setLiveError] = useState<string | null>(null);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -132,9 +169,8 @@ export default function PassengerLiveMapPage() {
         if (cancelled) return;
         setRoutes(r);
         setStationsApi(s);
-        setSelectedRouteId((prev) => prev ?? r[0]?.id ?? null);
       } catch {
-        // ignore - keep static demo map
+        // Live data can still be rendered without route and station labels.
       }
     };
 
@@ -144,27 +180,147 @@ export default function PassengerLiveMapPage() {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadLive = async () => {
+      setIsLoadingLive(true);
+      setLiveError(null);
+      try {
+        const [liveTrains, liveStations] = await Promise.all([
+          liveApi.getTrains(selectedRouteId || undefined),
+          liveApi.getStationStatuses(),
+        ]);
+        if (cancelled) return;
+        setTrainLocations(liveTrains);
+        setStationStatuses(liveStations);
+        setSelectedTrainId((current) =>
+          liveTrains.some((train) => train.id === current)
+            ? current
+            : (liveTrains[0]?.id ?? ""),
+        );
+        setSelectedStationId((current) =>
+          liveStations.some((station) => station.id === current)
+            ? current
+            : (liveStations[0]?.id ?? ""),
+        );
+        setLastUpdatedAt(new Date());
+      } catch (err) {
+        if (!cancelled) setLiveError(liveErrorMessage(err));
+      } finally {
+        if (!cancelled) setIsLoadingLive(false);
+      }
+    };
+
+    loadLive();
+    const intervalId = window.setInterval(loadLive, 30_000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [selectedRouteId]);
+
+  const displayStations = useMemo<Station[]>(
+    () =>
+      stationStatuses.map((station, index) => {
+        const fallback = stations[index] ?? {
+          x: 90 + index * 95,
+          y: Math.max(70, 360 - index * 31),
+        };
+        return {
+          id: station.id,
+          name:
+            stationsApi.find((catalogStation) => catalogStation.id === station.id)?.name ??
+            station.name,
+          x: station.x ?? fallback.x,
+          y: station.y ?? fallback.y,
+          status: mapStationStatus(station.status),
+        };
+      }),
+    [stationStatuses, stationsApi],
+  );
+
+  const displayTrains = useMemo<Train[]>(
+    () =>
+      trainLocations.map((train, index) => {
+        const stationIndex = displayStations.findIndex(
+          (station) => station.id === train.nextStationId,
+        );
+        const trainLayout = trains[index];
+        const fallback =
+          displayStations[stationIndex] ??
+          (trainLayout
+            ? { x: trainLayout.x, y: trainLayout.y }
+            : undefined) ??
+          stations[index] ?? {
+            x: 90 + index * 95,
+            y: Math.max(70, 360 - index * 31),
+          };
+        return {
+          id: train.id,
+          code: train.code,
+          direction: train.direction || "--",
+          nextStation: train.nextStationName || train.nextStationId || "--",
+          eta: train.eta || "--",
+          occupancy: Math.min(100, Math.max(0, train.occupancy)),
+          status: mapTrainStatus(train.status),
+          x: train.x ?? fallback.x + 24,
+          y: train.y ?? fallback.y - 12,
+        };
+      }),
+    [displayStations, trainLocations],
+  );
+
   const selectedTrain = useMemo(
-    () => trains.find((train) => train.id === selectedTrainId) ?? trains[0],
-    [selectedTrainId],
+    () =>
+      displayTrains.find((train) => train.id === selectedTrainId) ??
+      displayTrains[0] ??
+      emptyTrain,
+    [displayTrains, selectedTrainId],
   );
 
   const selectedStation = useMemo(
     () =>
-      stations.find((station) => station.id === selectedStationId) ??
-      stations[0],
-    [selectedStationId],
+      displayStations.find((station) => station.id === selectedStationId) ??
+      displayStations[0] ??
+      emptyStation,
+    [displayStations, selectedStationId],
   );
 
   const resolvedRouteName = useMemo(() => {
     const r = routes.find((x) => x.id === selectedRouteId);
-    return r?.name ?? "Tuyến 01: Bến Thành - Suối Tiên";
+    return r?.name ?? (selectedRouteId ? `Tuyến ${selectedRouteId}` : "Tất cả tuyến");
   }, [routes, selectedRouteId]);
 
-  const stationNameByIndex = useMemo(() => {
-    if (!stationsApi.length) return null;
-    return (index: number) => stationsApi[index]?.name;
-  }, [stationsApi]);
+  const availableRoutes = useMemo(() => {
+    const routesById = new Map(routes.map((route) => [route.id, route]));
+    trainLocations.forEach((train) => {
+      if (train.routeId && !routesById.has(train.routeId)) {
+        routesById.set(train.routeId, {
+          id: train.routeId,
+          name: `Tuyến ${train.routeId}`,
+        });
+      }
+    });
+    return Array.from(routesById.values());
+  }, [routes, trainLocations]);
+
+  const displayLinePath = displayStations.length > 1
+    ? displayStations.map((station) => `${station.x},${station.y}`).join(" ")
+    : "";
+  const activeStations = displayStations.filter(
+    (station) => station.status !== "maintenance",
+  ).length;
+  const onTimeTrains = displayTrains.filter(
+    (train) => train.status === "on-time",
+  ).length;
+  const delayedTrains = displayTrains.filter(
+    (train) => train.status === "delayed",
+  ).length;
+  const onTimePercentage = displayTrains.length
+    ? Math.round((onTimeTrains / displayTrains.length) * 100)
+    : 0;
 
   return (
     <>
@@ -193,35 +349,51 @@ export default function PassengerLiveMapPage() {
               </span>
               <span className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm ring-1 ring-slate-200">
                 <Clock3 className="h-4 w-4 text-blue-600" />
-                Cập nhật 30 giây trước
+                {lastUpdatedAt
+                  ? `Cập nhật ${lastUpdatedAt.toLocaleTimeString("vi-VN")}`
+                  : "Chưa cập nhật"}
               </span>
             </div>
           </div>
+
+          {liveError ? (
+            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+              {liveError}
+            </div>
+          ) : null}
 
           <div className="grid gap-4 md:grid-cols-4">
             <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                 Tàu đang chạy
               </p>
-              <p className="mt-2 text-3xl font-black text-slate-900">12</p>
+              <p className="mt-2 text-3xl font-black text-slate-900">
+                {isLoadingLive ? "--" : displayTrains.length}
+              </p>
             </article>
             <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                 Ga hoạt động
               </p>
-              <p className="mt-2 text-3xl font-black text-emerald-600">8/9</p>
+              <p className="mt-2 text-3xl font-black text-emerald-600">
+                {isLoadingLive ? "--" : `${activeStations}/${displayStations.length}`}
+              </p>
             </article>
             <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                 Chuyến đúng giờ
               </p>
-              <p className="mt-2 text-3xl font-black text-blue-600">94%</p>
+              <p className="mt-2 text-3xl font-black text-blue-600">
+                {isLoadingLive ? "--" : `${onTimePercentage}%`}
+              </p>
             </article>
             <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                 Cảnh báo
               </p>
-              <p className="mt-2 text-3xl font-black text-amber-600">2</p>
+              <p className="mt-2 text-3xl font-black text-amber-600">
+                {isLoadingLive ? "--" : delayedTrains}
+              </p>
             </article>
           </div>
 
@@ -243,12 +415,19 @@ export default function PassengerLiveMapPage() {
                 </div>
 
                 <div className="relative w-full max-w-xs">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <input
-                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-900 outline-none placeholder:text-slate-500"
-                    placeholder="Tìm ga hoặc mã tàu"
-                    readOnly
-                  />
+                  <Route className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <select
+                    value={selectedRouteId}
+                    onChange={(event) => setSelectedRouteId(event.target.value)}
+                    className="w-full appearance-none rounded-2xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-900 outline-none"
+                  >
+                    <option value="">Tất cả tuyến</option>
+                    {availableRoutes.map((route) => (
+                      <option key={route.id} value={route.id}>
+                        {route.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
@@ -262,33 +441,37 @@ export default function PassengerLiveMapPage() {
                   role="img"
                   aria-label="Bản đồ live tuyến metro số 1"
                 >
-                  <polyline
-                    points={linePath}
-                    fill="none"
-                    stroke="rgba(96,165,250,0.22)"
-                    strokeWidth="32"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <polyline
-                    points={linePath}
-                    fill="none"
-                    stroke="#60A5FA"
-                    strokeWidth="10"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <polyline
-                    points={linePath}
-                    fill="none"
-                    stroke="#DBEAFE"
-                    strokeWidth="3"
-                    strokeDasharray="10 16"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
+                  {displayLinePath ? (
+                    <>
+                      <polyline
+                        points={displayLinePath}
+                        fill="none"
+                        stroke="rgba(96,165,250,0.22)"
+                        strokeWidth="32"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <polyline
+                        points={displayLinePath}
+                        fill="none"
+                        stroke="#60A5FA"
+                        strokeWidth="10"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <polyline
+                        points={displayLinePath}
+                        fill="none"
+                        stroke="#DBEAFE"
+                        strokeWidth="3"
+                        strokeDasharray="10 16"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </>
+                  ) : null}
 
-                  {stations.map((station, index) => (
+                  {displayStations.map((station) => (
                     <g
                       key={station.id}
                       role="button"
@@ -315,12 +498,12 @@ export default function PassengerLiveMapPage() {
                         textAnchor="middle"
                         className="fill-white text-[15px] font-bold"
                       >
-                        {stationNameByIndex?.(index) ?? station.name}
+                        {station.name}
                       </text>
                     </g>
                   ))}
 
-                  {trains.map((train) => {
+                  {displayTrains.map((train) => {
                     const isSelected = train.id === selectedTrain.id;
                     return (
                       <g
@@ -375,6 +558,15 @@ export default function PassengerLiveMapPage() {
                     );
                   })}
                 </svg>
+
+                {!isLoadingLive && !liveError && displayStations.length === 0 && displayTrains.length === 0 ? (
+                  <div className="absolute inset-0 z-20 flex items-center justify-center p-6">
+                    <div className="rounded-2xl border border-slate-700 bg-slate-900/90 px-6 py-5 text-center text-sm text-slate-300 shadow-xl">
+                      <Radio className="mx-auto mb-2 h-6 w-6 text-blue-400" />
+                      Chưa có dữ liệu tàu hoặc ga trực tuyến từ hệ thống vận hành.
+                    </div>
+                  </div>
+                ) : null}
 
                 <div className="absolute bottom-5 left-5 z-20 flex flex-wrap gap-2 rounded-2xl bg-white/95 p-3 text-xs font-semibold text-slate-600 shadow-lg backdrop-blur">
                   <span className="inline-flex items-center gap-1.5">
@@ -466,7 +658,7 @@ export default function PassengerLiveMapPage() {
                 </div>
 
                 <div className="space-y-3">
-                  {trains.map((train) => (
+                  {displayTrains.map((train) => (
                     <button
                       key={train.id}
                       type="button"
@@ -508,8 +700,12 @@ export default function PassengerLiveMapPage() {
                     {selectedStation.name}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
-                    Cổng A/B mở · thang máy hoạt động · chuyến kế tiếp trong 2-5
-                    phút
+                    Trạng thái vận hành:{" "}
+                    {selectedStation.status === "maintenance"
+                      ? "Bảo trì"
+                      : selectedStation.status === "busy"
+                        ? "Đông khách"
+                        : "Bình thường"}
                   </p>
                 </div>
               </section>
@@ -522,10 +718,11 @@ export default function PassengerLiveMapPage() {
                 <Activity className="h-5 w-5" />
               </div>
               <h3 className="text-base font-black text-slate-900">
-                Tuyến vận hành ổn định
+                Trạng thái vận hành
               </h3>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                8 ga hoạt động bình thường, tần suất trung bình 12 phút/chuyến.
+                {activeStations}/{displayStations.length} ga đang hoạt động,{" "}
+                {displayTrains.length} đoàn tàu đang được theo dõi.
               </p>
             </article>
             <article className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -533,11 +730,15 @@ export default function PassengerLiveMapPage() {
                 <Bell className="h-5 w-5" />
               </div>
               <h3 className="text-base font-black text-slate-900">
-                Ga Tân Cảng đông khách
+                Ga đang được chọn
               </h3>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                Nên đến sớm hơn 5 phút nếu lên tàu tại ga này trong giờ cao
-                điểm.
+                {selectedStation.name}:{" "}
+                {selectedStation.status === "busy"
+                  ? "đang đông khách."
+                  : selectedStation.status === "maintenance"
+                    ? "đang bảo trì."
+                    : "đang vận hành bình thường."}
               </p>
             </article>
             <article className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -545,10 +746,12 @@ export default function PassengerLiveMapPage() {
                 <Wrench className="h-5 w-5" />
               </div>
               <h3 className="text-base font-black text-slate-900">
-                Bảo trì lối ra Ba Son
+                Cảnh báo trễ chuyến
               </h3>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                Lối ra số 2 tạm ngưng, hành khách vui lòng dùng lối ra số 1.
+                {delayedTrains > 0
+                  ? `${delayedTrains} đoàn tàu đang báo trễ.`
+                  : "Không có đoàn tàu báo trễ ở thời điểm hiện tại."}
               </p>
             </article>
           </div>
@@ -557,9 +760,8 @@ export default function PassengerLiveMapPage() {
             <div className="flex gap-3">
               <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
               <p className="text-sm leading-6 text-slate-700">
-                Dữ liệu vị trí tàu đang là mock realtime cho FE-17. Khi có API,
-                màn hình này có thể nối trực tiếp vào endpoint trạng thái tuyến,
-                ga và đoàn tàu.
+                Dữ liệu được cập nhật từ API trạng thái tàu và ga trực tuyến.
+                Chọn tuyến để lọc các đoàn tàu đang hiển thị trên bản đồ.
               </p>
             </div>
           </div>

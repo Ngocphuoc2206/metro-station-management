@@ -2,8 +2,9 @@ import type { NextPage } from "next";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
 import PassengerShell from "@components/templates/PassengerShell";
+import { fareCalcApi } from "@features/fare/fareCalcApi";
 import { publicApi } from "@features/public/publicApi";
-import type { StationDto } from "@features/public/publicTypes";
+import type { StationDto, TicketTypeDto } from "@features/public/publicTypes";
 import {
   ArrowRight,
   CalendarDays,
@@ -12,6 +13,7 @@ import {
   MapPin,
   User,
 } from "lucide-react";
+import axios from "axios";
 
 const PASSENGER_OPTIONS = [
   "1 người lớn",
@@ -22,6 +24,20 @@ const PASSENGER_OPTIONS = [
 ];
 
 const STORAGE_KEY = "metro-buy-ticket-step1";
+
+const normalizedTicketTypeName = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+const ticketTypePriority = (ticket: TicketTypeDto) => {
+  const name = normalizedTicketTypeName(ticket.name);
+  if (name.includes("single") || name.includes("ve luot")) return 0;
+  if (name.includes("daily") || name.includes("ve ngay")) return 1;
+  if (name.includes("monthly") || name.includes("ve thang")) return 2;
+  return 3;
+};
 
 const formatDate = (date: string) => {
   if (!date) {
@@ -36,21 +52,37 @@ const formatDate = (date: string) => {
   return `${day}/${month}/${year}`;
 };
 
+const formatCurrency = (amount: number) => {
+  return `${new Intl.NumberFormat("vi-VN").format(amount)}đ`;
+};
+
 const MetroBuyTicketsStep1Page: NextPage = () => {
   const router = useRouter();
   const [stations, setStations] = useState<StationDto[]>([]);
   const [isLoadingStations, setIsLoadingStations] = useState(true);
   const [stationsError, setStationsError] = useState<string | null>(null);
+  const [ticketTypes, setTicketTypes] = useState<TicketTypeDto[]>([]);
+  const [isLoadingTicketTypes, setIsLoadingTicketTypes] = useState(true);
+  const [ticketTypesError, setTicketTypesError] = useState<string | null>(null);
 
   const [originStationId, setOriginStationId] = useState("");
   const [destinationStationId, setDestinationStationId] = useState("");
   const [travelDate, setTravelDate] = useState("");
   const [passengerCount, setPassengerCount] = useState(PASSENGER_OPTIONS[0]);
   const [isRoundTrip, setIsRoundTrip] = useState(false);
+  const [estimatedFare, setEstimatedFare] = useState<number | null>(null);
+  const [isLoadingFare, setIsLoadingFare] = useState(false);
+  const [fareError, setFareError] = useState<string | null>(null);
 
   const stationsById = useMemo(() => {
     return new Map(stations.map((s) => [s.id, s]));
   }, [stations]);
+
+  const estimatedTicketType = useMemo(() => {
+    return ticketTypes
+      .filter((ticket) => ticket.isActive !== false)
+      .sort((left, right) => ticketTypePriority(left) - ticketTypePriority(right))[0];
+  }, [ticketTypes]);
 
   useEffect(() => {
     let cancelled = false;
@@ -76,6 +108,31 @@ const MetroBuyTicketsStep1Page: NextPage = () => {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadTicketTypes = async () => {
+      setIsLoadingTicketTypes(true);
+      setTicketTypesError(null);
+      try {
+        const data = await publicApi.getTicketTypes();
+        if (!cancelled) setTicketTypes(data);
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Không thể tải loại vé để tính giá";
+        if (!cancelled) setTicketTypesError(message);
+      } finally {
+        if (!cancelled) setIsLoadingTicketTypes(false);
+      }
+    };
+
+    loadTicketTypes();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const destinationOptions = useMemo(() => {
     return stations.filter((station) => station.id !== originStationId);
   }, [originStationId, stations]);
@@ -83,6 +140,83 @@ const MetroBuyTicketsStep1Page: NextPage = () => {
   const originOptions = useMemo(() => {
     return stations.filter((station) => station.id !== destinationStationId);
   }, [destinationStationId, stations]);
+
+  useEffect(() => {
+    if (
+      !originStationId ||
+      !destinationStationId ||
+      originStationId === destinationStationId
+    ) {
+      setEstimatedFare(null);
+      setIsLoadingFare(false);
+      setFareError(null);
+      return;
+    }
+
+    if (isLoadingTicketTypes) {
+      setEstimatedFare(null);
+      setIsLoadingFare(true);
+      setFareError(null);
+      return;
+    }
+
+    if (!estimatedTicketType) {
+      setEstimatedFare(null);
+      setIsLoadingFare(false);
+      setFareError(ticketTypesError ?? "Không có loại vé hoạt động để tính giá dự kiến");
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadEstimatedFare = async () => {
+      setEstimatedFare(null);
+      setIsLoadingFare(true);
+      setFareError(null);
+
+      try {
+        const total = await fareCalcApi.calculate({
+          originId: originStationId,
+          destinationId: destinationStationId,
+          ticketTypeName: estimatedTicketType.name,
+        });
+
+        if (!Number.isFinite(total)) {
+          throw new Error("Phản hồi giá vé không hợp lệ");
+        }
+
+        if (!cancelled) {
+          setEstimatedFare(total);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          // Ưu tiên đọc message từ Backend trả về
+    if (axios.isAxiosError(err) && err.response?.data?.message) {
+      setFareError(err.response.data.message);
+    } else {
+      // Fallback nếu không phải lỗi Axios
+      setFareError(err instanceof Error ? err.message : "Không thể tính giá dự kiến");
+    }
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingFare(false);
+        }
+      }
+    };
+
+    loadEstimatedFare();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    destinationStationId,
+    estimatedTicketType,
+    isLoadingTicketTypes,
+    originStationId,
+    ticketTypesError,
+  ]);
 
   const isFormReady =
     originStationId.length > 0 &&
@@ -355,11 +489,23 @@ const MetroBuyTicketsStep1Page: NextPage = () => {
 
                 <div className="flex flex-col gap-1 border-t border-slate-200 pt-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-slate-500">Giá dự kiến:</span>
+                    <span className="text-sm text-slate-500">
+                      Giá dự kiến
+                      {estimatedTicketType ? ` (${estimatedTicketType.name})` : ""}:
+                    </span>
                     <span className="text-xl leading-7 font-black text-blue-600">
-                      0 ₫
+                      {isLoadingFare
+                        ? "Đang tính..."
+                        : estimatedFare === null
+                          ? "--"
+                          : formatCurrency(estimatedFare)}
                     </span>
                   </div>
+                  {fareError ? (
+                    <p className="text-right text-xs leading-4 text-red-600">
+                      {fareError}
+                    </p>
+                  ) : null}
                   <p className="text-right text-[10px] leading-4 text-slate-500">
                     Giá chính xác sẽ hiển thị ở bước tiếp theo
                   </p>

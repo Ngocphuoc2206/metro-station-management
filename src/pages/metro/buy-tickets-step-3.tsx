@@ -2,8 +2,9 @@ import type { NextPage } from "next";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
 import PassengerShell from "@components/templates/PassengerShell";
-import { orderApi } from "@features/order/orderApi";
 import { paymentApi } from "@features/payment/paymentApi";
+import { publicApi } from "@features/public/publicApi";
+import type { StationDto } from "@features/public/publicTypes";
 import {
   ArrowLeft,
   ArrowRight,
@@ -31,6 +32,8 @@ type Step2State = {
   selectedTicketName?: string;
   selectedTicketSubtitle?: string;
   selectedTicketPrice?: number;
+  selectedOrderTotal?: number;
+  orderId?: string;
 };
 
 type PaymentMethod = "ewallet" | "card" | "vietqr";
@@ -53,11 +56,6 @@ const emptyJourneyState: JourneyState = {
   travelDate: "",
   passengerCount: "",
   isRoundTrip: false,
-};
-
-const parsePassengerCount = (value: string) => {
-  const match = value.match(/\d+/);
-  return match ? Number(match[0]) : 1;
 };
 
 const TICKET_DEFAULT_BY_ID: Record<string, TicketInfo> = {
@@ -102,10 +100,10 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
   const router = useRouter();
   const [journeyState, setJourneyState] =
     useState<JourneyState>(emptyJourneyState);
+  const [stations, setStations] = useState<StationDto[]>([]);
   const [step2State, setStep2State] = useState<Step2State>({});
   const [selectedPaymentMethod, setSelectedPaymentMethod] =
     useState<PaymentMethod>("ewallet");
-  const [promotionCode, setPromotionCode] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
 
@@ -130,36 +128,52 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
       fromQuery.travelDate &&
       fromQuery.passengerCount;
 
-    if (hasAllFromQuery) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setJourneyState({
-        ...fromQuery,
-        originStationName: "",
-        destinationStationName: "",
-      });
-    }
-
     if (typeof window === "undefined") {
+      if (hasAllFromQuery) {
+        setJourneyState({
+          ...fromQuery,
+          originStationName: "",
+          destinationStationName: "",
+        });
+      }
       return;
     }
 
-    if (!hasAllFromQuery) {
-      const rawStep1 = window.sessionStorage.getItem(STEP1_STORAGE_KEY);
-      if (rawStep1) {
-        try {
-          const parsedStep1 = JSON.parse(rawStep1) as JourneyState;
-          if (
-            parsedStep1.originStationId &&
-            parsedStep1.destinationStationId &&
-            parsedStep1.travelDate &&
-            parsedStep1.passengerCount
-          ) {
-            setJourneyState(parsedStep1);
-          }
-        } catch {
-          setJourneyState(emptyJourneyState);
+    const rawStep1 = window.sessionStorage.getItem(STEP1_STORAGE_KEY);
+    let storedJourney: JourneyState | null = null;
+    if (rawStep1) {
+      try {
+        const parsedStep1 = JSON.parse(rawStep1) as JourneyState;
+        if (
+          parsedStep1.originStationId &&
+          parsedStep1.destinationStationId &&
+          parsedStep1.travelDate &&
+          parsedStep1.passengerCount
+        ) {
+          storedJourney = parsedStep1;
         }
+      } catch {
+        storedJourney = null;
       }
+    }
+
+    if (hasAllFromQuery) {
+      const matchesStoredStations =
+        storedJourney?.originStationId === fromQuery.originStationId &&
+        storedJourney.destinationStationId === fromQuery.destinationStationId;
+      setJourneyState({
+        ...fromQuery,
+        originStationName: matchesStoredStations
+          ? (storedJourney?.originStationName ?? "")
+          : "",
+        destinationStationName: matchesStoredStations
+          ? (storedJourney?.destinationStationName ?? "")
+          : "",
+      });
+    } else if (storedJourney) {
+      setJourneyState(storedJourney);
+    } else {
+      setJourneyState(emptyJourneyState);
     }
 
     const rawStep2 = window.sessionStorage.getItem(STEP2_STORAGE_KEY);
@@ -174,6 +188,22 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
       setStep2State({});
     }
   }, [router.query]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    publicApi.getStations().then((data) => {
+      if (!cancelled) {
+        setStations(data);
+      }
+    }).catch(() => {
+      // Names kept from step 1 remain usable if station lookup fails.
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const ticketTypeFromQuery =
     typeof router.query.ticketType === "string" ? router.query.ticketType : "";
@@ -202,7 +232,27 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
     };
   }, [step2State, ticketTypeFromQuery]);
 
-  const subtotal = selectedTicket.price;
+  const stationNamesById = useMemo(
+    () => new Map(stations.map((station) => [station.id, station.name])),
+    [stations],
+  );
+  const originStationName =
+    journeyState.originStationName ||
+    stationNamesById.get(journeyState.originStationId) ||
+    journeyState.originStationId;
+  const destinationStationName =
+    journeyState.destinationStationName ||
+    stationNamesById.get(journeyState.destinationStationId) ||
+    journeyState.destinationStationId;
+
+  const subtotal =
+    step2State.selectedOrderTotal ??
+    selectedTicket.price *
+      (journeyState.passengerCount.match(/\d+/g)?.reduce(
+        (total, count) => total + Number(count),
+        0,
+      ) ?? 1) *
+      (journeyState.isRoundTrip ? 2 : 1);
   const serviceFee = 0;
   const totalPrice = subtotal + serviceFee;
 
@@ -215,14 +265,6 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
     });
   };
 
-  const handleApplyPromotion = () => {
-    if (!promotionCode.trim()) {
-      return;
-    }
-
-    setPromotionCode(promotionCode.trim());
-  };
-
   const handleConfirmPayment = async () => {
     if (!hasJourneyState) {
       return;
@@ -232,66 +274,39 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
     setPaymentError(null);
 
     try {
-      const passengerNum = parsePassengerCount(journeyState.passengerCount);
-
-      const order = await orderApi.create({
-        fromStationId: journeyState.originStationId,
-        toStationId: journeyState.destinationStationId,
-        ticketTypeId: selectedTicket.id,
-        passengerCount: passengerNum,
-        isRoundTrip: journeyState.isRoundTrip,
-        travelDate: journeyState.travelDate,
-        promotionCode: promotionCode.trim() || undefined,
-        paymentMethod: selectedPaymentMethod,
-      });
+      const orderId =
+        step2State.orderId ||
+        (typeof router.query.orderId === "string" ? router.query.orderId : "");
+      if (!orderId) {
+        throw new Error("Không tìm thấy orderId. Vui lòng quay lại bước chọn vé.");
+      }
 
       const payment = await paymentApi.init({
-        orderId: order.id,
+        orderId,
         method: selectedPaymentMethod,
-        returnUrl:
-          typeof window !== "undefined" ? `${window.location.origin}/passenger-page/payment-success` : undefined,
       });
 
-      if (payment.redirectUrl || payment.checkoutUrl) {
-        const url = payment.redirectUrl ?? payment.checkoutUrl;
-        if (url) {
-          window.location.href = url;
-          return;
-        }
+      if (!payment.paymentId) {
+        throw new Error("Phản hồi khởi tạo thanh toán không có paymentId");
       }
 
-      // Poll payment status (basic)
-      const start = Date.now();
-      const timeoutMs = 30_000;
-      const intervalMs = 2_000;
-
-      // eslint-disable-next-line no-constant-condition
-      while (true) {
-        const latest = await paymentApi.getById(payment.id);
-        const status = String(latest.status ?? "").toUpperCase();
-
-        if (["SUCCESS", "SUCCEEDED", "PAID", "COMPLETED"].includes(status)) {
-          break;
-        }
-
-        if (["FAILED", "CANCELED", "CANCELLED", "ERROR"].includes(status)) {
-          throw new Error("Thanh toán thất bại hoặc bị huỷ");
-        }
-
-        if (Date.now() - start > timeoutMs) {
-          throw new Error("Thanh toán đang xử lý quá lâu, vui lòng thử lại");
-        }
-
-        await new Promise((r) => setTimeout(r, intervalMs));
-      }
+      const transactionId =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? `web-${crypto.randomUUID()}`
+          : `web-${Date.now()}`;
+      await paymentApi.callback({
+        paymentId: payment.paymentId,
+        transactionId,
+        isSuccess: true,
+      });
 
       await router.push({
         pathname: "/passenger-page/payment-success",
         query: {
           ...router.query,
           ticketType: selectedTicket.id,
-          orderId: order.id,
-          paymentId: payment.id,
+          orderId,
+          paymentId: payment.paymentId,
         },
       });
     } catch (err) {
@@ -490,31 +505,6 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
                   </button>
                 </div>
 
-                <div className="flex flex-col gap-2 border-t border-slate-200 pt-10">
-                  <label
-                    htmlFor="promotion-code"
-                    className="text-sm leading-5 font-semibold text-neutral-900"
-                  >
-                    Mã giảm giá
-                  </label>
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <input
-                      id="promotion-code"
-                      type="text"
-                      value={promotionCode}
-                      onChange={(event) => setPromotionCode(event.target.value)}
-                      placeholder="Nhập mã ưu đãi (nếu có)"
-                      className="h-11 flex-1 rounded-xl border border-slate-300 px-3 text-sm text-neutral-900 placeholder:text-gray-500 focus:border-blue-600 focus:outline-none"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleApplyPromotion}
-                      className="rounded-xl bg-slate-200 px-6 py-2.5 text-sm font-bold text-neutral-900 transition hover:bg-slate-300"
-                    >
-                      Áp dụng
-                    </button>
-                  </div>
-                </div>
               </article>
 
               <article className="relative h-24 overflow-hidden rounded-xl">
@@ -549,8 +539,7 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
                           Hành trình
                         </p>
                         <p className="text-sm font-medium leading-5 text-neutral-900">
-                          {journeyState.originStationName || journeyState.originStationId} -{" "}
-                          {journeyState.destinationStationName || journeyState.destinationStationId}
+                          {originStationName} - {destinationStationName}
                         </p>
                       </div>
                     </div>
