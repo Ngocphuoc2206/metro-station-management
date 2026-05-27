@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import PassengerShell from "@components/templates/PassengerShell";
 import { myTicketApi } from "@features/myTicket/myTicketApi";
-import type { MyTicketDto, QrTokenResult } from "@features/myTicket/myTicketTypes";
+import type { MyTicketDto } from "@features/myTicket/myTicketTypes";
 import { orderApi } from "@features/order/orderApi";
 import {
   Bell,
@@ -29,7 +29,7 @@ type StatCard = {
 
 type TicketCard = {
   rawId?: string;
-  status: "Hoạt động" | "Chưa dùng" | "Hết hạn";
+  status: "Sẵn sàng sử dụng" | "Chưa dùng" | "Hết hạn";
   code: string;
   type: string;
   route: string;
@@ -80,13 +80,13 @@ type OrderRow = {
 const mapTicketStatus = (status?: string): TicketCard["status"] => {
   const v = (status ?? "").toLowerCase();
   if (v.includes("expired") || v.includes("inactive") || v.includes("invalid")) return "Hết hạn";
-  if (v.includes("active") || v.includes("valid") || v.includes("using") || v.includes("in_use")) return "Hoạt động";
+  if (v.includes("ready") || v.includes("active") || v.includes("valid") || v.includes("using") || v.includes("in_use")) return "Sẵn sàng sử dụng";
   if (v.includes("new") || v.includes("unused") || v.includes("created")) return "Chưa dùng";
   return "Chưa dùng";
 };
 
 const mapTicketTone = (status: TicketCard["status"]): TicketCard["tone"] => {
-  if (status === "Hoạt động") return "green";
+  if (status === "Sẵn sàng sử dụng") return "green";
   if (status === "Chưa dùng") return "amber";
   return "red";
 };
@@ -145,25 +145,18 @@ const extractStationsFromOrderData = (data: unknown): { from?: string; to?: stri
   };
 };
 
-const secondsUntil = (iso?: string) => {
-  if (!iso) return 0;
-  const target = new Date(iso).getTime();
-  if (Number.isNaN(target)) return 0;
-  return Math.max(0, Math.floor((target - Date.now()) / 1000));
-};
-
 export default function PassengerPage() {
   const [selectedTicket, setSelectedTicket] = useState<TicketCard | null>(null);
-  const [remainingSeconds, setRemainingSeconds] = useState(119);
+  const [remainingSeconds, setRemainingSeconds] = useState(60);
 
   const [tickets, setTickets] = useState<MyTicketDto[]>([]);
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [qrToken, setQrToken] = useState<QrTokenResult | null>(null);
   const [qrImageUrl, setQrImageUrl] = useState<string | null>(null);
   const [qrError, setQrError] = useState<string | null>(null);
+  const [qrRefreshing, setQrRefreshing] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -197,7 +190,7 @@ export default function PassengerPage() {
   }, []);
 
   const derivedStats: StatCard[] = useMemo(() => {
-    const activeCount = tickets.filter((t) => mapTicketStatus(t.status) === "Hoạt động").length;
+    const activeCount = tickets.filter((t) => mapTicketStatus(t.status) === "Sẵn sàng sử dụng").length;
     const orderCount = orders.length;
     const spend = orders.reduce((sum, o) => sum + (typeof o.total === "number" ? o.total : 0), 0);
 
@@ -239,7 +232,6 @@ export default function PassengerPage() {
 
   useEffect(() => {
     if (!selectedTicket?.rawId) {
-      setQrToken(null);
       setQrImageUrl(null);
       setQrError(null);
       return;
@@ -248,28 +240,39 @@ export default function PassengerPage() {
     let cancelled = false;
     const loadQr = async () => {
       setQrError(null);
-      setQrToken(null);
-      setQrImageUrl(null);
+      setQrRefreshing(true);
       try {
         const tokenRes = await myTicketApi.createQrToken(selectedTicket.rawId as string);
         if (cancelled) return;
-        setQrToken(tokenRes);
+        if (!tokenRes.token) throw new Error("Backend không trả QR token.");
 
-        const qrcode = await import("qrcode");
-        const dataUrl = await qrcode.toDataURL(tokenRes.token, {
-          margin: 1,
-          width: 192,
-        });
-        if (!cancelled) setQrImageUrl(dataUrl);
+        let imageUrl = tokenRes.qrCodeUrl;
+        if (!imageUrl) {
+          const qrcode = await import("qrcode");
+          imageUrl = await qrcode.toDataURL(tokenRes.token, {
+            margin: 1,
+            width: 192,
+          });
+        }
+        if (!cancelled) {
+          setRemainingSeconds(60);
+          setQrImageUrl(imageUrl);
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : "Không thể tạo QR";
         if (!cancelled) setQrError(message);
+      } finally {
+        if (!cancelled) setQrRefreshing(false);
       }
     };
 
-    loadQr();
+    void loadQr();
+    const refreshTimer = window.setInterval(() => {
+      void loadQr();
+    }, 60000);
     return () => {
       cancelled = true;
+      window.clearInterval(refreshTimer);
     };
   }, [selectedTicket?.rawId]);
 
@@ -278,14 +281,12 @@ export default function PassengerPage() {
       return;
     }
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setRemainingSeconds(qrToken?.expiresAt ? secondsUntil(qrToken.expiresAt) : 119);
     const timer = setInterval(() => {
       setRemainingSeconds((previous) => (previous > 0 ? previous - 1 : 0));
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [qrToken?.expiresAt, selectedTicket]);
+  }, [selectedTicket]);
 
   const countdown = `${String(Math.floor(remainingSeconds / 60)).padStart(2, "0")}:${String(remainingSeconds % 60).padStart(2, "0")}`;
 
@@ -563,7 +564,7 @@ export default function PassengerPage() {
                     <img
                       src={qrImageUrl ?? "https://placehold.co/192x192?text=QR+Loading"}
                       alt={qrImageUrl ? "Ticket QR" : "Đang tải QR"}
-                      className="h-48 w-48"
+                      className={`h-48 w-48 ${qrRefreshing ? "opacity-40" : ""}`}
                     />
                   </div>
                 </div>
@@ -587,8 +588,8 @@ export default function PassengerPage() {
                 <div className="mb-6 flex items-center justify-center gap-2 rounded-xl border border-red-100 bg-red-50 px-4 py-3">
                   <CircleAlert className="h-4 w-4 text-red-500" />
                   <p className="text-sm font-bold text-red-600">
-                    Mã sẽ hết hạn sau:{" "}
-                    <span className="font-black">{countdown}</span>
+                    {qrRefreshing ? "Đang đổi mã QR..." : "Đổi mã mới sau: "}
+                    {!qrRefreshing ? <span className="font-black">{countdown}</span> : null}
                   </p>
                 </div>
 

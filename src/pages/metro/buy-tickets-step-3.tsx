@@ -2,9 +2,9 @@ import type { NextPage } from "next";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
 import PassengerShell from "@components/templates/PassengerShell";
-import { orderApi } from "@features/order/orderApi";
-import type { OrderRequest } from "@features/order/orderTypes";
 import { paymentApi } from "@features/payment/paymentApi";
+import { publicApi } from "@features/public/publicApi";
+import type { StationDto } from "@features/public/publicTypes";
 import {
   ArrowLeft,
   ArrowRight,
@@ -33,6 +33,7 @@ type Step2State = {
   selectedTicketSubtitle?: string;
   selectedTicketPrice?: number;
   selectedOrderTotal?: number;
+  orderId?: string;
 };
 
 type PaymentMethod = "ewallet" | "card" | "vietqr";
@@ -55,38 +56,6 @@ const emptyJourneyState: JourneyState = {
   travelDate: "",
   passengerCount: "",
   isRoundTrip: false,
-};
-
-const parsePassengerCount = (value: string) => {
-  const counts = value.match(/\d+/g);
-  return counts ? counts.reduce((total, count) => total + Number(count), 0) : 1;
-};
-
-const buildOrderRequest = (
-  journeyState: JourneyState,
-  ticketTypeId: string,
-): OrderRequest => {
-  const quantity = parsePassengerCount(journeyState.passengerCount);
-  const outbound = {
-    ticketTypeId,
-    quantity,
-    fromStationId: journeyState.originStationId,
-    toStationId: journeyState.destinationStationId,
-  };
-
-  return {
-    items: journeyState.isRoundTrip
-      ? [
-          outbound,
-          {
-            ticketTypeId,
-            quantity,
-            fromStationId: journeyState.destinationStationId,
-            toStationId: journeyState.originStationId,
-          },
-        ]
-      : [outbound],
-  };
 };
 
 const TICKET_DEFAULT_BY_ID: Record<string, TicketInfo> = {
@@ -131,6 +100,7 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
   const router = useRouter();
   const [journeyState, setJourneyState] =
     useState<JourneyState>(emptyJourneyState);
+  const [stations, setStations] = useState<StationDto[]>([]);
   const [step2State, setStep2State] = useState<Step2State>({});
   const [selectedPaymentMethod, setSelectedPaymentMethod] =
     useState<PaymentMethod>("ewallet");
@@ -158,35 +128,52 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
       fromQuery.travelDate &&
       fromQuery.passengerCount;
 
-    if (hasAllFromQuery) {
-      setJourneyState({
-        ...fromQuery,
-        originStationName: "",
-        destinationStationName: "",
-      });
-    }
-
     if (typeof window === "undefined") {
+      if (hasAllFromQuery) {
+        setJourneyState({
+          ...fromQuery,
+          originStationName: "",
+          destinationStationName: "",
+        });
+      }
       return;
     }
 
-    if (!hasAllFromQuery) {
-      const rawStep1 = window.sessionStorage.getItem(STEP1_STORAGE_KEY);
-      if (rawStep1) {
-        try {
-          const parsedStep1 = JSON.parse(rawStep1) as JourneyState;
-          if (
-            parsedStep1.originStationId &&
-            parsedStep1.destinationStationId &&
-            parsedStep1.travelDate &&
-            parsedStep1.passengerCount
-          ) {
-            setJourneyState(parsedStep1);
-          }
-        } catch {
-          setJourneyState(emptyJourneyState);
+    const rawStep1 = window.sessionStorage.getItem(STEP1_STORAGE_KEY);
+    let storedJourney: JourneyState | null = null;
+    if (rawStep1) {
+      try {
+        const parsedStep1 = JSON.parse(rawStep1) as JourneyState;
+        if (
+          parsedStep1.originStationId &&
+          parsedStep1.destinationStationId &&
+          parsedStep1.travelDate &&
+          parsedStep1.passengerCount
+        ) {
+          storedJourney = parsedStep1;
         }
+      } catch {
+        storedJourney = null;
       }
+    }
+
+    if (hasAllFromQuery) {
+      const matchesStoredStations =
+        storedJourney?.originStationId === fromQuery.originStationId &&
+        storedJourney.destinationStationId === fromQuery.destinationStationId;
+      setJourneyState({
+        ...fromQuery,
+        originStationName: matchesStoredStations
+          ? (storedJourney?.originStationName ?? "")
+          : "",
+        destinationStationName: matchesStoredStations
+          ? (storedJourney?.destinationStationName ?? "")
+          : "",
+      });
+    } else if (storedJourney) {
+      setJourneyState(storedJourney);
+    } else {
+      setJourneyState(emptyJourneyState);
     }
 
     const rawStep2 = window.sessionStorage.getItem(STEP2_STORAGE_KEY);
@@ -201,6 +188,22 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
       setStep2State({});
     }
   }, [router.query]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    publicApi.getStations().then((data) => {
+      if (!cancelled) {
+        setStations(data);
+      }
+    }).catch(() => {
+      // Names kept from step 1 remain usable if station lookup fails.
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const ticketTypeFromQuery =
     typeof router.query.ticketType === "string" ? router.query.ticketType : "";
@@ -229,10 +232,26 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
     };
   }, [step2State, ticketTypeFromQuery]);
 
+  const stationNamesById = useMemo(
+    () => new Map(stations.map((station) => [station.id, station.name])),
+    [stations],
+  );
+  const originStationName =
+    journeyState.originStationName ||
+    stationNamesById.get(journeyState.originStationId) ||
+    journeyState.originStationId;
+  const destinationStationName =
+    journeyState.destinationStationName ||
+    stationNamesById.get(journeyState.destinationStationId) ||
+    journeyState.destinationStationId;
+
   const subtotal =
     step2State.selectedOrderTotal ??
     selectedTicket.price *
-      parsePassengerCount(journeyState.passengerCount) *
+      (journeyState.passengerCount.match(/\d+/g)?.reduce(
+        (total, count) => total + Number(count),
+        0,
+      ) ?? 1) *
       (journeyState.isRoundTrip ? 2 : 1);
   const serviceFee = 0;
   const totalPrice = subtotal + serviceFee;
@@ -255,12 +274,15 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
     setPaymentError(null);
 
     try {
-      const order = await orderApi.create(
-        buildOrderRequest(journeyState, selectedTicket.id),
-      );
+      const orderId =
+        step2State.orderId ||
+        (typeof router.query.orderId === "string" ? router.query.orderId : "");
+      if (!orderId) {
+        throw new Error("Không tìm thấy orderId. Vui lòng quay lại bước chọn vé.");
+      }
 
       const payment = await paymentApi.init({
-        orderId: order.id,
+        orderId,
         method: selectedPaymentMethod,
       });
 
@@ -278,17 +300,12 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
         isSuccess: true,
       });
 
-      const latest = await paymentApi.getById(payment.paymentId);
-      if (String(latest.status ?? "").toUpperCase() !== "SUCCESS") {
-        throw new Error("Thanh toán thất bại hoặc chưa được xác nhận");
-      }
-
       await router.push({
         pathname: "/passenger-page/payment-success",
         query: {
           ...router.query,
           ticketType: selectedTicket.id,
-          orderId: order.id,
+          orderId,
           paymentId: payment.paymentId,
         },
       });
@@ -522,8 +539,7 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
                           Hành trình
                         </p>
                         <p className="text-sm font-medium leading-5 text-neutral-900">
-                          {journeyState.originStationName || journeyState.originStationId} -{" "}
-                          {journeyState.destinationStationName || journeyState.destinationStationId}
+                          {originStationName} - {destinationStationName}
                         </p>
                       </div>
                     </div>

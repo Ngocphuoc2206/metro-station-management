@@ -134,6 +134,8 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
   const [orderPreview, setOrderPreview] = useState<OrderPreviewResult | null>(null);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const [isCreatingOrder, setIsCreatingOrder] = useState(false);
+  const [createOrderError, setCreateOrderError] = useState<string | null>(null);
 
   useEffect(() => {
     const fromQuery = {
@@ -358,26 +360,46 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
       return;
     }
 
-    if (typeof window !== "undefined") {
-      window.sessionStorage.setItem(
-        STEP2_STORAGE_KEY,
-        JSON.stringify({
-          selectedTicketId: selectedTicket.id,
-          selectedTicketName: selectedTicket.name,
-          selectedTicketSubtitle: selectedTicket.subtitle,
-          selectedTicketPrice: selectedTicket.price,
-          selectedOrderTotal: totalPrice,
-        }),
-      );
-    }
+    setIsCreatingOrder(true);
+    setCreateOrderError(null);
 
-    await router.push({
-      pathname: "/passenger-page/buy-tickets-step-3",
-      query: {
-        ...router.query,
-        ticketType: selectedTicket.id,
-      },
-    });
+    try {
+      const order = await orderApi.create(
+        buildOrderRequest(journeyState, selectedTicket.id),
+      );
+
+      if (!order.id) {
+        throw new Error("Phản hồi tạo đơn hàng không có orderId");
+      }
+
+      if (typeof window !== "undefined") {
+        window.sessionStorage.setItem(
+          STEP2_STORAGE_KEY,
+          JSON.stringify({
+            selectedTicketId: selectedTicket.id,
+            selectedTicketName: selectedTicket.name,
+            selectedTicketSubtitle: selectedTicket.subtitle,
+            selectedTicketPrice: selectedTicket.price,
+            selectedOrderTotal: totalPrice,
+            orderId: order.id,
+          }),
+        );
+      }
+
+      await router.push({
+        pathname: "/passenger-page/buy-tickets-step-3",
+        query: {
+          ...router.query,
+          ticketType: selectedTicket.id,
+          orderId: order.id,
+        },
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Không thể tạo đơn hàng";
+      setCreateOrderError(message);
+    } finally {
+      setIsCreatingOrder(false);
+    }
   };
 
   return (
@@ -494,6 +516,12 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
                     {previewError}
                   </div>
                 ) : null}
+
+                {createOrderError ? (
+                  <div className="md:col-span-3 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 outline outline-1 outline-offset-[-1px] outline-red-100">
+                    {createOrderError}
+                  </div>
+                ) : null}
               </div>
 
               <article className="relative h-32 overflow-hidden rounded-xl">
@@ -591,18 +619,20 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
                       !hasJourneyState ||
                       !selectedTicket ||
                       totalPrice === undefined ||
-                      isLoadingPreview
+                      isLoadingPreview ||
+                      isCreatingOrder
                     }
                     className={`inline-flex items-center justify-center gap-4 rounded-xl py-4 text-base font-bold text-white transition ${
                       hasJourneyState &&
                       selectedTicket &&
                       totalPrice !== undefined &&
-                      !isLoadingPreview
+                      !isLoadingPreview &&
+                      !isCreatingOrder
                         ? "bg-blue-600 hover:bg-blue-700"
                         : "cursor-not-allowed bg-slate-300"
                     }`}
                   >
-                    Tiếp tục thanh toán
+                    {isCreatingOrder ? "Đang tạo đơn..." : "Tiếp tục thanh toán"}
                     <ArrowRight className="h-4 w-4" />
                   </button>
 
