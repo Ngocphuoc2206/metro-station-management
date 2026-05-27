@@ -1,14 +1,8 @@
 import Head from "next/head";
 import { useEffect, useMemo, useRef, useState } from "react";
-import StaffPortalShell from "@components/templates/StaffPortalShell";
-import {
-  CheckCircle2,
-  XCircle,
-  AlertTriangle,
-  Camera,
-  CameraOff,
-  Loader2,
-} from "lucide-react";
+import StaffLayout from "@components/organisms/StaffDashboard/StaffLayout";
+import { withAuth } from "@components/templates/withAuth";
+import { CheckCircle2, XCircle, AlertTriangle, Camera, CameraOff, Loader2 } from "lucide-react";
 import { staffGateApi } from "@features/staffGate/staffGateApi";
 import type { GateScanLogResponse } from "@features/staffGate/staffGateTypes";
 
@@ -169,7 +163,7 @@ function formatTodayVi() {
   return `${titleWeekday}, ${day} ${month} ${year}`;
 }
 
-export default function StaffScanPage() {
+function StaffScanPage() {
   const [station, setStation] = useState(stations[0]);
   const [gate, setGate] = useState(gates[0]);
   const [token, setToken] = useState("");
@@ -420,26 +414,23 @@ export default function StaffScanPage() {
   return (
     <>
       <Head>
-        <title>Gate Scan Tool | MetroNext</title>
+        <title>Quét vé | MetroNext</title>
       </Head>
-
-      <StaffPortalShell
-        headerMode="title"
-        headerTitle="MetroNext Gate Simulation & Scanning Tool"
-        systemStatus={{ label: "GATE ACTIVE", tone: "green" }}
-      >
-        <div className="relative -m-8 bg-neutral-100">
-          <div className="mx-auto w-full max-w-[1152px] px-8 py-8">
+      <StaffLayout>
+        <div className="relative">
+          <div className="mb-6">
+            <nav className="text-xs text-gray-400 mb-1">
+              <span>Nhân viên ga</span>
+              <span className="mx-1">›</span>
+              <span className="text-blue-600 font-medium">Quét vé</span>
+            </nav>
             <div className="flex items-center justify-between">
-              <h1 className="text-2xl font-bold leading-8 text-slate-900">
-                Điều khiển cổng (Gate Control)
-              </h1>
-              <p className="text-sm font-normal leading-5 text-slate-500">
-                {todayLabel}
-              </p>
+              <h1 className="text-2xl font-bold text-slate-900">Quét vé - Điều khiển cổng</h1>
+              <p className="text-sm text-slate-500">{todayLabel}</p>
             </div>
+          </div>
 
-            <div className="mt-6 grid gap-6 lg:grid-cols-[384px_minmax(0,1fr)]">
+          <div className="mt-6 grid gap-6 lg:grid-cols-[384px_minmax(0,1fr)]">
               {/* Left panel */}
               <section className="rounded-3xl bg-white p-6 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] outline outline-1 outline-offset-[-1px] outline-slate-200">
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-2">
@@ -709,91 +700,56 @@ export default function StaffScanPage() {
               </section>
             </div>
 
-            {/* Bottom log */}
-            <section className="mt-6 overflow-hidden rounded-3xl bg-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] outline outline-1 outline-offset-[-1px] outline-slate-200">
-              <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-                <h2 className="text-base font-bold leading-6 text-slate-800">
-                  Transaction Log Preview (Last 10 Scans)
-                </h2>
-                <button
-                  type="button"
-                  className="text-sm font-semibold leading-5 text-blue-600"
-                >
-                  Xem tất cả
-                </button>
-              </div>
+          {/* Bottom log */}
+          <section className="mt-6 overflow-hidden rounded-2xl bg-white shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+              <h2 className="text-base font-bold leading-6 text-slate-800">
+                Lịch sử quét gần đây (10 lượt cuối)
+              </h2>
+            </div>
 
-              <div className="overflow-x-auto">
-                <div className="min-w-[864px]">
-                  <div className="grid grid-cols-[176px_144px_240px_192px_192px] bg-slate-50">
-                    <div className="px-6 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                      Thời gian
+            <div className="overflow-x-auto">
+              <div className="min-w-[864px]">
+                <div className="grid grid-cols-[176px_144px_240px_192px_192px] bg-slate-50">
+                  <div className="px-6 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-500">Thời gian</div>
+                  <div className="px-6 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-500">Gate ID</div>
+                  <div className="px-6 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-500">Ticket ID</div>
+                  <div className="px-6 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-500">Hành động</div>
+                  <div className="px-6 py-3 text-right text-[10px] font-bold uppercase tracking-wide text-slate-500">Kết quả</div>
+                </div>
+
+                {log.map((row, idx) => (
+                  <div
+                    key={`${row.time}-${row.ticketId}-${idx}`}
+                    className={`grid grid-cols-[176px_144px_240px_192px_192px] ${
+                      idx === 0 ? "" : "border-t border-slate-100"
+                    }`}
+                  >
+                    <div className="px-6 py-4 text-sm font-normal leading-5 text-slate-600">{row.time}</div>
+                    <div className="px-6 py-4 text-sm font-medium leading-5 text-slate-900">{row.gateId}</div>
+                    <div className="px-6 py-4 font-mono text-sm font-normal leading-5 text-blue-600">{row.ticketId}</div>
+                    <div className="px-6 py-4">
+                      <span className={`inline-flex rounded-lg px-2 py-0.5 text-xs font-bold ${
+                        row.action === "TAP-IN" ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
+                      }`}>{row.action}</span>
                     </div>
-                    <div className="px-6 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                      Gate ID
-                    </div>
-                    <div className="px-6 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                      Ticket ID
-                    </div>
-                    <div className="px-6 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                      Hành động
-                    </div>
-                    <div className="px-6 py-3 text-right text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                      Kết quả
+                    <div className="px-6 py-4 text-right">
+                      <span className={`inline-flex rounded-lg px-2 py-0.5 text-xs font-bold ${
+                        row.result === "SUCCESS" ? "bg-green-100 text-green-700"
+                          : row.result === "NOT_ALLOWED" ? "bg-amber-100 text-amber-700"
+                          : "bg-red-100 text-red-700"
+                      }`}>{row.result}</span>
+                      <div className="mt-1 text-xs font-medium leading-4 text-slate-500">{row.message}</div>
                     </div>
                   </div>
-
-                  {log.map((row, idx) => (
-                    <div
-                      key={`${row.time}-${row.ticketId}-${idx}`}
-                      className={`grid grid-cols-[176px_144px_240px_192px_192px] ${
-                        idx === 0 ? "" : "border-t border-slate-100"
-                      }`}
-                    >
-                      <div className="px-6 py-4 text-sm font-normal leading-5 text-slate-600">
-                        {row.time}
-                      </div>
-                      <div className="px-6 py-4 text-sm font-medium leading-5 text-slate-900">
-                        {row.gateId}
-                      </div>
-                      <div className="px-6 py-4 font-mono text-sm font-normal leading-5 text-blue-600">
-                        {row.ticketId}
-                      </div>
-                      <div className="px-6 py-4">
-                        <span
-                          className={`inline-flex rounded-lg px-2 py-0.5 text-xs font-bold ${
-                            row.action === "TAP-IN"
-                              ? "bg-blue-100 text-blue-700"
-                              : "bg-orange-100 text-orange-700"
-                          }`}
-                        >
-                          {row.action}
-                        </span>
-                      </div>
-                      <div className="px-6 py-4 text-right">
-                        <span
-                          className={`inline-flex rounded-lg px-2 py-0.5 text-xs font-bold ${
-                            row.result === "SUCCESS"
-                              ? "bg-green-100 text-green-700"
-                              : row.result === "NOT_ALLOWED"
-                                ? "bg-amber-100 text-amber-700"
-                                : "bg-red-100 text-red-700"
-                          }`}
-                        >
-                          {row.result}
-                        </span>
-                        <div className="mt-1 text-xs font-medium leading-4 text-slate-500">
-                          {row.message}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                ))}
               </div>
-            </section>
-          </div>
+            </div>
+          </section>
         </div>
-      </StaffPortalShell>
+      </StaffLayout>
     </>
   );
 }
+
+export default withAuth(StaffScanPage, { allowedRoles: ["staff", "admin"] });

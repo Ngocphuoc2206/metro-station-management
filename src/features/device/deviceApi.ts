@@ -69,20 +69,20 @@ export const deviceApi = {
     return mapToUI(res.data.results);
   },
 
-  // ── PUT /admin/devices/{id} (FE-34) ───────────────────────────────────────
-  updateDevice: async (id: string, data: Partial<Device>): Promise<Device> => {
-    const res = await apiClient.put<ApiResponse<BackendDevice>>(
-      withPathParam(API_ENDPOINTS.devices.admin, id),
+  // ── POST /admin/devices (FE-34) ─────────────────────────────────────────
+  createDevice: async (data: Partial<Device>): Promise<Device> => {
+    const res = await apiClient.post<ApiResponse<BackendDevice>>(
+      API_ENDPOINTS.devices.admin,
       data
     );
     return mapToUI(res.data.results);
   },
 
-  // ── PATCH /admin/devices/{id}/status (FE-34) ──────────────────────────────
+  // ── PATCH /admin/devices/{id}/status?status={status} (FE-34) ─────────────
+  // BE nhận qua @RequestParam, không phải request body
   updateDeviceStatus: async (id: string, status: string): Promise<Device> => {
     const res = await apiClient.patch<ApiResponse<BackendDevice>>(
-      `${withPathParam(API_ENDPOINTS.devices.admin, id)}/status`,
-      { status: status.toUpperCase() }
+      `${withPathParam(API_ENDPOINTS.devices.admin, id)}/status?status=${status.toUpperCase()}`
     );
     return mapToUI(res.data.results);
   },

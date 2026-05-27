@@ -1,67 +1,107 @@
-import type {
-  ShiftSchedule,
-  ShiftIncident,
-  CurrentShiftRecord,
-} from "./shiftTypes";
+import { apiClient } from "@features/httpClient/ApiClient";
+import { API_ENDPOINTS, ApiResponse } from "@features/httpClient/apiEndpoints";
+import type { ShiftSchedule, CurrentShiftRecord } from "./shiftTypes";
 
-// Mock Data
-let currentShiftStatus = false; // Mặc định chưa check-in
+// ── Backend response shapes ────────────────────────────────────────────────────
+interface BackendShift {
+  shiftId?: string;
+  id?: string;
+  date?: string;
+  dayOfWeek?: string;
+  shiftType?: string;
+  type?: string;
+  startTime?: string;
+  endTime?: string;
+  status?: string;
+  stationId?: string;
+  stationName?: string;
+  isCheckedIn?: boolean;
+  checkedIn?: boolean;
+  [key: string]: unknown;
+}
 
-const MOCK_SCHEDULE: ShiftSchedule[] = [
-  { id: "S1", date: "2024-05-20", dayOfWeek: "T2", shiftType: "morning", startTime: "06:00", endTime: "14:00", status: "completed" },
-  { id: "S2", date: "2024-05-21", dayOfWeek: "T3", shiftType: "morning", startTime: "06:00", endTime: "14:00", status: "completed" },
-  { id: "S3", date: "2024-05-22", dayOfWeek: "T4", shiftType: "afternoon", startTime: "14:00", endTime: "22:00", status: "in_progress" },
-  { id: "S4", date: "2024-05-23", dayOfWeek: "T5", shiftType: "afternoon", startTime: "14:00", endTime: "22:00", status: "upcoming" },
-  { id: "S5", date: "2024-05-24", dayOfWeek: "T6", shiftType: "afternoon", startTime: "14:00", endTime: "22:00", status: "upcoming" },
-  { id: "S6", date: "2024-05-25", dayOfWeek: "T7", shiftType: "off", status: "upcoming" },
-  { id: "S7", date: "2024-05-26", dayOfWeek: "CN", shiftType: "off", status: "upcoming" },
-];
+function normalizeShiftType(raw?: string): "morning" | "afternoon" | "night" | "off" {
+  const v = (raw ?? "").toLowerCase();
+  if (v.includes("morning") || v.includes("sang") || v.includes("sáng")) return "morning";
+  if (v.includes("afternoon") || v.includes("chieu") || v.includes("chiều")) return "afternoon";
+  if (v.includes("night") || v.includes("dem") || v.includes("đêm")) return "night";
+  return "off";
+}
 
-const MOCK_INCIDENTS: ShiftIncident[] = [
-  { id: "INC-2024-089", severity: "critical", content: "Cổng G-STN-003 mất kết nối hoàn toàn, không thể quét thẻ.", status: "in_progress" },
-  { id: "INC-2024-092", severity: "warning", content: "Màn hình hiển thị tại quầy vé số 2 bị nhấp nháy liên tục.", status: "open" },
-  { id: "INC-2024-075", severity: "low", content: "Vệ sinh khu vực cổng soát vé hứng nước ứ đọng sau ca trực.", status: "resolved" },
-];
+function normalizeShiftStatus(raw?: string): "completed" | "in_progress" | "upcoming" | "missed" {
+  const v = (raw ?? "").toLowerCase();
+  if (v.includes("complete") || v.includes("done") || v.includes("finish")) return "completed";
+  if (v.includes("progress") || v.includes("active") || v.includes("current")) return "in_progress";
+  if (v.includes("missed") || v.includes("absent") || v.includes("off") || v.includes("nghi") || v.includes("nghỉ")) return "missed";
+  return "upcoming";
+}
+
+function mapShiftToUI(b: BackendShift, idx: number): ShiftSchedule {
+  return {
+    id: b.shiftId ?? b.id ?? `shift-${idx}`,
+    date: b.date ?? "",
+    dayOfWeek: b.dayOfWeek ?? "",
+    shiftType: normalizeShiftType(b.shiftType ?? b.type),
+    startTime: b.startTime ?? "",
+    endTime: b.endTime,
+    status: normalizeShiftStatus(b.status),
+  };
+}
 
 export const shiftApi = {
+  // ── GET /staff/shifts/weekly (FE-30) ──────────────────────────────────────
   getWeeklySchedule: async (): Promise<ShiftSchedule[]> => {
-    return new Promise((resolve) => setTimeout(() => resolve(MOCK_SCHEDULE), 500));
-  },
-  
-  getCurrentShift: async (): Promise<CurrentShiftRecord> => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          id: "Current-S3",
-          userId: "Staff-1",
-          stationId: "STN-BenThanh",
-          stationName: "Ga làm việc: Bến Thành",
-          isCheckedIn: currentShiftStatus,
-          schedule: MOCK_SCHEDULE[2], // Giả định hôm nay là T4
-        });
-      }, 300);
-    });
+    const res = await apiClient.get<ApiResponse<BackendShift[]>>(
+      `${API_ENDPOINTS.shifts.staff}/weekly`
+    );
+    const raw = res.data.results;
+    if (!Array.isArray(raw)) return [];
+    return raw.map(mapShiftToUI);
   },
 
+  // ── GET /staff/shifts/current (FE-30) ─────────────────────────────────────────
+  getCurrentShift: async (): Promise<CurrentShiftRecord | null> => {
+    try {
+      const res = await apiClient.get<ApiResponse<BackendShift>>(
+        `${API_ENDPOINTS.shifts.staff}/current`
+      );
+      const b = res.data.results;
+      if (!b) return null; // chưa có ca nào
+      return {
+        id: b.shiftId ?? b.id ?? "current",
+        userId: (b.staffId ?? b.userId ?? "") as string,
+        stationId: b.stationId ?? "",
+        stationName: b.stationName ?? "Ga làm việc",
+        isCheckedIn: b.isCheckedIn ?? b.checkedIn ?? false,
+        schedule: mapShiftToUI(b, 0),
+      };
+    } catch {
+      // 400/404 = chưa có ca trực hiện tại — không crash
+      return null;
+    }
+  },
+
+  // ── POST /staff/shifts/check-in (FE-30) — no body, token identifies staff ──
   checkIn: async (): Promise<boolean> => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        currentShiftStatus = true;
-        resolve(true);
-      }, 600);
-    });
+    await apiClient.post(
+      `${API_ENDPOINTS.shifts.staff}/check-in`,
+      // Không gửi body gì cả — BE tự nhận diện qua Token
+      undefined,
+      { headers: { "Content-Type": "application/json" } }
+    );
+    return true;
   },
 
+  // ── POST /staff/shifts/check-out (FE-30) ─────────────────────────────────
   checkOut: async (): Promise<boolean> => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        currentShiftStatus = false; // Reset trạng thái
-        resolve(true);
-      }, 600);
-    });
+    await apiClient.post(
+      `${API_ENDPOINTS.shifts.staff}/check-out`,
+      undefined,
+      { headers: { "Content-Type": "application/json" } }
+    );
+    return true;
   },
 
-  getShiftIncidents: async (): Promise<ShiftIncident[]> => {
-    return new Promise((resolve) => setTimeout(() => resolve(MOCK_INCIDENTS), 500));
-  }
+  // Kept for backward compat with shift-profile page
+  getShiftIncidents: async () => [],
 };

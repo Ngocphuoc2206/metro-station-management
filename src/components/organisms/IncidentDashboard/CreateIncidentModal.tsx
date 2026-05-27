@@ -8,13 +8,16 @@ import {
   IncidentSeverity,
 } from "../../../features/incident/incidentTypes";
 import { incidentApi } from "../../../features/incident/incidentApi";
+import { stationApi } from "../../../features/station/stationApi";
+import { deviceApi } from "../../../features/device/deviceApi";
 import toast from "react-hot-toast";
 
 const SEVERITY_OPTIONS = ["low", "medium", "high", "critical"] as const;
 
 const formSchema = z.object({
   title: z.string().min(1, "Vui lòng nhập tiêu đề sự cố"),
-  deviceId: z.string().min(1, "Vui lòng chọn thiết bị gặp sự cố"),
+  stationId: z.string().min(1, "Vui lòng chọn ga xảy ra sự cố"),
+  deviceId: z.string().optional(),
   severity: z.enum(SEVERITY_OPTIONS, {
     error: "Vui lòng chọn mức độ nghiêm trọng",
   }),
@@ -29,13 +32,6 @@ interface CreateIncidentModalProps {
   onSuccess: () => void;
 }
 
-const MOCK_DEVICES = [
-  { id: "GATE-01", name: "Cổng kiểm soát 01" },
-  { id: "GATE-04", name: "Cổng kiểm soát 04" },
-  { id: "TVM-01", name: "Máy bán vé tự động 01" },
-  { id: "TVM-03", name: "Máy bán vé tự động 03" },
-  { id: "LED-02", name: "Màn hình LED 02" },
-];
 
 export default function CreateIncidentModal({
   isOpen,
@@ -47,12 +43,21 @@ export default function CreateIncidentModal({
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Clean up Object URL
+  // Fetch stations + devices from real API
+  const [stations, setStations] = useState<{ id: string; name: string }[]>([]);
+  const [devices, setDevices] = useState<{ id: string; name: string }[]>([]);
+
   useEffect(() => {
-    return () => {
-      images.forEach((img) => URL.revokeObjectURL((img as any).preview));
-    };
-  }, [images]);
+    if (!isOpen) return;
+    // Fetch stations
+    stationApi.getStations({ status: "active" }, 1, 200)
+      .then((res) => setStations(res.data.map((s) => ({ id: s.id, name: s.name }))))
+      .catch(() => setStations([]));
+    // Fetch devices
+    deviceApi.getDevices()
+      .then((res) => setDevices(res.map((d) => ({ id: d.id, name: d.name }))))
+      .catch(() => setDevices([]));
+  }, [isOpen]);
 
   const {
     register,
@@ -65,6 +70,7 @@ export default function CreateIncidentModal({
     resolver: zodResolver(formSchema),
     defaultValues: {
       title: "",
+      stationId: "",
       deviceId: "",
       severity: "low",
       description: "",
@@ -78,11 +84,15 @@ export default function CreateIncidentModal({
   const onSubmit = async (data: FormValues) => {
     try {
       setIsSubmitting(true);
-      await incidentApi.createIncident({ ...data, images } as IncidentFormData);
+      await incidentApi.createIncident({
+        ...data,
+        images,
+      } as IncidentFormData);
       toast.success("Tạo sự cố thành công!");
       handleClose();
       onSuccess();
     } catch (error) {
+      console.error(error);
       toast.error("Tạo sự cố thất bại. Vui lòng thử lại!");
     } finally {
       setIsSubmitting(false);
@@ -177,10 +187,31 @@ export default function CreateIncidentModal({
               )}
             </div>
 
-            {/* Thiết bị */}
+            {/* Ga xảy ra sự cố (bắt buộc) */}
             <div>
               <label className="block text-sm font-semibold text-gray-900 mb-2">
-                Thiết bị gặp sự cố <span className="text-red-500">*</span>
+                Ga xảy ra sự cố <span className="text-red-500">*</span>
+              </label>
+              <select
+                {...register("stationId")}
+                className={`w-full px-4 py-2.5 rounded-xl border appearance-none ${
+                  errors.stationId ? "border-red-500 bg-red-50" : "border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                } outline-none transition`}
+              >
+                <option value="">-- Chọn ga --</option>
+                {stations.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+              {errors.stationId && (
+                <p className="mt-1 text-sm text-red-500 font-medium">{errors.stationId.message}</p>
+              )}
+            </div>
+
+            {/* Thiết bị (tuỳ chọn) */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-900 mb-2">
+                Thiết bị gặp sự cố <span className="text-gray-400 font-normal">(tuỳ chọn)</span>
               </label>
               <div className="relative">
                 <svg
@@ -198,13 +229,11 @@ export default function CreateIncidentModal({
                 </svg>
                 <select
                   {...register("deviceId")}
-                  className={`w-full pl-10 pr-4 py-2.5 rounded-xl border appearance-none ${errors.deviceId ? "border-red-500 bg-red-50 focus:ring-red-200" : "border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"} outline-none transition`}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 appearance-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition"
                 >
-                  <option value="">Tìm ID hoặc tên thiết bị...</option>
-                  {MOCK_DEVICES.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name} ({d.id})
-                    </option>
+                  <option value="">-- Không chọn thiết bị cụ thể --</option>
+                  {devices.map((d) => (
+                    <option key={d.id} value={d.id}>{d.name} ({d.id.slice(0, 8)})</option>
                   ))}
                 </select>
                 <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none">
@@ -223,9 +252,6 @@ export default function CreateIncidentModal({
                   </svg>
                 </div>
               </div>
-              <p className="mt-2 text-xs text-gray-500">
-                Vui lòng chọn thiết bị cụ thể để kỹ thuật viên dễ dàng định vị.
-              </p>
               {errors.deviceId && (
                 <p className="mt-1 text-sm text-red-500 font-medium">
                   {errors.deviceId.message}
