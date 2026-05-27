@@ -26,6 +26,12 @@ export const API_ENDPOINTS = {
     admin: endpoint(process.env.NEXT_PUBLIC_ADMIN_DEVICES_ENDPOINT, "/admin/devices"),
     staff: endpoint(process.env.NEXT_PUBLIC_STAFF_DEVICES_ENDPOINT, "/staff/devices"),
   },
+  incidents: {
+    staff: endpoint(process.env.NEXT_PUBLIC_STAFF_INCIDENTS_ENDPOINT, "/staff/incidents"),
+  },
+  shifts: {
+    staff: endpoint(process.env.NEXT_PUBLIC_STAFF_SHIFTS_ENDPOINT, "/staff/shifts"),
+  },
   gates: {
     staff: endpoint(process.env.NEXT_PUBLIC_STAFF_GATES_ENDPOINT, "/staff/gates"),
     scan: endpoint(process.env.NEXT_PUBLIC_STAFF_GATE_SCAN_ENDPOINT, "/staff/gates/scan"),

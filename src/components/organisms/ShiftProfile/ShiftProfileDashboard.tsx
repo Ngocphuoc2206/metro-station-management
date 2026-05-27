@@ -21,14 +21,13 @@ export default function ShiftProfileDashboard() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [current, sched, incs] = await Promise.all([
+      const [currentRes, schedRes] = await Promise.allSettled([
         shiftApi.getCurrentShift(),
         shiftApi.getWeeklySchedule(),
-        shiftApi.getShiftIncidents()
       ]);
-      setShiftData(current);
-      setSchedule(sched);
-      setIncidents(incs);
+      if (currentRes.status === "fulfilled") setShiftData(currentRes.value);
+      if (schedRes.status === "fulfilled") setSchedule(schedRes.value);
+      setIncidents([]); // incidents hiện lấy riêng từ incidentApi
     } catch (e) {
       console.error(e);
     } finally {
