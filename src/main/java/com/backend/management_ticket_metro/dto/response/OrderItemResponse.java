@@ -1,5 +1,6 @@
 package com.backend.management_ticket_metro.dto.response;
 
+import com.backend.management_ticket_metro.entity.TicketType;
 import lombok.*;
 
 @Data
@@ -7,7 +8,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 public class OrderItemResponse {
-    private String ticketTypeId;
+    private TicketType ticketType;
     private  Integer quantity;
     private Double unitprice;
     private Double subTotal;

@@ -1,19 +1,18 @@
 package com.backend.management_ticket_metro.service;
 
 import com.backend.management_ticket_metro.common.ErrorCode;
+import com.backend.management_ticket_metro.dto.request.OrderItemRequest;
 import com.backend.management_ticket_metro.dto.request.OrderRequest;
 import com.backend.management_ticket_metro.dto.response.OrderItemResponse;
 import com.backend.management_ticket_metro.dto.response.OrderResponse;
-import com.backend.management_ticket_metro.entity.Order;
-import com.backend.management_ticket_metro.entity.OrderItem;
-import com.backend.management_ticket_metro.entity.Station;
-import com.backend.management_ticket_metro.entity.User;
+import com.backend.management_ticket_metro.entity.*;
 import com.backend.management_ticket_metro.enums.OrderStatus;
 import com.backend.management_ticket_metro.exception.AppException;
 import com.backend.management_ticket_metro.mapper.OrderMapper;
 import com.backend.management_ticket_metro.mapper.StationMapper;
 import com.backend.management_ticket_metro.repository.OrderRepository;
 import com.backend.management_ticket_metro.repository.StationRepository;
+import com.backend.management_ticket_metro.repository.TicketTypeRepository;
 import com.backend.management_ticket_metro.repository.UserRepository;
 import lombok.*;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -33,7 +32,9 @@ public class OrderService {
     private final OrderMapper orderMapper;
     private final StationRepository stationRepository;
     private final StationMapper stationMapper;
-    public static final double TICKET_PRICE = 10000.0;
+
+    private final TicketTypeRepository ticketTypeRepository;
+    private final FareService fareService;
 
     @Transactional(readOnly = true)
     public OrderResponse previewOrder(OrderRequest request) {
@@ -41,17 +42,25 @@ public class OrderService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        List<OrderItemResponse> itemResponses = request.getItems().stream().map(orderItemRequest ->{
+        List<OrderItemResponse> itemResponses = request.getItems().stream().map(orderItemRequest -> {
             Station fromStation = stationRepository.findById(orderItemRequest.getFromStationId())
                     .orElseThrow(() -> new AppException(ErrorCode.STATION_NOT_FOUND));
             Station toStation = stationRepository.findById(orderItemRequest.getToStationId())
                     .orElseThrow(() -> new AppException(ErrorCode.STATION_NOT_FOUND));
 
+            TicketType ticketType = ticketTypeRepository.findById(orderItemRequest.getTicketTypeId())
+                    .orElseThrow(() -> new AppException(ErrorCode.TICKET_TYPE_INVALID));
+
+            Double dynamicPrice = fareService.calculateFare(
+                    fromStation.getStationId(),
+                    toStation.getStationId(),
+                    ticketType.getName()
+            );
 
             return OrderItemResponse.builder()
-                    .ticketTypeId(orderItemRequest.getTicketTypeId())
+                    .ticketType(ticketType)
                     .quantity(orderItemRequest.getQuantity())
-                    .unitprice(TICKET_PRICE)
+                    .unitprice(dynamicPrice)
                     .fromStation(stationMapper.toStationResponse(fromStation))
                     .toStation(stationMapper.toStationResponse(toStation))
                     .build();
@@ -73,14 +82,14 @@ public class OrderService {
         String email = Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getName();
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-
+        validateDuplicateOrder(user, request);
         Order order = Order.builder()
                 .user(user)
                 .status(OrderStatus.PENDING)
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        List<OrderItem> items = request.getItems().stream().map(itemReq ->{
+        List<OrderItem> items = request.getItems().stream().map(itemReq -> {
             //find station go
             Station fromStation = stationRepository.findById(itemReq.getFromStationId())
                     .orElseThrow(() -> new AppException(ErrorCode.STATION_NOT_FOUND));
@@ -88,12 +97,22 @@ public class OrderService {
             Station toStation = stationRepository.findById(itemReq.getToStationId())
                     .orElseThrow(() -> new AppException(ErrorCode.STATION_NOT_FOUND));
 
+            TicketType ticketType = ticketTypeRepository.findById(itemReq.getTicketTypeId())
+                    .orElseThrow(() -> new AppException(ErrorCode.TICKET_TYPE_INVALID));
+
+
+            Double dynamicPrice = fareService.calculateFare(
+                    fromStation.getStationId(),
+                    toStation.getStationId(),
+                    ticketType.getName()
+            );
+
 
             return OrderItem.builder()
                     .order(order)
-                    .ticketTypeId(itemReq.getTicketTypeId())
+                    .ticketType(ticketType)
                     .quantity(itemReq.getQuantity())
-                    .unitprice(TICKET_PRICE)
+                    .unitprice(dynamicPrice)
                     .fromStation(fromStation)
                     .toStation(toStation)
                     .build();
@@ -123,5 +142,39 @@ public class OrderService {
         return orders.stream()
                 .map(orderMapper::toOrderResponse)
                 .collect(Collectors.toList());
+    }
+
+    private void validateDuplicateOrder(User user, OrderRequest request) {
+        LocalDateTime fiveMinutesAgo = LocalDateTime.now().minusMinutes(5);
+
+        List<Order> recentOrders = orderRepository.findByUserAndCreatedAtAfter(user, fiveMinutesAgo);
+
+        for(Order existingOrder : recentOrders){
+            if(isSameOrderItems(existingOrder.getOrderItems(), request.getItems())){
+                throw new AppException(ErrorCode.DUPLICATE_ORDER);
+            }
+        }
+
+    }
+
+    private boolean isSameOrderItems(List<OrderItem> dbItems, List<OrderItemRequest> regItems) {
+
+        if(dbItems.size() != regItems.size()){
+            return false;
+        }
+
+        for(OrderItemRequest reqItem : regItems){
+            boolean matchFound = dbItems.stream().anyMatch(dbItem ->
+                    dbItem.getFromStation().getStationId().equals(reqItem.getFromStationId()) &&
+                            dbItem.getToStation().getStationId().equals(reqItem.getToStationId()) &&
+                            dbItem.getTicketType().getId().equals(reqItem.getTicketTypeId()) &&
+                            dbItem.getQuantity() == reqItem.getQuantity()
+            );
+
+            if(!matchFound){
+                return false;
+            }
+        }
+        return true;
     }
 }

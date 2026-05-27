@@ -18,7 +18,11 @@ public class OrderItem {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id")
     private Order order;
-    private String ticketTypeId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "ticket_type_id", nullable = false)
+    private TicketType ticketType;
+
     private Double unitprice;
     private Integer quantity;
 

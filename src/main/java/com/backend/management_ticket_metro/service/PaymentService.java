@@ -37,7 +37,7 @@ public class PaymentService {
         }
 
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new AppException(ErrorCode.PAYMENT_NOT_FOUND));
+                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
         LocalDateTime now = LocalDateTime.now();
 
         Payment payment = Payment.builder()
