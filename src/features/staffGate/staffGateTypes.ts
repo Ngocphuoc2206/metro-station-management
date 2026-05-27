@@ -6,6 +6,18 @@ export type ScanTicketRequest = {
 };
 
 
+// Backend: GateScanResponse
+export type GateScanResponse = {
+  result: string;
+  action: string;
+  message: string;
+  ticketId: string;
+  ticketCode: string;
+  gateId: string;
+  stationId: string;
+  scannedAt: string;
+};
+
 // Backend: GateScanLogResponse
 export type GateScanLogResponse = {
   id: string;
