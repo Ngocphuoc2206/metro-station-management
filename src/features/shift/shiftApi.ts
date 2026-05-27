@@ -28,11 +28,11 @@ function normalizeShiftType(raw?: string): "morning" | "afternoon" | "night" | "
   return "off";
 }
 
-function normalizeShiftStatus(raw?: string): "completed" | "in_progress" | "upcoming" | "off" {
+function normalizeShiftStatus(raw?: string): "completed" | "in_progress" | "upcoming" | "missed" {
   const v = (raw ?? "").toLowerCase();
   if (v.includes("complete") || v.includes("done") || v.includes("finish")) return "completed";
   if (v.includes("progress") || v.includes("active") || v.includes("current")) return "in_progress";
-  if (v.includes("off") || v.includes("nghi") || v.includes("nghỉ")) return "off";
+  if (v.includes("missed") || v.includes("absent") || v.includes("off") || v.includes("nghi") || v.includes("nghỉ")) return "missed";
   return "upcoming";
 }
 
