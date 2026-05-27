@@ -48,13 +48,13 @@ public class Devices {
     @JoinColumn(name = "type_id")
     private DeviceType type;
 
-    @OneToOne(mappedBy = "devices", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToOne(mappedBy = "devices", cascade = CascadeType.ALL)
     private GateDetail gateDetail;
 
-    @OneToOne(mappedBy = "devices", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToOne(mappedBy = "devices", cascade = CascadeType.ALL)
     private TicketMachineDetail ticketMachineDetail;
 
-    @OneToOne(mappedBy = "devices", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToOne(mappedBy = "devices", cascade = CascadeType.ALL)
     private ScannerDetail scannerDetail;
 
 }
