@@ -1,4 +1,5 @@
 import Head from "next/head";
+import axios from "axios";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import StaffLayout from "@components/organisms/StaffDashboard/StaffLayout";
 import { withAuth } from "@components/templates/withAuth";
@@ -20,8 +21,6 @@ type StationResponse = {
   status?: string;
 };
 
-const DEFAULT_DEVICE_ID = "WEB_SCANNER";
-
 type ValidationResult = {
   status: string;
   title: string;
@@ -32,10 +31,63 @@ type ValidationResult = {
 
 function matchesMode(action: string | undefined, mode: TapMode) {
   if (!action) return true;
-  const normalized = action.toUpperCase().replace("_", "-");
+  const normalized = action.toUpperCase().replace(/[_\s]/g, "-");
   return mode === "TAP-IN"
-    ? normalized === "IN" || normalized === "TAP-IN"
-    : normalized === "OUT" || normalized === "TAP-OUT";
+    ? normalized === "IN" || normalized === "TAP-IN" || normalized === "ENTRY" || normalized === "ENTRANCE" || normalized === "ENTER"
+    : normalized === "OUT" || normalized === "TAP-OUT" || normalized === "EXIT" || normalized === "LEAVE";
+}
+
+function pickGateForMode(gates: GateResponse[], stationId: string, mode: TapMode) {
+  return (
+    gates.find((item) => item.stationId === stationId && matchesMode(item.action, mode)) ??
+    gates.find((item) => item.stationId === stationId) ??
+    gates.find((item) => matchesMode(item.action, mode)) ??
+    gates[0]
+  );
+}
+
+function scanContent(raw: string) {
+  const value = raw.trim();
+  if (!value) return "";
+
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (parsed && typeof parsed === "object") {
+      const item = parsed as Record<string, unknown>;
+      const token = item.qrContent ?? item.qrToken ?? item.token ?? item.content;
+      if (token !== undefined && token !== null) return String(token).trim();
+    }
+  } catch {
+    // QR content may be a plain token.
+  }
+
+  try {
+    const url = new URL(value);
+    const token =
+      url.searchParams.get("qrContent") ??
+      url.searchParams.get("qrToken") ??
+      url.searchParams.get("token") ??
+      url.searchParams.get("content");
+    if (token) return token.trim();
+  } catch {
+    // QR content may not be a URL.
+  }
+
+  return value;
+}
+
+function scanErrorMessage(error: unknown) {
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data;
+    if (data && typeof data === "object") {
+      const item = data as Record<string, unknown>;
+      const message = item.message ?? item.error;
+      if (message) return String(message);
+    }
+    return error.message;
+  }
+
+  return error instanceof Error ? error.message : "Không thể gọi API /staff/gates/scan";
 }
 
 function formatScanTime(value?: string) {
@@ -60,6 +112,7 @@ function StaffScanPage() {
   const [station, setStation] = useState("");
   const [gate, setGate] = useState("");
   const [filterLoading, setFilterLoading] = useState(true);
+  const [gateLoading, setGateLoading] = useState(false);
   const [filterError, setFilterError] = useState<string | null>(null);
   const [token, setToken] = useState("");
   const [mode, setMode] = useState<TapMode>("TAP-IN");
@@ -84,10 +137,18 @@ function StaffScanPage() {
   const scannerReaderRef = useRef<unknown | null>(null);
 
   const todayLabel = useMemo(() => formatTodayVi(), []);
-  const availableGates = useMemo(
-    () => gates.filter((item) => (!station || item.stationId === station) && matchesMode(item.action, mode)),
-    [gates, mode, station],
-  );
+  const availableGates = useMemo(() => {
+    const byStationAndMode = gates.filter(
+      (item) => (!station || item.stationId === station) && matchesMode(item.action, mode),
+    );
+    if (byStationAndMode.length > 0) return byStationAndMode;
+
+    const byStation = gates.filter((item) => !station || item.stationId === station);
+    if (byStation.length > 0) return byStation;
+
+    const byMode = gates.filter((item) => matchesMode(item.action, mode));
+    return byMode.length > 0 ? byMode : gates;
+  }, [gates, mode, station]);
   const resultStationLabel =
     stations.find((item) => item.stationId === lastScan?.stationId)?.name ??
     lastScan?.stationId ??
@@ -96,6 +157,28 @@ function StaffScanPage() {
     gates.find((item) => item.gateId === lastScan?.gateId)?.gateCode ??
     lastScan?.gateId ??
     "-";
+
+  const refreshGates = useCallback(async () => {
+    if (gateLoading) return;
+
+    setGateLoading(true);
+    try {
+      const gateItems = await staffGateApi.getGates();
+      setGates(gateItems);
+      setGate((currentGate) => {
+        if (currentGate && gateItems.some((item) => item.gateId === currentGate)) {
+          return currentGate;
+        }
+
+        return pickGateForMode(gateItems, station, mode)?.gateId ?? "";
+      });
+      setFilterError(null);
+    } catch {
+      setFilterError("Không thể tải danh sách cổng.");
+    } finally {
+      setGateLoading(false);
+    }
+  }, [gateLoading, mode, station]);
 
   const loadLogs = useCallback(async () => {
     if (!station || !gate) {
@@ -124,14 +207,12 @@ function StaffScanPage() {
 
     Promise.all([
       apiClient.get(API_ENDPOINTS.stations.base),
-      apiClient.get(API_ENDPOINTS.gates.staff),
+      staffGateApi.getGates(),
     ])
-      .then(([stationResponse, gateResponse]) => {
+      .then(([stationResponse, gateItems]) => {
         if (cancelled) return;
         const stationData = unwrapApiResponse<StationResponse[]>(stationResponse.data);
-        const gateData = unwrapApiResponse<GateResponse[]>(gateResponse.data);
         const stationItems = Array.isArray(stationData) ? stationData : [];
-        const gateItems = Array.isArray(gateData) ? gateData : [];
         setStations(stationItems);
         setGates(gateItems);
         const initialStationId = stationItems[0]?.stationId || "";
@@ -139,11 +220,7 @@ function StaffScanPage() {
         setGate(
           (current) =>
             current ||
-            gateItems.find(
-              (item) =>
-                (!initialStationId || item.stationId === initialStationId) &&
-                matchesMode(item.action, "TAP-IN"),
-            )?.gateId ||
+            pickGateForMode(gateItems, initialStationId, "TAP-IN")?.gateId ||
             "",
         );
         setFilterError(null);
@@ -176,7 +253,7 @@ function StaffScanPage() {
       return;
     }
 
-    const trimmed = rawToken.trim();
+    const trimmed = scanContent(rawToken);
 
     if (!trimmed) {
       setLastScan(null);
@@ -192,21 +269,22 @@ function StaffScanPage() {
 
     setIsScanning(true);
     try {
+      const selectedGate = gates.find((item) => item.gateId === gate);
       const result = await staffGateApi.scan({
         qrContent: trimmed,
-        deviceId: DEFAULT_DEVICE_ID,
+        deviceId: selectedGate?.deviceId || selectedGate?.deviceCode || gate,
         stationId: station,
         gateId: gate,
       });
 
       const statusRaw = String(result.result ?? "").toUpperCase();
-      const ok = statusRaw === "SUCCESS" || statusRaw === "ACCEPTED";
+      const ok = ["ALLOW", "SUCCESS", "ACCEPTED"].includes(statusRaw);
 
-      const message = result.message || (ok ? "ACCEPTED" : "REJECTED");
+      const message = result.message || (ok ? "ALLOW" : "DENY");
 
       const validation: ValidationResult = ok
         ? {
-            status: "SUCCESS",
+            status: "ALLOW",
             title: "Chấp nhận",
             subtitle: "Giao dịch thành công - Mở cổng",
             message,
@@ -224,10 +302,7 @@ function StaffScanPage() {
       setLastValidation(validation);
       await loadLogs();
     } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : "Không thể gọi API /staff/gates/scan";
+      const message = scanErrorMessage(err);
       setLastScan(null);
       setLastValidation({
         status: "INVALID",
@@ -366,8 +441,7 @@ function StaffScanPage() {
                           const stationId = e.target.value;
                           setStation(stationId);
                           setGate(
-                            gates.find((item) => item.stationId === stationId && matchesMode(item.action, mode))
-                              ?.gateId ?? "",
+                            pickGateForMode(gates, stationId, mode)?.gateId ?? "",
                           );
                         }}
                         disabled={filterLoading}
@@ -397,10 +471,21 @@ function StaffScanPage() {
                     <div className="relative">
                       <select
                         value={gate}
-                        onChange={(e) => setGate(e.target.value)}
+                        onChange={(e) => {
+                          const gateId = e.target.value;
+                          setGate(gateId);
+                          const selectedGate = gates.find((item) => item.gateId === gateId);
+                          if (selectedGate?.stationId) {
+                            setStation(selectedGate.stationId);
+                          }
+                        }}
+                        onFocus={() => {
+                          void refreshGates();
+                        }}
                         disabled={filterLoading || !station}
                         className="h-11 w-full appearance-none rounded-2xl bg-slate-50 px-4 pr-10 text-sm font-normal leading-5 text-slate-900 outline outline-1 outline-offset-[-1px] outline-slate-200"
                       >
+                        {gateLoading && <option value={gate}>Đang tải cổng...</option>}
                         {availableGates.length === 0 && <option value="">Không có cổng</option>}
                         {availableGates.map((g) => (
                           <option key={g.gateId} value={g.gateId}>
@@ -521,8 +606,7 @@ function StaffScanPage() {
                     onClick={() => {
                       setMode("TAP-IN");
                       setGate(
-                        gates.find((item) => item.stationId === station && matchesMode(item.action, "TAP-IN"))
-                          ?.gateId ?? "",
+                        pickGateForMode(gates, station, "TAP-IN")?.gateId ?? "",
                       );
                     }}
                     className={`flex-1 rounded-3xl px-4 py-7 text-center outline outline-2 outline-offset-[-2px] transition ${
@@ -551,8 +635,7 @@ function StaffScanPage() {
                     onClick={() => {
                       setMode("TAP-OUT");
                       setGate(
-                        gates.find((item) => item.stationId === station && matchesMode(item.action, "TAP-OUT"))
-                          ?.gateId ?? "",
+                        pickGateForMode(gates, station, "TAP-OUT")?.gateId ?? "",
                       );
                     }}
                     className={`flex-1 rounded-3xl p-4 text-center outline outline-2 outline-offset-[-2px] transition ${
@@ -699,8 +782,8 @@ function StaffScanPage() {
                     </div>
                     <div className="px-6 py-4 text-right">
                       <span className={`inline-flex rounded-lg px-2 py-0.5 text-xs font-bold ${
-                        ["SUCCESS", "ACCEPTED"].includes(row.result?.toUpperCase()) ? "bg-green-100 text-green-700"
-                          : row.result?.toUpperCase() === "NOT_ALLOWED" ? "bg-amber-100 text-amber-700"
+                        ["ALLOW", "SUCCESS", "ACCEPTED"].includes(row.result?.toUpperCase()) ? "bg-green-100 text-green-700"
+                          : ["DENY", "NOT_ALLOWED"].includes(row.result?.toUpperCase()) ? "bg-amber-100 text-amber-700"
                           : "bg-red-100 text-red-700"
                       }`}>{row.result || "-"}</span>
                       {row.message ? <div className="mt-1 text-xs font-medium leading-4 text-slate-500">{row.message}</div> : null}

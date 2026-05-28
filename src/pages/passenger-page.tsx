@@ -29,7 +29,7 @@ type StatCard = {
 
 type TicketCard = {
   rawId?: string;
-  status: "Sẵn sàng sử dụng" | "Chưa dùng" | "Hết hạn";
+  status: "Sẵn sàng sử dụng" | "Chưa dùng" | "Đã dùng" | "Hết hạn";
   code: string;
   type: string;
   route: string;
@@ -79,8 +79,17 @@ type OrderRow = {
 
 const mapTicketStatus = (status?: string): TicketCard["status"] => {
   const v = (status ?? "").toLowerCase();
+  if (
+    v.includes("used") ||
+    v.includes("completed") ||
+    v.includes("consumed") ||
+    v.includes("finished") ||
+    v.includes("checked_out") ||
+    v.includes("tap_out") ||
+    v.includes("exited")
+  ) return "Đã dùng";
   if (v.includes("expired") || v.includes("inactive") || v.includes("invalid")) return "Hết hạn";
-  if (v.includes("ready") || v.includes("active") || v.includes("valid") || v.includes("using") || v.includes("in_use")) return "Sẵn sàng sử dụng";
+  if (v.includes("ready") || v.includes("active") || v.includes("valid") || v.includes("using") || v.includes("in_use") || v.includes("checked_in") || v.includes("tap_in") || v.includes("entered")) return "Sẵn sàng sử dụng";
   if (v.includes("new") || v.includes("unused") || v.includes("created")) return "Chưa dùng";
   return "Chưa dùng";
 };
@@ -88,6 +97,7 @@ const mapTicketStatus = (status?: string): TicketCard["status"] => {
 const mapTicketTone = (status: TicketCard["status"]): TicketCard["tone"] => {
   if (status === "Sẵn sàng sử dụng") return "green";
   if (status === "Chưa dùng") return "amber";
+  if (status === "Đã dùng") return "red";
   return "red";
 };
 

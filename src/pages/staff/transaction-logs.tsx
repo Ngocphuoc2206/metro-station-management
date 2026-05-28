@@ -17,7 +17,7 @@ type StationResponse = {
   status?: string;
 };
 
-type ResultFilter = "" | "ACCEPTED" | "REJECTED";
+type ResultFilter = "" | "ALLOW" | "DENY";
 
 type FormFilters = {
   stationId: string;
@@ -61,7 +61,7 @@ function formatDateTime(value?: string) {
 }
 
 function isAccepted(result?: string) {
-  return ["ACCEPTED", "SUCCESS"].includes((result ?? "").toUpperCase());
+  return ["ALLOW", "ACCEPTED", "SUCCESS"].includes((result ?? "").toUpperCase());
 }
 
 function formatAction(action?: string) {
@@ -288,8 +288,8 @@ function TransactionLogsPage() {
                   className="w-full rounded-xl bg-slate-50 px-4 py-2 text-sm text-slate-900 outline outline-1 outline-offset-[-1px] outline-slate-200"
                 >
                   <option value="">Tất cả trạng thái</option>
-                  <option value="ACCEPTED">SUCCESS</option>
-                  <option value="REJECTED">REJECTED</option>
+                  <option value="ALLOW">ALLOW</option>
+                  <option value="DENY">DENY</option>
                 </select>
               </label>
             </div>
@@ -331,7 +331,7 @@ function TransactionLogsPage() {
                       <div className="text-sm font-medium text-slate-900">{log.gateCode || log.gateId || "-"}</div>
                       <div><span className={`rounded-md px-2.5 py-1 text-[10px] font-bold uppercase ${action === "Tap-In" ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"}`}>{action}</span></div>
                       <div className="font-mono text-sm font-medium text-blue-600">{log.ticketCode || log.ticketId || "-"}</div>
-                      <div><span className={`rounded-md px-2.5 py-1 text-[10px] font-bold uppercase ${accepted ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>{accepted ? "SUCCESS" : "REJECTED"}</span></div>
+                      <div><span className={`rounded-md px-2.5 py-1 text-[10px] font-bold uppercase ${accepted ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>{accepted ? "ALLOW" : "DENY"}</span></div>
                       <div className={`text-sm font-medium ${accepted ? "text-slate-400" : "text-red-600"}`}>{log.message || "-"}</div>
                     </button>
                   );

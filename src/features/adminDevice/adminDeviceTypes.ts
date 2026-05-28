@@ -1,4 +1,4 @@
-export type AdminDeviceStatus = "ONLINE" | "OFFLINE" | "MAINTENANCE";
+export type AdminDeviceStatus = "ACTIVE" | "INACTIVE" | "ERROR" | "MAINTENANCE";
 
 export type DeviceDetailKind = "GATE" | "TICKET_MACHINE" | "SCANNER";
 
@@ -10,7 +10,6 @@ export interface AdminDeviceRequest {
   stationId: string;
   typeId: string;
   status: AdminDeviceStatus;
-  lastMaintenance?: string;
   directionMode?: string;
   gateType?: string;
   emergencyMode?: boolean;
@@ -35,6 +34,5 @@ export interface AdminDeviceResponse {
   stationName?: string;
   typeId?: string;
   typeName?: string;
-  lastMaintenance?: string;
   additionalDetails?: Record<string, unknown>;
 }

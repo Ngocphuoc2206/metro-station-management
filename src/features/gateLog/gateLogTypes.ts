@@ -1,26 +1,23 @@
-export type GateResult = "success" | "rejected";
-export type GateAction = "enter" | "exit";
-export type TicketType = "qr" | "nfc" | "monthly" | "daily";
+export type GateResult = "ALLOW" | "DENY";
+export type GateAction = "TAP_IN" | "TAP_OUT";
 
 export interface GateLog {
   id: string;
-  timestamp: string; // "DD/MM/YYYY HH:mm:ss"
-  gateId: string; // "G-STN-001"
-  ticketId: string; // "G-STN-0003"
+  timestamp: string;
+  gateId: string;
+  gateCode: string;
+  ticketId: string;
+  ticketCode: string;
   action: GateAction;
   result: GateResult;
-  ticketType: TicketType;
-  // detail fields
-  passengerName?: string;
-  station: string;
-  rejectionReason?: string; // only when result === "rejected"
-  deviceFirmware?: string;
-  transactionMs?: number; // response time in ms
+  message?: string;
+  stationId: string;
+  stationName: string;
 }
 
 export interface GateLogs {
   timeRange: "all" | "today" | "1h" | "8h";
-  gateId: string; // "" = all
-  ticketType: TicketType | "";
+  stationId: string;
+  gateId: string;
   result: GateResult | "";
 }
