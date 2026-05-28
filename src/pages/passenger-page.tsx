@@ -5,7 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 import PassengerShell from "@components/templates/PassengerShell";
 import { myTicketApi } from "@features/myTicket/myTicketApi";
 import type { MyTicketDto } from "@features/myTicket/myTicketTypes";
-import { orderApi } from "@features/order/orderApi";
+import { tripApi } from "@features/trip/tripApi";
+import type { TripDto } from "@features/trip/tripTypes";
 import {
   Bell,
   CalendarClock,
@@ -36,6 +37,16 @@ type TicketCard = {
   tone: "green" | "amber" | "red";
   disabled?: boolean;
 };
+
+type TripRow = {
+  date: string;
+  from: string;
+  to: string;
+  fare: string;
+  status: string;
+};
+
+const PURCHASE_SUMMARY_KEY = "metro-passenger-purchase-summary";
 
 const statIcons = {
   green: Ticket,
@@ -68,14 +79,6 @@ const toneClass = {
   },
 };
 
-
-type OrderRow = {
-  id?: string;
-  status?: string;
-  total?: number;
-  createdAt?: string;
-  data?: unknown;
-};
 
 const mapTicketStatus = (status?: string): TicketCard["status"] => {
   const v = (status ?? "").toLowerCase();
@@ -120,29 +123,15 @@ const formatDateTime = (iso?: string) => {
   }).format(date);
 };
 
-const safeArray = <T,>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
-
-const extractOrders = (value: unknown): OrderRow[] => {
-  if (Array.isArray(value)) return value as OrderRow[];
-  if (value && typeof value === "object") {
-    const anyValue = value as Record<string, unknown>;
-    const items = anyValue.items ?? anyValue.data ?? anyValue.results;
-    return safeArray<OrderRow>(items);
+const statusTone = (status?: string) => {
+  const value = (status ?? "").toLowerCase();
+  if (value.includes("fail") || value.includes("cancel") || value.includes("reject")) {
+    return "bg-red-100 text-red-700";
   }
-  return [];
-};
-
-const extractStationsFromOrderData = (data: unknown): { from?: string; to?: string } => {
-  if (!data || typeof data !== "object") return {};
-  const anyData = data as Record<string, unknown>;
-
-  const from = anyData.originStationName ?? anyData.fromStationName ?? anyData.originName ?? anyData.from;
-  const to = anyData.destinationStationName ?? anyData.toStationName ?? anyData.destinationName ?? anyData.to;
-
-  return {
-    from: typeof from === "string" ? from : undefined,
-    to: typeof to === "string" ? to : undefined,
-  };
+  if (value.includes("pending") || value.includes("progress")) {
+    return "bg-amber-100 text-amber-700";
+  }
+  return "bg-green-100 text-green-700";
 };
 
 export default function PassengerPage() {
@@ -150,9 +139,9 @@ export default function PassengerPage() {
   const [remainingSeconds, setRemainingSeconds] = useState(60);
 
   const [tickets, setTickets] = useState<MyTicketDto[]>([]);
-  const [orders, setOrders] = useState<OrderRow[]>([]);
+  const [trips, setTrips] = useState<TripDto[]>([]);
+  const [localPurchaseSpend, setLocalPurchaseSpend] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [qrImageUrl, setQrImageUrl] = useState<string | null>(null);
   const [qrError, setQrError] = useState<string | null>(null);
@@ -163,20 +152,22 @@ export default function PassengerPage() {
 
     const load = async () => {
       setIsLoading(true);
-      setLoadError(null);
 
       try {
-        const [ticketList, orderStatusRes] = await Promise.all([
+        const [ticketResult, tripResult] = await Promise.allSettled([
           myTicketApi.list(),
-          orderApi.getStatus(),
+          tripApi.list({ page: 0, limit: 3 }),
         ]);
 
         if (cancelled) return;
-        setTickets(ticketList);
-        setOrders(extractOrders(orderStatusRes));
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Không thể tải dữ liệu dashboard";
-        if (!cancelled) setLoadError(message);
+        if (ticketResult.status === "fulfilled") {
+          setTickets(ticketResult.value);
+        }
+        if (tripResult.status === "fulfilled") {
+          setTrips(tripResult.value.items);
+        }
+      } catch {
+        // Dashboard keeps its empty states if the optional passenger data is unavailable.
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -189,46 +180,71 @@ export default function PassengerPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const rawSummary = window.localStorage.getItem(PURCHASE_SUMMARY_KEY);
+      const summaries = rawSummary ? JSON.parse(rawSummary) : [];
+      if (!Array.isArray(summaries)) return;
+
+      const total = summaries.reduce((sum, item) => {
+        if (!item || typeof item !== "object") return sum;
+        const value = Number((item as { total?: unknown }).total);
+        return Number.isFinite(value) ? sum + value : sum;
+      }, 0);
+      setLocalPurchaseSpend(total);
+    } catch {
+      setLocalPurchaseSpend(0);
+    }
+  }, []);
+
   const derivedStats: StatCard[] = useMemo(() => {
     const activeCount = tickets.filter((t) => mapTicketStatus(t.status) === "Sẵn sàng sử dụng").length;
-    const orderCount = orders.length;
-    const spend = orders.reduce((sum, o) => sum + (typeof o.total === "number" ? o.total : 0), 0);
+    const apiSpend =
+      trips.reduce((sum, trip) => sum + (typeof trip.fare === "number" ? trip.fare : 0), 0) ||
+      tickets.reduce((sum, ticket) => sum + (typeof ticket.price === "number" ? ticket.price : 0), 0);
+    const spend = Math.max(apiSpend, localPurchaseSpend);
 
     return [
       { label: "Vé đang hoạt động", value: String(activeCount), tone: "green" },
-      { label: "Đơn hàng", value: String(orderCount), tone: "blue" },
+      { label: "Chuyến đi", value: String(trips.length), tone: "blue" },
       { label: "Chi phí", value: formatMoneyVnd(spend), tone: "amber" },
       { label: "Thông báo", value: "0", subLabel: "mới", tone: "red" },
     ];
-  }, [orders, tickets]);
+  }, [localPurchaseSpend, tickets, trips]);
 
   const derivedRecentTickets: TicketCard[] = useMemo(() => {
     return tickets.slice(0, 3).map((t) => {
       const status = mapTicketStatus(t.status);
       const tone = mapTicketTone(status);
+      const route =
+        t.routeName ||
+        [t.originStationName, t.destinationStationName].filter(Boolean).join(" - ") ||
+        "Tuyến metro";
       return {
         rawId: t.id,
         status,
         code: t.code ? `#${t.code}` : `#${t.id}`,
-        type: mapTicketTypeLabel(t.ticketTypeId),
-        route: "--",
+        type: t.ticketTypeName || mapTicketTypeLabel(t.ticketTypeId),
+        route,
         tone,
         disabled: status === "Hết hạn",
       };
     });
   }, [tickets]);
 
-  const derivedTableRows = useMemo(() => {
-    return orders.slice(0, 3).map((o) => {
-      const stations = extractStationsFromOrderData(o.data);
-      return {
-        date: formatDateTime(o.createdAt),
-        from: stations.from ?? "--",
-        to: stations.to ?? "--",
-        fare: formatMoneyVnd(o.total),
-      };
-    });
-  }, [orders]);
+  const derivedTableRows = useMemo<TripRow[]>(
+    () =>
+      trips.slice(0, 3).map((trip) => ({
+        date: formatDateTime(trip.checkInAt),
+        from: trip.originStationName || "--",
+        to: trip.destinationStationName || "--",
+        fare: formatMoneyVnd(trip.fare),
+        status: trip.status || "Thành công",
+      })),
+    [trips],
+  );
 
   useEffect(() => {
     if (!selectedTicket?.rawId) {
@@ -319,12 +335,6 @@ export default function PassengerPage() {
                 <span>Mua vé ngay</span>
               </Link>
             </div>
-
-            {loadError ? (
-              <div className="rounded-3xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
-                {loadError}
-              </div>
-            ) : null}
 
             {isLoading ? (
               <div className="rounded-3xl border border-slate-200 bg-white/80 px-4 py-3 text-sm font-semibold text-slate-700">
@@ -420,6 +430,11 @@ export default function PassengerPage() {
                         </button>
                       </article>
                     ))}
+                    {!derivedRecentTickets.length && !isLoading ? (
+                      <div className="rounded-3xl border border-dashed border-slate-200 bg-white/70 p-6 text-sm font-medium text-slate-500 sm:col-span-2 2xl:col-span-3">
+                        Bạn chưa có vé nào. Hãy mua vé để bắt đầu chuyến đi.
+                      </div>
+                    ) : null}
                   </div>
                 </section>
 
@@ -459,13 +474,18 @@ export default function PassengerPage() {
                               {row.fare}
                             </div>
                             <div className="px-6 py-4">
-                              <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-1 text-xs font-bold text-green-700">
+                              <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${statusTone(row.status)}`}>
                                 <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
-                                Thành công
+                                {row.status}
                               </span>
                             </div>
                           </div>
                         ))}
+                        {!derivedTableRows.length && !isLoading ? (
+                          <div className="px-6 py-10 text-center text-sm font-medium text-slate-500">
+                            Chưa có chuyến đi gần đây.
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -478,21 +498,29 @@ export default function PassengerPage() {
                     Thao tác nhanh
                   </h3>
                   <div className="space-y-3">
-                    <button className="flex w-full items-center justify-between rounded-3xl border border-blue-600/10 bg-blue-600/5 p-4 text-blue-600">
+                    <Link href="/passenger-page/buy-tickets-step-1" className="flex w-full items-center justify-between rounded-3xl border border-blue-600/10 bg-blue-600/5 p-4 text-blue-600">
                       <div className="flex items-center gap-3">
                         <Ticket className="h-5 w-5" />
                         <span className="text-base font-bold">Mua vé lượt</span>
                       </div>
                       <ChevronRight className="h-4 w-4" />
-                    </button>
+                    </Link>
 
-                    <button className="flex w-full items-center justify-between rounded-3xl bg-slate-100 p-4 text-slate-700">
+                    <Link href="/passenger-page/my-tickets" className="flex w-full items-center justify-between rounded-3xl bg-slate-100 p-4 text-slate-700">
                       <div className="flex items-center gap-3">
                         <CalendarClock className="h-5 w-5" />
-                        <span className="text-base font-bold">Mua vé ngày</span>
+                        <span className="text-base font-bold">Vé của tôi</span>
                       </div>
                       <ChevronRight className="h-4 w-4" />
-                    </button>
+                    </Link>
+
+                    <Link href="/passenger-page/history" className="flex w-full items-center justify-between rounded-3xl bg-slate-100 p-4 text-slate-700">
+                      <div className="flex items-center gap-3">
+                        <Clock3 className="h-5 w-5" />
+                        <span className="text-base font-bold">Lịch sử chuyến</span>
+                      </div>
+                      <ChevronRight className="h-4 w-4" />
+                    </Link>
 
                     <Link
                       href="/passenger-page/schedule"

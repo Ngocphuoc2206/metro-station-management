@@ -25,6 +25,10 @@ export const API_ENDPOINTS = {
   },
   schedules: {
     base: endpoint(process.env.NEXT_PUBLIC_SCHEDULES_ENDPOINT, "/schedules"),
+    admin: endpoint(
+      process.env.NEXT_PUBLIC_ADMIN_SCHEDULES_ENDPOINT,
+      "/admin/schedules",
+    ),
   },
   live: {
     trains: endpoint(process.env.NEXT_PUBLIC_LIVE_TRAINS_ENDPOINT, "/live/trains"),

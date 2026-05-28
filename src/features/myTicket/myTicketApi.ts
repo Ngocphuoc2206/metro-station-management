@@ -32,6 +32,9 @@ const normalizeTicket = (raw: unknown): MyTicketDto | null => {
   const type = item.ticketType && typeof item.ticketType === "object"
     ? item.ticketType as Record<string, unknown>
     : {};
+  const order = item.order && typeof item.order === "object"
+    ? item.order as Record<string, unknown>
+    : {};
   return {
     id,
     code: text(item.code ?? item.ticketCode ?? id),
@@ -43,7 +46,18 @@ const normalizeTicket = (raw: unknown): MyTicketDto | null => {
     routeName: text(item.routeName) || undefined,
     validFrom: text(item.validFrom ?? item.startDate ?? item.activatedAt) || undefined,
     validTo: text(item.validTo ?? item.endDate ?? item.expiredAt) || undefined,
-    price: optionalNumber(item.price ?? item.amount),
+    price: optionalNumber(
+      item.price ??
+        item.amount ??
+        item.fare ??
+        item.total ??
+        item.totalAmount ??
+        item.paidAmount ??
+        type.price ??
+        type.amount ??
+        order.total ??
+        order.totalAmount,
+    ),
   };
 };
 

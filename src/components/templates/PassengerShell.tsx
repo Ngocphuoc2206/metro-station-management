@@ -2,6 +2,7 @@ import { useRouter } from "next/router";
 import type { ReactNode } from "react";
 import { useDispatch } from "react-redux";
 import { Bell, LogOut, Search, Settings } from "lucide-react";
+import PassengerChatbotWidget from "@components/organisms/PassengerChatbot/PassengerChatbotWidget";
 import PassengerSidebar from "./PassengerSidebar";
 import type { AppDispatch } from "@stores/index";
 import { logout } from "@stores/slices/userSlice";
@@ -59,6 +60,7 @@ export default function PassengerShell({ children }: PassengerShellProps) {
           <section className="flex-1 p-4 sm:p-8">{children}</section>
         </main>
       </div>
+      <PassengerChatbotWidget />
     </div>
   );
 }
