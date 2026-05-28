@@ -96,6 +96,8 @@ public enum ErrorCode {
     INCIDENT_NOT_FOUND(1068, "Incident not found"),
     INVALID_INCIDENT_STATUS(1069, "Invalid incident status modification"),
     COMMENT_EMPTY(1070, "Comment content cannot be empty or blank"),
+
+    DUPLICATE_ORDER(1071, "Duplicate order. Please verify your cart or wait 5 minutes."),
     // Uncategorized
     UNCATEGORIZED_EXCEPTION  (9999, "UNCATEGORIZED_EXCEPTION!")
     ;

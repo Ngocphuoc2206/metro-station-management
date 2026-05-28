@@ -56,7 +56,7 @@ public class TicketService {
                         .orderItem(item)
                         .status(TicketStatus.READY)
                         .issuedAt(now)
-                        .expiredAt(now.plusDays(resolveValidityDays(item.getTicketTypeId())))
+                        .expiredAt(now.plusDays(resolveValidityDays(item.getTicketType().getId())))
                         .build();
 
                 tickets.add(ticket);

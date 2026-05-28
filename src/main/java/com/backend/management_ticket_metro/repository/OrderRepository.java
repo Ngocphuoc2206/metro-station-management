@@ -6,6 +6,7 @@ import com.backend.management_ticket_metro.enums.OrderStatus;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface OrderRepository extends JpaRepository<Order,String> {
@@ -15,4 +16,6 @@ public interface OrderRepository extends JpaRepository<Order,String> {
     // --- Dashboard ---
     //Find the User's first (most recent) order.
     List<Order> findByUserOrderByCreatedAtDesc(User user, Pageable pageable);
+    // Find orders for a specific user created after 'dateTime'
+    List<Order> findByUserAndCreatedAtAfter(User user, LocalDateTime dateTime);
 }
