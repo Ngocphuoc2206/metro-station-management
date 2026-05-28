@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { apiClient } from "@features/httpClient/ApiClient";
 import { API_ENDPOINTS } from "@features/httpClient/apiEndpoints";
@@ -7,41 +7,68 @@ import { API_ENDPOINTS } from "@features/httpClient/apiEndpoints";
 interface ApiDevice {
   id?: string; deviceId?: string; gateId?: string;
   code?: string; gateCode?: string; deviceCode?: string;
-  name?: string; type?: string; deviceType?: string;
+  name?: string; type?: string; deviceType?: string; typeName?: string;
   status?: string; stationName?: string;
   [k: string]: unknown;
+}
+interface ApiStation {
+  stationId: string;
+  name: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+  status?: string;
+}
+interface ApiLiveStationStatus {
+  stationId: string;
+  status?: string;
+  congestionLevel?: number;
+  message?: string;
+  updatedAt?: string;
+}
+interface ApiGateLog {
+  id: string;
+  gateId?: string;
+  gateCode?: string;
+  stationId?: string;
+  stationName?: string;
+  ticketId?: string;
+  ticketCode?: string;
+  action?: string;
+  result?: string;
+  message?: string;
+  scannedAt?: string;
+}
+interface ApiGate {
+  gateId: string;
+  gateCode: string;
+  name?: string;
+  stationId?: string;
+  stationName?: string;
+  action?: string;
+  status?: string;
 }
 interface ApiIncident {
   id?: string; incidentId?: string;
   title?: string; description?: string;
   priority?: string; severity?: string;
   status?: string; stationId?: string; stationName?: string;
-  gateCode?: string; deviceCode?: string;
-  createdAt?: string;
+  gateId?: string; gateCode?: string;
+  deviceId?: string; deviceCode?: string;
+  reporterName?: string; assigneeName?: string;
+  createdAt?: string; updatedAt?: string;
   [k: string]: unknown;
 }
 
-// ── Mock hourly bar chart data ─────────────────────────────────────────────
-const HOURS = ["06:00","08:00","10:00","12:00","14:00","16:00","18:00","20:00","21:00"];
-const VALUES = [120, 340, 820, 1100, 1380, 1420, 980, 560, 240];
-const MAX_V = Math.max(...VALUES);
-
-// ── Mock recent transactions ───────────────────────────────────────────────
-const MOCK_TXN = [
-  { time:"15:44:02", station:"Ga Bến Thành", device:"Gate A-01", ticket:"MN-8849-2041", ok:true, reason:"" },
-  { time:"15:43:17", station:"Ga Bến Thành", device:"Gate A-02", ticket:"MN-1102-5534", ok:false, reason:"Vé hết hạn" },
-  { time:"15:42:55", station:"Ga Bến Thành", device:"Gate B-01", ticket:"MN-4402-9912", ok:false, reason:"Thẻ chưa kích hoạt" },
-  { time:"15:41:10", station:"Ga Văn Thánh", device:"Gate A-05", ticket:"MN-7721-1002", ok:true, reason:"" },
-  { time:"15:40:09", station:"Ga Ba Son",    device:"Gate C-02", ticket:"MN-3310-8821", ok:true, reason:"" },
-];
+const CHART_HOURS = Array.from({ length: 12 }, (_, index) => index * 2);
 
 function getCode(d: ApiDevice) {
   return d.code ?? d.gateCode ?? d.deviceCode ?? d.name ?? (d.id ?? "").slice(0,8).toUpperCase() ?? "—";
 }
-function getStatus(d: ApiDevice) {
-  const s = (d.status ?? "").toLowerCase();
-  if (s === "active" || s === "online") return "ONLINE";
-  if (s === "error" || s === "maintenance") return "ERROR";
+function getGateStatus(gate: ApiGate) {
+  const status = (gate.status ?? "").toUpperCase();
+  if (status === "ACTIVE" || status === "ONLINE") return "ONLINE";
+  if (status === "ERROR" || status === "MAINTENANCE") return "ERROR";
   return "OFFLINE";
 }
 function fmtTime(iso?: string) {
@@ -60,7 +87,7 @@ function sevColor(sev: string) {
 }
 function statusColor(st: string) {
   const v = st.toUpperCase().replace(/[_\s]/g,"");
-  if (v === "OPEN" || v === "NEW") return "bg-blue-100 text-blue-700";
+  if (v === "OPEN" || v === "NEW" || v === "PENDING") return "bg-blue-100 text-blue-700";
   if (v.includes("PROGRESS")) return "bg-yellow-100 text-yellow-700";
   if (v === "RESOLVED" || v === "CLOSED") return "bg-green-100 text-green-700";
   return "bg-gray-100 text-gray-700";
@@ -68,6 +95,7 @@ function statusColor(st: string) {
 function statusLabel(st: string) {
   const v = st.toUpperCase().replace(/[_\s]/g,"");
   if (v === "OPEN" || v === "NEW") return "MỚI";
+  if (v === "PENDING") return "CHỜ XỬ LÝ";
   if (v === "ASSIGNED") return "ĐÃ PHÂN CÔNG";
   if (v.includes("PROGRESS")) return "ĐANG XỬ LÝ";
   if (v === "RESOLVED") return "ĐÃ XONG";
@@ -79,9 +107,59 @@ function getNow() {
   return new Date().toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
 }
 
+function getList<T>(data: { results?: T[] } | T[]): T[] {
+  if (Array.isArray(data)) return data;
+  return Array.isArray(data.results) ? data.results : [];
+}
+
+function toLocalDateTime(date: Date) {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+function localDateTimeHoursAgo(hours: number) {
+  return toLocalDateTime(new Date(Date.now() - hours * 60 * 60 * 1000));
+}
+
+function isOperationalStatus(status?: string) {
+  const value = (status ?? "").toUpperCase();
+  return (
+    value === "ACTIVE" ||
+    value === "ONLINE" ||
+    value.includes("NORMAL") ||
+    value.includes("OPERATIONAL")
+  );
+}
+
+function groupLogsByHour(logs: ApiGateLog[]) {
+  return CHART_HOURS.map((startHour) => {
+    const bucket = logs.filter((log) => {
+      if (!log.scannedAt) return false;
+      const hour = new Date(log.scannedAt).getHours();
+      return hour >= startHour && hour < startHour + 2;
+    });
+    return {
+      label: `${String(startHour).padStart(2, "0")}:00`,
+      inbound: bucket.filter((log) => log.action?.toUpperCase() === "IN").length,
+      outbound: bucket.filter((log) => log.action?.toUpperCase() === "OUT").length,
+    };
+  });
+}
+
 export default function StaffDashboard() {
+  const [stations, setStations] = useState<ApiStation[]>([]);
   const [devices, setDevices] = useState<ApiDevice[]>([]);
   const [incidents, setIncidents] = useState<ApiIncident[]>([]);
+  const [pendingIncidentCount, setPendingIncidentCount] = useState(0);
+  const [liveStationStatuses, setLiveStationStatuses] = useState<ApiLiveStationStatus[]>([]);
+  const [gateLogs, setGateLogs] = useState<ApiGateLog[]>([]);
+  const [chartGateLogs, setChartGateLogs] = useState<ApiGateLog[]>([]);
+  const [gates, setGates] = useState<ApiGate[]>([]);
+  const [selectedStationId, setSelectedStationId] = useState("");
+  const [selectedDeviceId, setSelectedDeviceId] = useState("");
+  const [timeWindow, setTimeWindow] = useState<"1h" | "24h" | "7d">("1h");
+  const [incidentStatus, setIncidentStatus] = useState("");
+  const [incidentPriority, setIncidentPriority] = useState("");
   const [loading, setLoading] = useState(true);
   const [clock, setClock] = useState(getNow());
   const [autoRefresh, setAutoRefresh] = useState(true);
@@ -94,27 +172,79 @@ export default function StaffDashboard() {
     return () => clearInterval(t);
   }, []);
 
-  const fetchAll = async () => {
+  const fetchAll = useCallback(async () => {
+    setLoading(true);
+    const hours = timeWindow === "1h" ? 1 : timeWindow === "24h" ? 24 : 24 * 7;
+    const chartHours = chartRange === "24h" ? 24 : 24 * 7;
+    const commonParams = {
+      stationId: selectedStationId || undefined,
+    };
     try {
-      const [devRes, incRes] = await Promise.allSettled([
-        apiClient.get<{ results?: ApiDevice[] }>(API_ENDPOINTS.devices.staff),
-        apiClient.get<{ results?: ApiIncident[] }>(`${API_ENDPOINTS.incidents.staff}?page=1&size=10`),
+      const [stationRes, devRes, incRes, pendingIncRes, liveRes, logsRes, chartLogsRes, gatesRes] = await Promise.allSettled([
+        apiClient.get<{ results?: ApiStation[] } | ApiStation[]>(API_ENDPOINTS.stations.base),
+        apiClient.get<{ results?: ApiDevice[] } | ApiDevice[]>(API_ENDPOINTS.devices.staff),
+        apiClient.get<{ results?: ApiIncident[] } | ApiIncident[]>(API_ENDPOINTS.incidents.staff, {
+          params: {
+            ...commonParams,
+            status: incidentStatus || undefined,
+            priority: incidentPriority || undefined,
+          },
+        }),
+        apiClient.get<{ results?: ApiIncident[] } | ApiIncident[]>(API_ENDPOINTS.incidents.staff, {
+          params: { ...commonParams, status: "PENDING" },
+        }),
+        apiClient.get<{ results?: ApiLiveStationStatus[] } | ApiLiveStationStatus[]>(
+          API_ENDPOINTS.live.stationStatus,
+        ),
+        apiClient.get<{ results?: ApiGateLog[] } | ApiGateLog[]>(API_ENDPOINTS.gates.logs, {
+          params: {
+            ...commonParams,
+            gateId: selectedDeviceId || undefined,
+            from: localDateTimeHoursAgo(hours),
+            to: toLocalDateTime(new Date()),
+          },
+        }),
+        apiClient.get<{ results?: ApiGateLog[] } | ApiGateLog[]>(API_ENDPOINTS.gates.logs, {
+          params: {
+            ...commonParams,
+            gateId: selectedDeviceId || undefined,
+            from: localDateTimeHoursAgo(chartHours),
+            to: toLocalDateTime(new Date()),
+          },
+        }),
+        apiClient.get<{ results?: ApiGate[] } | ApiGate[]>(API_ENDPOINTS.gates.staff),
       ]);
+      if (stationRes.status === "fulfilled") {
+        setStations(getList(stationRes.value.data));
+      }
       if (devRes.status === "fulfilled") {
-        const raw = devRes.value.data?.results ?? [];
-        setDevices(Array.isArray(raw) ? raw : []);
+        setDevices(getList(devRes.value.data));
       }
       if (incRes.status === "fulfilled") {
-        const raw = incRes.value.data?.results ?? [];
-        setIncidents(Array.isArray(raw) ? raw : []);
+        setIncidents(getList(incRes.value.data));
+      }
+      if (pendingIncRes.status === "fulfilled") {
+        setPendingIncidentCount(getList(pendingIncRes.value.data).length);
+      }
+      if (liveRes.status === "fulfilled") {
+        setLiveStationStatuses(getList(liveRes.value.data));
+      }
+      if (logsRes.status === "fulfilled") {
+        setGateLogs(getList(logsRes.value.data));
+      }
+      if (chartLogsRes.status === "fulfilled") {
+        setChartGateLogs(getList(chartLogsRes.value.data));
+      }
+      if (gatesRes.status === "fulfilled") {
+        setGates(getList(gatesRes.value.data));
       }
     } catch { /* ignore */ }
     finally { setLoading(false); }
-  };
+  }, [chartRange, incidentPriority, incidentStatus, selectedDeviceId, selectedStationId, timeWindow]);
 
   useEffect(() => {
     fetchAll();
-  }, []);
+  }, [fetchAll]);
 
   // Auto refresh every 30s
   useEffect(() => {
@@ -124,13 +254,43 @@ export default function StaffDashboard() {
       if (intervalRef.current) clearInterval(intervalRef.current);
     }
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [autoRefresh]);
+  }, [autoRefresh, fetchAll]);
 
-  const online = devices.filter(d => getStatus(d) === "ONLINE");
-  const offline = devices.filter(d => getStatus(d) === "OFFLINE");
-  const errorD  = devices.filter(d => getStatus(d) === "ERROR");
-  const openInc = incidents.filter(d => !["resolved","closed"].includes((d.status??"").toLowerCase()));
-  const isPeak = true;
+  const displayedGates = gates.filter(
+    (gate) =>
+      (!selectedStationId || gate.stationId === selectedStationId) &&
+      (!selectedDeviceId || gate.gateId === selectedDeviceId),
+  );
+  const online = displayedGates.filter((gate) => getGateStatus(gate) === "ONLINE");
+  const offline = displayedGates.filter((gate) => getGateStatus(gate) === "OFFLINE");
+  const errorD = displayedGates.filter((gate) => getGateStatus(gate) === "ERROR");
+  const displayedLiveStatuses = liveStationStatuses.filter(
+    (station) => !selectedStationId || station.stationId === selectedStationId,
+  );
+  const congestionLevel = displayedLiveStatuses.reduce(
+    (maximum, station) => Math.max(maximum, station.congestionLevel ?? 0),
+    0,
+  );
+  const stableStationCount = displayedLiveStatuses.filter((station) =>
+    isOperationalStatus(station.status),
+  ).length;
+  const acceptedScans = gateLogs.filter((log) => log.result?.toUpperCase() === "ACCEPTED").length;
+  const rejectedScans = gateLogs.filter((log) => log.result?.toUpperCase() === "REJECTED").length;
+  const congestionLabel =
+    congestionLevel >= 80 ? "Mức rất đông" : congestionLevel >= 50 ? "Mức đông" : "Mức ổn định";
+  const chartPoints = groupLogsByHour(chartGateLogs);
+  const chartMax = Math.max(
+    1,
+    ...chartPoints.map((point) => Math.max(point.inbound, point.outbound)),
+  );
+  const peakPoint = chartPoints.reduce(
+    (peak, point) =>
+      point.inbound + point.outbound > peak.inbound + peak.outbound ? point : peak,
+    chartPoints[0],
+  );
+  const recentTransactions = [...gateLogs]
+    .sort((left, right) => (right.scannedAt ?? "").localeCompare(left.scannedAt ?? ""))
+    .slice(0, 5);
 
   return (
     <div className="space-y-5 -mt-2">
@@ -157,16 +317,45 @@ export default function StaffDashboard() {
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z"/></svg>
           Bộ lọc
         </button>
-        <select className="text-xs border border-gray-200 rounded-lg px-3 py-1.5 bg-gray-50 text-gray-700 focus:outline-none">
-          <option>Tất cả ga</option>
+        <select
+          value={selectedStationId}
+          onChange={(event) => setSelectedStationId(event.target.value)}
+          aria-label="Lọc theo ga"
+          className="text-xs border border-gray-200 rounded-lg px-3 py-1.5 bg-gray-50 text-gray-700 focus:outline-none"
+        >
+          <option value="">Tất cả ga</option>
+          {stations.map((station) => (
+            <option key={station.stationId} value={station.stationId}>
+              {station.name}
+            </option>
+          ))}
         </select>
-        <select className="text-xs border border-gray-200 rounded-lg px-3 py-1.5 bg-gray-50 text-gray-700 focus:outline-none">
-          <option>Tất cả thiết bị</option>
+        <select
+          value={selectedDeviceId}
+          onChange={(event) => setSelectedDeviceId(event.target.value)}
+          aria-label="Lọc theo thiết bị"
+          className="text-xs border border-gray-200 rounded-lg px-3 py-1.5 bg-gray-50 text-gray-700 focus:outline-none"
+        >
+          <option value="">Tất cả thiết bị</option>
+          {devices.map((device) => {
+            const id = device.id ?? device.deviceId ?? device.gateId;
+            if (!id) return null;
+            return (
+              <option key={id} value={id}>
+                {device.name ?? device.deviceCode ?? getCode(device)}
+              </option>
+            );
+          })}
         </select>
-        <select className="text-xs border border-gray-200 rounded-lg px-3 py-1.5 bg-gray-50 text-gray-700 focus:outline-none">
-          <option>1 giờ</option>
-          <option>24 giờ</option>
-          <option>7 ngày</option>
+        <select
+          value={timeWindow}
+          onChange={(event) => setTimeWindow(event.target.value as "1h" | "24h" | "7d")}
+          aria-label="Lọc theo khoảng thời gian"
+          className="text-xs border border-gray-200 rounded-lg px-3 py-1.5 bg-gray-50 text-gray-700 focus:outline-none"
+        >
+          <option value="1h">1 giờ</option>
+          <option value="24h">24 giờ</option>
+          <option value="7d">7 ngày</option>
         </select>
 
         <div className="ml-auto flex items-center gap-3">
@@ -194,10 +383,10 @@ export default function StaffDashboard() {
       {/* ── 4 Stat Cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: "Lưu lượng hiện tại", badge: "LIVE", badgeColor: "bg-green-500", value: loading ? "—" : online.length * 12 + "", sub: "mức ổn định", subColor: "text-gray-500" },
-          { label: "Vé đã quét", badge: "N/A", badgeColor: "bg-gray-400", value: "—", sub: "API không cung cấp", subColor: "text-gray-400" },
-          { label: "Cảnh báo hệ thống", badge: "LIVE", badgeColor: "bg-green-500", value: loading ? "—" : String(openInc.length).padStart(2,"0"), sub: openInc.length > 0 ? "Cần xử lý" : "Bình thường", subColor: openInc.length > 0 ? "text-red-500" : "text-gray-500" },
-          { label: "Trạng thái thiết bị/ga", badge: "LIVE", badgeColor: "bg-green-500", value: loading ? "—" : `${online.length}/${devices.length}`, sub: "Bình thường", subColor: "text-gray-500" },
+          { label: "Lưu lượng hiện tại", badge: "LIVE", badgeColor: "bg-green-500", value: loading ? "—" : String(congestionLevel), sub: congestionLabel, subColor: congestionLevel >= 50 ? "text-orange-500" : "text-gray-500" },
+          { label: "Vé đã quét", badge: "LIVE", badgeColor: "bg-green-500", value: loading ? "—" : String(gateLogs.length), sub: `${acceptedScans} chấp nhận / ${rejectedScans} từ chối`, subColor: "text-gray-500" },
+          { label: "Cảnh báo hệ thống", badge: "LIVE", badgeColor: "bg-green-500", value: loading ? "—" : String(pendingIncidentCount).padStart(2,"0"), sub: pendingIncidentCount > 0 ? "Cần xử lý" : "Bình thường", subColor: pendingIncidentCount > 0 ? "text-red-500" : "text-gray-500" },
+          { label: "Trạng thái thiết bị/ga", badge: "LIVE", badgeColor: "bg-green-500", value: loading ? "—" : `${stableStationCount}/${displayedLiveStatuses.length}`, sub: stableStationCount === displayedLiveStatuses.length ? "Bình thường" : "Cần kiểm tra", subColor: stableStationCount === displayedLiveStatuses.length ? "text-gray-500" : "text-red-500" },
         ].map((c, i) => (
           <div key={i} className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
             <div className="flex items-center justify-between mb-3">
@@ -230,26 +419,29 @@ export default function StaffDashboard() {
             </div>
           </div>
           <div className="flex items-end gap-2 h-36">
-            {VALUES.map((v, i) => {
-              const pct = (v / MAX_V) * 100;
-              const isPeak = v === MAX_V;
-              return (
-                <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                  <div
-                    className={`w-full rounded-t-md transition-all ${isPeak ? "bg-blue-600" : "bg-blue-300"}`}
-                    style={{ height: `${pct}%` }}
-                    title={`${HOURS[i]}: ${v.toLocaleString()}`}
-                  />
-                </div>
-              );
-            })}
+            {chartPoints.map((point) => (
+              <div key={point.label} className="flex-1 flex items-end justify-center gap-0.5 h-full">
+                <div
+                  className="w-1/2 rounded-t-sm bg-blue-600 transition-all"
+                  style={{ height: `${(point.inbound / chartMax) * 100}%` }}
+                  title={`${point.label} - Vao: ${point.inbound}`}
+                />
+                <div
+                  className="w-1/2 rounded-t-sm bg-blue-300 transition-all"
+                  style={{ height: `${(point.outbound / chartMax) * 100}%` }}
+                  title={`${point.label} - Ra: ${point.outbound}`}
+                />
+              </div>
+            ))}
           </div>
           <div className="flex items-center justify-between mt-2 px-0.5">
-            {HOURS.map(h => <span key={h} className="text-[10px] text-gray-400">{h}</span>)}
+            {chartPoints.map((point) => <span key={point.label} className="text-[10px] text-gray-400">{point.label}</span>)}
           </div>
-          {isPeak && <div className="mt-1 flex items-center gap-1.5 text-[10px] text-blue-600 font-semibold">
+          {chartGateLogs.length > 0 && <div className="mt-1 flex items-center gap-3 text-[10px] text-blue-600 font-semibold">
             <span className="px-1.5 py-0.5 bg-blue-600 text-white rounded text-[9px]">Peak</span>
-            Giờ cao điểm: 14:00–16:00
+            Cao điểm: {peakPoint.label}
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-blue-600" /> Vào</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-blue-300" /> Ra</span>
           </div>}
         </div>
 
@@ -276,35 +468,18 @@ export default function StaffDashboard() {
           <div className="divide-y divide-gray-50 max-h-[200px] overflow-y-auto">
             {loading ? (
               <div className="py-6 text-center text-xs text-gray-400">Đang tải...</div>
-            ) : devices.length === 0 ? (
-              [
-                { code:"Gate A-01", type:"Chiều vào [IN]",  status:"ONLINE" },
-                { code:"Gate A-02", type:"Chiều ra [OUT]",  status:"ONLINE" },
-                { code:"Gate B-01", type:"Báo trì hệ thống", status:"OFFLINE" },
-              ].map((d,i) => (
-                <div key={i} className="flex items-center justify-between px-5 py-3">
-                  <div className="flex items-center gap-2.5">
-                    <span className={`w-2 h-2 rounded-full ${d.status==="ONLINE"?"bg-blue-500":"bg-gray-300"}`} />
-                    <div>
-                      <p className="text-xs font-bold text-gray-900">{d.code}</p>
-                      <p className="text-[10px] text-gray-400">MODE: {d.type}</p>
-                    </div>
-                  </div>
-                  <span className={`text-[10px] font-black ${d.status==="ONLINE"?"text-green-600":"text-gray-400"}`}>
-                    ● {d.status}
-                  </span>
-                </div>
-              ))
+            ) : displayedGates.length === 0 ? (
+              <div className="py-6 text-center text-xs text-gray-400">Không có cổng ga</div>
             ) : (
-              devices.slice(0,6).map((d,i) => {
-                const st = getStatus(d);
+              displayedGates.slice(0,6).map((d,i) => {
+                const st = getGateStatus(d);
                 return (
                   <div key={i} className="flex items-center justify-between px-5 py-3">
                     <div className="flex items-center gap-2.5">
                       <span className={`w-2 h-2 rounded-full ${st==="ONLINE"?"bg-blue-500":st==="ERROR"?"bg-red-500":"bg-gray-300"}`} />
                       <div>
-                        <p className="text-xs font-bold text-gray-900">{getCode(d)}</p>
-                        <p className="text-[10px] text-gray-400">{d.type ?? d.deviceType ?? "Thiết bị"}</p>
+                        <p className="text-xs font-bold text-gray-900">{d.gateCode ?? d.name ?? d.gateId}</p>
+                        <p className="text-[10px] text-gray-400">{d.action ?? "Cổng ga"}{d.stationName ? ` - ${d.stationName}` : ""}</p>
                       </div>
                     </div>
                     <span className={`text-[10px] font-black ${st==="ONLINE"?"text-green-600":st==="ERROR"?"text-red-500":"text-gray-400"}`}>
@@ -323,7 +498,7 @@ export default function StaffDashboard() {
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-50">
           <div>
             <h2 className="text-sm font-bold text-gray-900">Giao dịch gần đây</h2>
-            <p className="text-[11px] text-gray-400">Time window: 1h</p>
+            <p className="text-[11px] text-gray-400">Time window: {timeWindow}</p>
           </div>
           <Link href="/staff/transaction-logs" className="text-xs font-semibold text-blue-600 hover:text-blue-700">Xem chi tiết</Link>
         </div>
@@ -336,34 +511,68 @@ export default function StaffDashboard() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
-            {MOCK_TXN.map((row, i) => (
-              <tr key={i} className="hover:bg-gray-50/50 transition-colors">
-                <td className="px-6 py-3.5 font-mono text-blue-500 font-medium">{row.time}</td>
-                <td className="px-6 py-3.5 text-gray-700 font-medium">{row.station}</td>
-                <td className="px-6 py-3.5 text-gray-600">{row.device}</td>
-                <td className="px-6 py-3.5 font-mono text-blue-500">{row.ticket}</td>
-                <td className="px-6 py-3.5">
-                  <div>
-                    <span className={`text-[10px] font-black px-2 py-0.5 rounded ${row.ok ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-                      {row.ok ? "ACCEPTED" : "REJECTED"}
-                    </span>
-                    {row.reason && <p className="text-[10px] text-gray-400 mt-0.5">{row.reason}</p>}
-                  </div>
-                </td>
-              </tr>
-            ))}
+            {loading ? (
+              <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-400">Đang tải...</td></tr>
+            ) : recentTransactions.length === 0 ? (
+              <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-400">Không có giao dịch</td></tr>
+            ) : recentTransactions.map((row) => {
+              const accepted = row.result?.toUpperCase() === "ACCEPTED";
+              return (
+                <tr key={row.id} className="hover:bg-gray-50/50 transition-colors">
+                  <td className="px-6 py-3.5 font-mono text-blue-500 font-medium">{fmtTime(row.scannedAt)}</td>
+                  <td className="px-6 py-3.5 text-gray-700 font-medium">{row.stationName ?? "—"}</td>
+                  <td className="px-6 py-3.5 text-gray-600">{row.gateCode ?? row.gateId ?? "—"}</td>
+                  <td className="px-6 py-3.5 font-mono text-blue-500">{row.ticketCode ?? row.ticketId ?? "—"}</td>
+                  <td className="px-6 py-3.5">
+                    <div>
+                      <span className={`text-[10px] font-black px-2 py-0.5 rounded ${accepted ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                        {row.result ?? "—"}
+                      </span>
+                      {row.message && <p className="text-[10px] text-gray-400 mt-0.5">{row.message}</p>}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
 
       {/* ── Recent Incidents ── */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-50">
+        <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-gray-50">
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 bg-red-500 rounded-sm" />
             <h2 className="text-sm font-bold text-gray-900">Sự cố gần đây (Recent Incidents)</h2>
           </div>
-          <Link href="/staff/incidents" className="text-xs font-semibold text-blue-600 hover:text-blue-700">Xem lịch sử</Link>
+          <div className="flex items-center gap-2">
+            <select
+              value={incidentStatus}
+              onChange={(event) => setIncidentStatus(event.target.value)}
+              aria-label="Lọc sự cố theo trạng thái"
+              className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 bg-gray-50 text-gray-700 focus:outline-none"
+            >
+              <option value="">Tất cả trạng thái</option>
+              <option value="PENDING">Chờ xử lý</option>
+              <option value="OPEN">Mới</option>
+              <option value="IN_PROGRESS">Đang xử lý</option>
+              <option value="RESOLVED">Đã xong</option>
+              <option value="CLOSED">Đã đóng</option>
+            </select>
+            <select
+              value={incidentPriority}
+              onChange={(event) => setIncidentPriority(event.target.value)}
+              aria-label="Lọc sự cố theo mức độ"
+              className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 bg-gray-50 text-gray-700 focus:outline-none"
+            >
+              <option value="">Tất cả mức độ</option>
+              <option value="CRITICAL">Nghiêm trọng</option>
+              <option value="HIGH">Cao</option>
+              <option value="MEDIUM">Trung bình</option>
+              <option value="LOW">Thấp</option>
+            </select>
+            <Link href="/staff/incidents" className="text-xs font-semibold text-blue-600 hover:text-blue-700">Xem lịch sử</Link>
+          </div>
         </div>
         <table className="w-full text-xs">
           <thead>
@@ -377,23 +586,10 @@ export default function StaffDashboard() {
             {loading ? (
               <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-400">Đang tải...</td></tr>
             ) : incidents.length === 0 ? (
-              [
-                { t:"15:42:10", loc:"Cổng B-01", type:"Lỗi cảm biến vật cản", sev:"MEDIUM", st:"IN_PROGRESS" },
-                { t:"14:15:33", loc:"Máy bán vé TVM-04", type:"Hết tiền thừa", sev:"CRITICAL", st:"OPEN" },
-                { t:"12:05:00", loc:"Hệ thống mạng", type:"Mất kết nối server tạm thời", sev:"CRITICAL", st:"CLOSED" },
-                { t:"09:12:44", loc:"Cửa soát vé A-05", type:"Kẹt thẻ từ", sev:"MEDIUM", st:"CLOSED" },
-              ].map((inc, i) => (
-                <tr key={i} className="hover:bg-gray-50/50 transition-colors">
-                  <td className="px-6 py-3.5 font-mono text-blue-500 font-medium">{inc.t}</td>
-                  <td className="px-6 py-3.5 text-gray-700 font-medium">{inc.loc}</td>
-                  <td className="px-6 py-3.5 text-gray-600">{inc.type}</td>
-                  <td className="px-6 py-3.5"><span className={`text-[10px] font-black px-2 py-0.5 rounded ${sevColor(inc.sev)}`}>{inc.sev === "CRITICAL" ? "NGHIÊM TRỌNG" : "TRUNG BÌNH"}</span></td>
-                  <td className="px-6 py-3.5"><span className={`text-[10px] font-black px-2 py-0.5 rounded ${statusColor(inc.st)}`}>{statusLabel(inc.st)}</span></td>
-                </tr>
-              ))
+              <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-400">Không có sự cố</td></tr>
             ) : (
-              incidents.slice(0,5).map((inc, i) => (
-                <tr key={i} className="hover:bg-gray-50/50 transition-colors">
+              incidents.slice(0,5).map((inc) => (
+                <tr key={inc.id ?? inc.incidentId} className="hover:bg-gray-50/50 transition-colors">
                   <td className="px-6 py-3.5 font-mono text-blue-500 font-medium">{fmtTime(inc.createdAt)}</td>
                   <td className="px-6 py-3.5 text-gray-700 font-medium">{inc.stationName ?? inc.gateCode ?? inc.stationId ?? "—"}</td>
                   <td className="px-6 py-3.5 text-gray-600 max-w-[200px] truncate">{(inc.title ?? inc.description ?? "Sự cố") as string}</td>

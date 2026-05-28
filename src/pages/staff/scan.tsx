@@ -1,155 +1,46 @@
 import Head from "next/head";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import StaffLayout from "@components/organisms/StaffDashboard/StaffLayout";
 import { withAuth } from "@components/templates/withAuth";
 import { CheckCircle2, XCircle, AlertTriangle, Camera, CameraOff, Loader2 } from "lucide-react";
 import { staffGateApi } from "@features/staffGate/staffGateApi";
-import type { GateScanLogResponse } from "@features/staffGate/staffGateTypes";
+import type { GateResponse, GateScanLogResponse, GateScanResponse } from "@features/staffGate/staffGateTypes";
+import { apiClient } from "@features/httpClient/ApiClient";
+import { API_ENDPOINTS } from "@features/httpClient/apiEndpoints";
+import { unwrapApiResponse } from "@features/httpClient/unwrap";
 
 type TapMode = "TAP-IN" | "TAP-OUT";
 
-type ScanLogRow = {
-  time: string;
-  gateId: string;
-  ticketId: string;
-  action: TapMode;
-  result: "SUCCESS" | "INVALID" | "EXPIRED" | "USED" | "NOT_ALLOWED";
-  message: string;
+type StationResponse = {
+  stationId: string;
+  name: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+  status?: string;
 };
-
-const stations = ["Ga Bến Thành", "Ga Ba Son", "Ga Văn Thánh"];
-const gates = ["Gate A-01", "Gate A-02", "Gate B-01"];
 
 const DEFAULT_DEVICE_ID = "WEB_SCANNER";
 
-const initialLog: ScanLogRow[] = [
-  {
-    time: "14:22:15",
-    gateId: "A-01",
-    ticketId: "MN-8849-2041",
-    action: "TAP-IN",
-    result: "SUCCESS",
-    message: "ACCEPTED",
-  },
-  {
-    time: "14:21:40",
-    gateId: "A-01",
-    ticketId: "MN-7721-1002",
-    action: "TAP-OUT",
-    result: "SUCCESS",
-    message: "ACCEPTED",
-  },
-  {
-    time: "14:19:02",
-    gateId: "A-02",
-    ticketId: "MN-1102-5534",
-    action: "TAP-IN",
-    result: "EXPIRED",
-    message: "Vé hết hạn sử dụng",
-  },
-  {
-    time: "14:18:15",
-    gateId: "A-01",
-    ticketId: "MN-9923-4122",
-    action: "TAP-IN",
-    result: "SUCCESS",
-    message: "ACCEPTED",
-  },
-  {
-    time: "14:15:33",
-    gateId: "B-01",
-    ticketId: "MN-4402-9912",
-    action: "TAP-IN",
-    result: "SUCCESS",
-    message: "ACCEPTED",
-  },
-];
-
 type ValidationResult = {
-  status: ScanLogRow["result"];
+  status: string;
   title: string;
   subtitle: string;
   message: string;
   tone: "green" | "red" | "amber";
 };
 
-function validateScan(params: {
-  rawToken: string;
-  gateLabel: string;
-  stationLabel: string;
-  mode: TapMode;
-}): { ticketId: string; gateId: string; validation: ValidationResult } {
-  const trimmed = params.rawToken.trim();
-  const ticketId = trimmed.length > 0 ? trimmed.slice(0, 12).toUpperCase() : "";
-  const gateId = params.gateLabel.replace("Gate ", "");
+function matchesMode(action: string | undefined, mode: TapMode) {
+  if (!action) return true;
+  const normalized = action.toUpperCase().replace("_", "-");
+  return mode === "TAP-IN"
+    ? normalized === "IN" || normalized === "TAP-IN"
+    : normalized === "OUT" || normalized === "TAP-OUT";
+}
 
-  if (trimmed.length === 0) {
-    return {
-      ticketId: "(empty)",
-      gateId,
-      validation: {
-        status: "INVALID",
-        title: "Từ chối",
-        subtitle: "Token không hợp lệ",
-        message: "Thiếu dữ liệu token QR",
-        tone: "red",
-      },
-    };
-  }
-
-  if (ticketId.includes("1102")) {
-    return {
-      ticketId,
-      gateId,
-      validation: {
-        status: "EXPIRED",
-        title: "Từ chối",
-        subtitle: "Vé đã hết hạn",
-        message: "Vé hết hạn sử dụng",
-        tone: "red",
-      },
-    };
-  }
-
-  if (ticketId.includes("7721")) {
-    return {
-      ticketId,
-      gateId,
-      validation: {
-        status: "USED",
-        title: "Từ chối",
-        subtitle: "Vé đã được sử dụng",
-        message: "Vé đã qua cổng trước đó",
-        tone: "red",
-      },
-    };
-  }
-
-  if (params.mode === "TAP-OUT" && ticketId.includes("4402")) {
-    return {
-      ticketId,
-      gateId,
-      validation: {
-        status: "NOT_ALLOWED",
-        title: "Từ chối",
-        subtitle: "Không đúng luồng",
-        message: `Không cho phép Tap-Out tại ${params.stationLabel}`,
-        tone: "amber",
-      },
-    };
-  }
-
-  return {
-    ticketId,
-    gateId,
-    validation: {
-      status: "SUCCESS",
-      title: "Chấp nhận",
-      subtitle: "Giao dịch thành công - Mở cổng",
-      message: "ACCEPTED",
-      tone: "green",
-    },
-  };
+function formatScanTime(value?: string) {
+  if (!value) return "-";
+  return new Date(value).toLocaleTimeString("vi-VN", { hour12: false });
 }
 
 function formatTodayVi() {
@@ -164,21 +55,27 @@ function formatTodayVi() {
 }
 
 function StaffScanPage() {
-  const [station, setStation] = useState(stations[0]);
-  const [gate, setGate] = useState(gates[0]);
+  const [stations, setStations] = useState<StationResponse[]>([]);
+  const [gates, setGates] = useState<GateResponse[]>([]);
+  const [station, setStation] = useState("");
+  const [gate, setGate] = useState("");
+  const [filterLoading, setFilterLoading] = useState(true);
+  const [filterError, setFilterError] = useState<string | null>(null);
   const [token, setToken] = useState("");
   const [mode, setMode] = useState<TapMode>("TAP-IN");
-  const [log, setLog] = useState<ScanLogRow[]>(initialLog);
+  const [log, setLog] = useState<GateScanLogResponse[]>([]);
+  const [logLoading, setLogLoading] = useState(false);
+  const [logError, setLogError] = useState<string | null>(null);
+  const [lastScan, setLastScan] = useState<GateScanResponse | null>(null);
   const [isCameraOn, setIsCameraOn] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isCameraStarting, setIsCameraStarting] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isScanning, setIsScanning] = useState(false);
   const [lastValidation, setLastValidation] = useState<ValidationResult>({
     status: "SUCCESS",
-    title: "Chấp nhận",
-    subtitle: "Giao dịch thành công - Mở cổng",
-    message: "ACCEPTED",
+    title: "Sẵn sàng",
+    subtitle: "Chọn ga, cổng và quét vé",
+    message: "",
     tone: "green",
   });
 
@@ -187,33 +84,109 @@ function StaffScanPage() {
   const scannerReaderRef = useRef<unknown | null>(null);
 
   const todayLabel = useMemo(() => formatTodayVi(), []);
+  const availableGates = useMemo(
+    () => gates.filter((item) => (!station || item.stationId === station) && matchesMode(item.action, mode)),
+    [gates, mode, station],
+  );
+  const resultStationLabel =
+    stations.find((item) => item.stationId === lastScan?.stationId)?.name ??
+    lastScan?.stationId ??
+    "-";
+  const resultGateLabel =
+    gates.find((item) => item.gateId === lastScan?.gateId)?.gateCode ??
+    lastScan?.gateId ??
+    "-";
+
+  const loadLogs = useCallback(async () => {
+    if (!station || !gate) {
+      setLog([]);
+      return;
+    }
+
+    setLogLoading(true);
+    try {
+      const data = await staffGateApi.getLogs({ stationId: station, gateId: gate });
+      const latest = [...data]
+        .sort((left, right) => (right.scannedAt ?? "").localeCompare(left.scannedAt ?? ""))
+        .slice(0, 10);
+      setLog(latest);
+      setLogError(null);
+    } catch {
+      setLog([]);
+      setLogError("Không thể tải lịch sử quét gần đây.");
+    } finally {
+      setLogLoading(false);
+    }
+  }, [gate, station]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    Promise.all([
+      apiClient.get(API_ENDPOINTS.stations.base),
+      apiClient.get(API_ENDPOINTS.gates.staff),
+    ])
+      .then(([stationResponse, gateResponse]) => {
+        if (cancelled) return;
+        const stationData = unwrapApiResponse<StationResponse[]>(stationResponse.data);
+        const gateData = unwrapApiResponse<GateResponse[]>(gateResponse.data);
+        const stationItems = Array.isArray(stationData) ? stationData : [];
+        const gateItems = Array.isArray(gateData) ? gateData : [];
+        setStations(stationItems);
+        setGates(gateItems);
+        const initialStationId = stationItems[0]?.stationId || "";
+        setStation((current) => current || initialStationId);
+        setGate(
+          (current) =>
+            current ||
+            gateItems.find(
+              (item) =>
+                (!initialStationId || item.stationId === initialStationId) &&
+                matchesMode(item.action, "TAP-IN"),
+            )?.gateId ||
+            "",
+        );
+        setFilterError(null);
+      })
+      .catch(() => {
+        if (!cancelled) setFilterError("Không thể tải danh sách ga và cổng.");
+      })
+      .finally(() => {
+        if (!cancelled) setFilterLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    loadLogs();
+  }, [loadLogs]);
 
   const runScan = async (rawToken: string) => {
-    const time = new Date().toLocaleTimeString("vi-VN", { hour12: false });
+    if (!station || !gate) {
+      setLastValidation({
+        status: "INVALID",
+        title: "Bị từ chối",
+        subtitle: "Chưa chọn ga hoặc cổng",
+        message: "Vui lòng chọn ga và cổng trước khi quét.",
+        tone: "amber",
+      });
+      return;
+    }
+
     const trimmed = rawToken.trim();
 
     if (!trimmed) {
-      const { ticketId, gateId, validation } = validateScan({
-        rawToken,
-        gateLabel: gate,
-        stationLabel: station,
-        mode,
+      setLastScan(null);
+      setLastValidation({
+        status: "INVALID",
+        title: "Bị từ chối",
+        subtitle: "Token không hợp lệ",
+        message: "Thiếu dữ liệu token QR",
+        tone: "red",
       });
-
-      setLastValidation(validation);
-      setLog((prev) =>
-        [
-          {
-            time,
-            gateId,
-            ticketId,
-            action: mode,
-            result: validation.status,
-            message: validation.message,
-          },
-          ...prev,
-        ].slice(0, 10),
-      );
       return;
     }
 
@@ -226,17 +199,10 @@ function StaffScanPage() {
         gateId: gate,
       });
 
-      const typed = result as GateScanLogResponse;
-      const statusRaw = String(typed.result ?? "").toUpperCase();
+      const statusRaw = String(result.result ?? "").toUpperCase();
       const ok = statusRaw === "SUCCESS" || statusRaw === "ACCEPTED";
 
-      const ticketId =
-        typed.ticketCode ||
-        typed.ticketId ||
-        trimmed.slice(0, 12).toUpperCase();
-      const gateId =
-        typed.gateCode || typed.gateId || gate.replace("Gate ", "");
-      const message = typed.message || (ok ? "ACCEPTED" : "REJECTED");
+      const message = result.message || (ok ? "ACCEPTED" : "REJECTED");
 
       const validation: ValidationResult = ok
         ? {
@@ -248,73 +214,28 @@ function StaffScanPage() {
           }
         : {
             status: "INVALID",
-            title: "Từ chối",
-            subtitle: "Quét vé thất bại",
+            title: "Bị từ chối",
+            subtitle: "Giao dịch bị từ chối",
             message,
             tone: "red",
           };
 
+      setLastScan(result);
       setLastValidation(validation);
-
-      const mappedResult: ScanLogRow["result"] = ok
-        ? "SUCCESS"
-        : statusRaw === "EXPIRED" ||
-            statusRaw === "USED" ||
-            statusRaw === "NOT_ALLOWED"
-          ? (statusRaw as ScanLogRow["result"])
-          : "INVALID";
-
-      const mappedAction: TapMode =
-        statusRaw && String(typed.action ?? "").toUpperCase() === "TAP-OUT"
-          ? "TAP-OUT"
-          : "TAP-IN";
-      setLog((prev) =>
-        [
-          {
-            time,
-            gateId,
-            ticketId,
-            action: typed.action ? mappedAction : mode,
-            result: mappedResult,
-            message: validation.message,
-          },
-          ...prev,
-        ].slice(0, 10),
-      );
+      await loadLogs();
     } catch (err) {
-      // fallback to local validation to keep tool usable when backend is down
-      const { ticketId, gateId, validation } = validateScan({
-        rawToken,
-        gateLabel: gate,
-        stationLabel: station,
-        mode,
-      });
-
       const message =
         err instanceof Error
           ? err.message
           : "Không thể gọi API /staff/gates/scan";
-      const fallbackValidation: ValidationResult = {
-        ...validation,
-        subtitle: "Không thể gọi API - dùng chế độ mô phỏng",
+      setLastScan(null);
+      setLastValidation({
+        status: "INVALID",
+        title: "Bị từ chối",
+        subtitle: "Không thể xử lý yêu cầu quét",
         message,
-        tone: "amber",
-      };
-
-      setLastValidation(fallbackValidation);
-      setLog((prev) =>
-        [
-          {
-            time,
-            gateId,
-            ticketId,
-            action: mode,
-            result: fallbackValidation.status,
-            message: fallbackValidation.message,
-          },
-          ...prev,
-        ].slice(0, 10),
-      );
+        tone: "red",
+      });
     } finally {
       setIsScanning(false);
     }
@@ -441,12 +362,21 @@ function StaffScanPage() {
                     <div className="relative">
                       <select
                         value={station}
-                        onChange={(e) => setStation(e.target.value)}
+                        onChange={(e) => {
+                          const stationId = e.target.value;
+                          setStation(stationId);
+                          setGate(
+                            gates.find((item) => item.stationId === stationId && matchesMode(item.action, mode))
+                              ?.gateId ?? "",
+                          );
+                        }}
+                        disabled={filterLoading}
                         className="h-11 w-full appearance-none rounded-2xl bg-slate-50 px-4 pr-10 text-sm font-normal leading-5 text-slate-900 outline outline-1 outline-offset-[-1px] outline-slate-200"
                       >
+                        {stations.length === 0 && <option value="">Không có ga</option>}
                         {stations.map((s) => (
-                          <option key={s} value={s}>
-                            {s}
+                          <option key={s.stationId} value={s.stationId}>
+                            {s.name}
                           </option>
                         ))}
                       </select>
@@ -468,11 +398,13 @@ function StaffScanPage() {
                       <select
                         value={gate}
                         onChange={(e) => setGate(e.target.value)}
+                        disabled={filterLoading || !station}
                         className="h-11 w-full appearance-none rounded-2xl bg-slate-50 px-4 pr-10 text-sm font-normal leading-5 text-slate-900 outline outline-1 outline-offset-[-1px] outline-slate-200"
                       >
-                        {gates.map((g) => (
-                          <option key={g} value={g}>
-                            {g}
+                        {availableGates.length === 0 && <option value="">Không có cổng</option>}
+                        {availableGates.map((g) => (
+                          <option key={g.gateId} value={g.gateId}>
+                            {g.gateCode}{g.name ? ` - ${g.name}` : ""}
                           </option>
                         ))}
                       </select>
@@ -486,6 +418,12 @@ function StaffScanPage() {
                     </div>
                   </label>
                 </div>
+
+                {filterError ? (
+                  <div className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700 outline outline-1 outline-offset-[-1px] outline-red-100">
+                    {filterError}
+                  </div>
+                ) : null}
 
                 <div className="mt-4 space-y-1.5">
                   <p className="text-sm font-semibold leading-5 text-slate-700">
@@ -563,22 +501,30 @@ function StaffScanPage() {
 
                 <button
                   type="button"
-                  className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-6 py-3 text-base font-bold leading-6 text-white"
+                  disabled={filterLoading || isScanning || !station || !gate}
+                  className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-6 py-3 text-base font-bold leading-6 text-white disabled:cursor-not-allowed disabled:bg-slate-300"
                   onClick={() => {
                     runScan(token);
                   }}
                 >
-                  <span
-                    className="h-5 w-5 rounded bg-white"
-                    aria-hidden="true"
-                  />
-                  QUÉT VÉ
+                  {isScanning ? (
+                    <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <span className="h-5 w-5 rounded bg-white" aria-hidden="true" />
+                  )}
+                  {isScanning ? "ĐANG QUÉT..." : "QUÉT VÉ"}
                 </button>
 
                 <div className="mt-4 flex gap-4 pt-2">
                   <button
                     type="button"
-                    onClick={() => setMode("TAP-IN")}
+                    onClick={() => {
+                      setMode("TAP-IN");
+                      setGate(
+                        gates.find((item) => item.stationId === station && matchesMode(item.action, "TAP-IN"))
+                          ?.gateId ?? "",
+                      );
+                    }}
                     className={`flex-1 rounded-3xl px-4 py-7 text-center outline outline-2 outline-offset-[-2px] transition ${
                       mode === "TAP-IN"
                         ? "bg-blue-600/10 outline-blue-600/50"
@@ -602,7 +548,13 @@ function StaffScanPage() {
 
                   <button
                     type="button"
-                    onClick={() => setMode("TAP-OUT")}
+                    onClick={() => {
+                      setMode("TAP-OUT");
+                      setGate(
+                        gates.find((item) => item.stationId === station && matchesMode(item.action, "TAP-OUT"))
+                          ?.gateId ?? "",
+                      );
+                    }}
                     className={`flex-1 rounded-3xl p-4 text-center outline outline-2 outline-offset-[-2px] transition ${
                       mode === "TAP-OUT"
                         ? "bg-blue-600/10 outline-blue-600/50"
@@ -669,19 +621,22 @@ function StaffScanPage() {
                     <div className="mt-1 text-base font-medium leading-6 text-white/90">
                       {lastValidation.subtitle}
                     </div>
+                    {lastValidation.message ? (
+                      <div className="mt-2 text-sm font-medium leading-5 text-white/90">
+                        {lastValidation.message}
+                      </div>
+                    ) : null}
                   </div>
 
                   <div className="mt-8 grid gap-3 sm:grid-cols-2">
                     {[
-                      { label: "Ticket ID", value: log[0]?.ticketId ?? "-" },
-                      { label: "Gate", value: gate },
+                      { label: "Ticket ID", value: lastScan?.ticketCode || lastScan?.ticketId || "-" },
+                      { label: "Gate", value: resultGateLabel },
                       {
                         label: "Time",
-                        value: new Date().toLocaleTimeString("vi-VN", {
-                          hour12: false,
-                        }),
+                        value: formatScanTime(lastScan?.scannedAt),
                       },
-                      { label: "Station", value: station },
+                      { label: "Station", value: resultStationLabel },
                     ].map((item) => (
                       <div
                         key={item.label}
@@ -706,6 +661,7 @@ function StaffScanPage() {
               <h2 className="text-base font-bold leading-6 text-slate-800">
                 Lịch sử quét gần đây (10 lượt cuối)
               </h2>
+              {logError ? <span className="text-xs font-medium text-red-600">{logError}</span> : null}
             </div>
 
             <div className="overflow-x-auto">
@@ -718,28 +674,36 @@ function StaffScanPage() {
                   <div className="px-6 py-3 text-right text-[10px] font-bold uppercase tracking-wide text-slate-500">Kết quả</div>
                 </div>
 
-                {log.map((row, idx) => (
+                {logLoading ? (
+                  <div className="px-6 py-8 text-center text-sm text-slate-500">
+                    Đang tải lịch sử quét...
+                  </div>
+                ) : log.length === 0 ? (
+                  <div className="px-6 py-8 text-center text-sm text-slate-500">
+                    Không có lượt quét tại cổng đã chọn.
+                  </div>
+                ) : log.map((row, idx) => (
                   <div
-                    key={`${row.time}-${row.ticketId}-${idx}`}
+                    key={row.id || `${row.scannedAt}-${row.ticketId}-${idx}`}
                     className={`grid grid-cols-[176px_144px_240px_192px_192px] ${
                       idx === 0 ? "" : "border-t border-slate-100"
                     }`}
                   >
-                    <div className="px-6 py-4 text-sm font-normal leading-5 text-slate-600">{row.time}</div>
-                    <div className="px-6 py-4 text-sm font-medium leading-5 text-slate-900">{row.gateId}</div>
-                    <div className="px-6 py-4 font-mono text-sm font-normal leading-5 text-blue-600">{row.ticketId}</div>
+                    <div className="px-6 py-4 text-sm font-normal leading-5 text-slate-600">{formatScanTime(row.scannedAt)}</div>
+                    <div className="px-6 py-4 text-sm font-medium leading-5 text-slate-900">{row.gateCode || row.gateId || "-"}</div>
+                    <div className="px-6 py-4 font-mono text-sm font-normal leading-5 text-blue-600">{row.ticketCode || row.ticketId || "-"}</div>
                     <div className="px-6 py-4">
                       <span className={`inline-flex rounded-lg px-2 py-0.5 text-xs font-bold ${
-                        row.action === "TAP-IN" ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
-                      }`}>{row.action}</span>
+                        ["IN", "TAP-IN"].includes(row.action?.toUpperCase().replace("_", "-")) ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
+                      }`}>{row.action || "-"}</span>
                     </div>
                     <div className="px-6 py-4 text-right">
                       <span className={`inline-flex rounded-lg px-2 py-0.5 text-xs font-bold ${
-                        row.result === "SUCCESS" ? "bg-green-100 text-green-700"
-                          : row.result === "NOT_ALLOWED" ? "bg-amber-100 text-amber-700"
+                        ["SUCCESS", "ACCEPTED"].includes(row.result?.toUpperCase()) ? "bg-green-100 text-green-700"
+                          : row.result?.toUpperCase() === "NOT_ALLOWED" ? "bg-amber-100 text-amber-700"
                           : "bg-red-100 text-red-700"
-                      }`}>{row.result}</span>
-                      <div className="mt-1 text-xs font-medium leading-4 text-slate-500">{row.message}</div>
+                      }`}>{row.result || "-"}</span>
+                      {row.message ? <div className="mt-1 text-xs font-medium leading-4 text-slate-500">{row.message}</div> : null}
                     </div>
                   </div>
                 ))}
