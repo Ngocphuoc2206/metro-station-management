@@ -1,5 +1,6 @@
 import Head from "next/head";
 import Link from "next/link";
+import PassengerChatbotWidget from "@components/organisms/PassengerChatbot/PassengerChatbotWidget";
 import PassengerSidebar from "@components/templates/PassengerSidebar";
 import {
   Bell,
@@ -186,6 +187,7 @@ export default function RecentTicketsPage() {
             </section>
           </main>
         </div>
+        <PassengerChatbotWidget />
       </div>
     </>
   );

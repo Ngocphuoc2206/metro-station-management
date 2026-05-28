@@ -1,6 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 import Head from "next/head";
 import { useEffect, useRef, useState } from "react";
+import PassengerChatbotWidget from "@components/organisms/PassengerChatbot/PassengerChatbotWidget";
 import PassengerSidebar from "@components/templates/PassengerSidebar";
 import { notifyProfileUpdated, profileApi } from "@features/profile/profileApi";
 import type { MyProfileDto } from "@features/profile/profileTypes";
@@ -555,6 +556,7 @@ export default function PassengerAccountPage() {
             </div>
           </main>
         </div>
+        <PassengerChatbotWidget />
       </div>
     </>
   );

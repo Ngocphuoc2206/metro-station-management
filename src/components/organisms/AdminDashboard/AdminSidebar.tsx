@@ -11,6 +11,7 @@ const NAV_GROUPS = [
       { label: "Tổng quan", href: "/dashboard/admin", icon: DashboardIcon },
       { label: "Ga", href: "/admin/stations", icon: StationIcon },
       { label: "Tuyến", href: "/admin/routes", icon: RouteIcon },
+      { label: "Lịch tàu", href: "/admin/schedules", icon: ScheduleIcon },
       { label: "Loại vé", href: "/admin/ticket-types", icon: TicketIcon },
       { label: "Bảng giá", href: "/admin/fares", icon: PriceIcon },
     ],
@@ -135,6 +136,9 @@ function StationIcon({ active }: { active: boolean }) {
 }
 function RouteIcon({ active }: { active: boolean }) {
   return <NavIcon active={active} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />;
+}
+function ScheduleIcon({ active }: { active: boolean }) {
+  return <NavIcon active={active} d="M8 7V3m8 4V3M4 11h16M6 5h12a2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V7a2 2 0 012-2zm6 9h.01M15 14h.01M9 17h.01M12 17h.01" />;
 }
 function TicketIcon({ active }: { active: boolean }) {
   return <NavIcon active={active} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />;

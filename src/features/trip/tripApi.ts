@@ -14,23 +14,71 @@ const optionalNumber = (value: unknown) => {
     : undefined;
 };
 
+const object = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+
+const firstText = (...values: unknown[]) => {
+  for (const value of values) {
+    const resolved = text(value);
+    if (resolved) return resolved;
+  }
+  return "";
+};
+
 const normalizeTrip = (raw: unknown): TripDto | null => {
   if (!raw || typeof raw !== "object") return null;
   const item = raw as Record<string, unknown>;
-  const id = text(item.id ?? item.tripId);
+  const originStation = object(item.originStation ?? item.fromStation ?? item.checkInStation);
+  const destinationStation = object(item.destinationStation ?? item.toStation ?? item.checkOutStation);
+  const ticket = object(item.ticket);
+  const checkInAt = firstText(
+    item.checkInAt,
+    item.entryTime,
+    item.startedAt,
+    item.checkinTime,
+    item.tapInAt,
+    item.createdAt,
+  );
+  const checkOutAt = firstText(
+    item.checkOutAt,
+    item.exitTime,
+    item.completedAt,
+    item.checkoutTime,
+    item.tapOutAt,
+  );
+  const ticketId = firstText(item.ticketId, ticket.id);
+  const ticketCode = firstText(item.ticketCode, ticket.code, ticket.ticketCode, ticketId);
+  const fallbackId = ticketCode || checkInAt || checkOutAt
+    ? `${ticketCode}-${checkInAt}-${checkOutAt}`
+    : "";
+  const id = firstText(item.id, item.tripId, item.transactionId, fallbackId);
   if (!id) return null;
   return {
     id,
-    ticketId: text(item.ticketId),
-    ticketCode: text(item.ticketCode ?? item.ticketId),
-    originStationName: text(item.originStationName ?? item.fromStationName ?? item.originName),
-    destinationStationName: text(item.destinationStationName ?? item.toStationName ?? item.destinationName),
-    checkInAt: text(item.checkInAt ?? item.entryTime ?? item.startedAt) || undefined,
-    checkOutAt: text(item.checkOutAt ?? item.exitTime ?? item.completedAt) || undefined,
-    status: text(item.status),
+    ticketId,
+    ticketCode,
+    originStationName: firstText(
+      item.originStationName,
+      item.fromStationName,
+      item.originName,
+      item.from,
+      originStation.name,
+      originStation.stationName,
+    ),
+    destinationStationName: firstText(
+      item.destinationStationName,
+      item.toStationName,
+      item.destinationName,
+      item.to,
+      destinationStation.name,
+      destinationStation.stationName,
+    ),
+    checkInAt: checkInAt || undefined,
+    checkOutAt: checkOutAt || undefined,
+    status: firstText(item.status, item.tripStatus, item.result),
     fare: optionalNumber(item.fare ?? item.price ?? item.amount),
-    entryGate: text(item.entryGate ?? item.entryGateCode) || undefined,
-    exitGate: text(item.exitGate ?? item.exitGateCode) || undefined,
+    entryGate: firstText(item.entryGate, item.entryGateCode, item.gateInCode) || undefined,
+    exitGate: firstText(item.exitGate, item.exitGateCode, item.gateOutCode) || undefined,
   };
 };
 
@@ -47,30 +95,39 @@ export const tripErrorMessage = (error: unknown) => {
 
 export const tripApi = {
   list: async (query: TripQuery): Promise<TripPage> => {
-    const res = await apiClient.get(API_ENDPOINTS.my.trips, { params: query });
+    const res = await apiClient.get(API_ENDPOINTS.my.trips, {
+      params: {
+        ...query,
+        page: query.page + 1,
+      },
+    });
     const raw = unwrapApiResponse<unknown>(res.data);
-    const object = raw && typeof raw === "object" && !Array.isArray(raw)
+    const container = raw && typeof raw === "object" && !Array.isArray(raw)
       ? raw as Record<string, unknown>
       : {};
     const rawItems = Array.isArray(raw)
       ? raw
-      : Array.isArray(object.content)
-        ? object.content
-        : Array.isArray(object.items)
-          ? object.items
-          : Array.isArray(object.data)
-            ? object.data
-            : [];
+      : Array.isArray(container.content)
+        ? container.content
+        : Array.isArray(container.items)
+          ? container.items
+          : Array.isArray(container.data)
+            ? container.data
+            : Array.isArray(container.results)
+              ? container.results
+              : [];
     const items = rawItems.map(normalizeTrip).filter(Boolean) as TripDto[];
-    const total = optionalNumber(object.totalElements ?? object.total ?? object.totalItems) ?? items.length;
-    const limit = optionalNumber(object.size ?? object.limit) ?? query.limit;
-    const page = optionalNumber(object.number ?? object.page) ?? query.page;
+    const total = optionalNumber(container.totalElements ?? container.total ?? container.totalItems) ?? items.length;
+    const limit = optionalNumber(container.size ?? container.limit) ?? query.limit;
+    const responsePage = optionalNumber(container.number ?? container.page);
+    const page =
+      responsePage === undefined ? query.page : Math.max(0, responsePage - 1);
     return {
       items,
       page,
       limit,
       total,
-      totalPages: optionalNumber(object.totalPages) ?? Math.max(1, Math.ceil(total / limit)),
+      totalPages: optionalNumber(container.totalPages) ?? Math.max(1, Math.ceil(total / limit)),
     };
   },
 };

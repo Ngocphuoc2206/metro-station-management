@@ -1,6 +1,7 @@
 import Head from "next/head";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import PassengerChatbotWidget from "@components/organisms/PassengerChatbot/PassengerChatbotWidget";
 import PassengerSidebar from "@components/templates/PassengerSidebar";
 import { publicApi } from "@features/public/publicApi";
 import type { RouteDto, StationDto } from "@features/public/publicTypes";
@@ -18,6 +19,54 @@ import {
   TrainFront,
 } from "lucide-react";
 
+const parseTimeToSeconds = (value: string) => {
+  const [hours = "0", minutes = "0", seconds = "0"] = value.split(":");
+  const total =
+    Number(hours) * 3600 + Number(minutes) * 60 + Number(seconds);
+  return Number.isFinite(total) ? total : null;
+};
+
+const formatSecondsAsTime = (totalSeconds: number) => {
+  const normalized = ((totalSeconds % 86400) + 86400) % 86400;
+  const hours = Math.floor(normalized / 3600);
+  const minutes = Math.floor((normalized % 3600) / 60);
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+};
+
+const formatCountdown = (secondsUntilArrival: number) => {
+  if (secondsUntilArrival <= 60) return "Sắp đến";
+  const minutes = Math.ceil(secondsUntilArrival / 60);
+  return `Còn ${minutes} phút`;
+};
+
+const getNextArrival = (schedule: ScheduleDto, now: Date) => {
+  const baseArrivalSeconds = parseTimeToSeconds(schedule.arrivalTime);
+  if (baseArrivalSeconds === null) {
+    return { time: schedule.arrivalTime || "--", countdown: "" };
+  }
+
+  const frequencySeconds = Math.max(1, Number(schedule.frequencyMinutes || 0)) * 60;
+  const nowSeconds =
+    now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+
+  let nextArrivalSeconds = baseArrivalSeconds;
+  if (nowSeconds > baseArrivalSeconds) {
+    const elapsed = nowSeconds - baseArrivalSeconds;
+    nextArrivalSeconds =
+      baseArrivalSeconds + Math.ceil(elapsed / frequencySeconds) * frequencySeconds;
+  }
+
+  const secondsUntilArrival =
+    nextArrivalSeconds >= nowSeconds
+      ? nextArrivalSeconds - nowSeconds
+      : nextArrivalSeconds + 86400 - nowSeconds;
+
+  return {
+    time: formatSecondsAsTime(nextArrivalSeconds),
+    countdown: formatCountdown(secondsUntilArrival),
+  };
+};
+
 export default function PassengerSchedulePage() {
   const [routes, setRoutes] = useState<RouteDto[]>([]);
   const [stations, setStations] = useState<StationDto[]>([]);
@@ -29,12 +78,44 @@ export default function PassengerSchedulePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isFiltering, setIsFiltering] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
+  const [currentTime, setCurrentTime] = useState(() => new Date());
 
   const rememberRoutes = useCallback((items: ScheduleDto[]) => {
     setDiscoveredRouteIds((current) =>
       Array.from(new Set([...current, ...items.map((item) => item.routeId)])),
     );
   }, []);
+
+  const loadSchedules = useCallback(
+    async (options?: { silent?: boolean }) => {
+      if (!options?.silent) {
+        setIsFiltering(true);
+      }
+      setLoadError(null);
+      try {
+        const source = selectedRouteId
+          ? await scheduleApi.listByRoute(selectedRouteId)
+          : await scheduleApi.list();
+        rememberRoutes(source);
+        setSchedules(
+          source.filter(
+            (item) =>
+              (!selectedStationId || item.stationId === selectedStationId) &&
+              (!selectedStatus || item.status === selectedStatus),
+          ),
+        );
+        setLastUpdatedAt(new Date());
+      } catch (err) {
+        setLoadError(scheduleErrorMessage(err));
+      } finally {
+        if (!options?.silent) {
+          setIsFiltering(false);
+        }
+      }
+    },
+    [rememberRoutes, selectedRouteId, selectedStationId, selectedStatus],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -51,6 +132,7 @@ export default function PassengerSchedulePage() {
         if (scheduleResult.status === "fulfilled") {
           rememberRoutes(scheduleResult.value);
           setSchedules(scheduleResult.value);
+          setLastUpdatedAt(new Date());
         } else {
           setLoadError(scheduleErrorMessage(scheduleResult.reason));
         }
@@ -66,6 +148,22 @@ export default function PassengerSchedulePage() {
       cancelled = true;
     };
   }, [rememberRoutes]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      loadSchedules({ silent: true });
+    }, 30_000);
+
+    return () => window.clearInterval(intervalId);
+  }, [loadSchedules]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1_000);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   const stationName = (stationId: string) =>
     stations.find((station) => station.id === stationId)?.name ?? stationId;
@@ -107,25 +205,7 @@ export default function PassengerSchedulePage() {
   const routeCount = new Set(schedules.map((item) => item.routeId)).size;
 
   const applyFilters = async () => {
-    setIsFiltering(true);
-    setLoadError(null);
-    try {
-      const source = selectedRouteId
-        ? await scheduleApi.listByRoute(selectedRouteId)
-        : await scheduleApi.list();
-      rememberRoutes(source);
-      setSchedules(
-        source.filter(
-          (item) =>
-            (!selectedStationId || item.stationId === selectedStationId) &&
-            (!selectedStatus || item.status === selectedStatus),
-        ),
-      );
-    } catch (err) {
-      setLoadError(scheduleErrorMessage(err));
-    } finally {
-      setIsFiltering(false);
-    }
+    await loadSchedules();
   };
 
   const resetFilters = async () => {
@@ -138,6 +218,7 @@ export default function PassengerSchedulePage() {
       const source = await scheduleApi.list();
       rememberRoutes(source);
       setSchedules(source);
+      setLastUpdatedAt(new Date());
     } catch (err) {
       setLoadError(scheduleErrorMessage(err));
     } finally {
@@ -266,8 +347,15 @@ export default function PassengerSchedulePage() {
                 <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
                   <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
                     <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-                      <h2 className="text-lg font-bold text-slate-900">Lịch tàu theo thời gian thực</h2>
-                        <span className="text-xs font-bold uppercase tracking-wide text-slate-500">{selectedStationName}</span>
+                      <div>
+                        <h2 className="text-lg font-bold text-slate-900">Lịch tàu theo thời gian thực</h2>
+                        <p className="mt-0.5 text-xs font-medium text-slate-500">
+                          {lastUpdatedAt
+                            ? `Tự cập nhật mỗi 30 giây · Lần cuối ${lastUpdatedAt.toLocaleTimeString("vi-VN", { hour12: false })}`
+                            : "Đang chờ dữ liệu cập nhật"}
+                        </p>
+                      </div>
+                      <span className="text-xs font-bold uppercase tracking-wide text-slate-500">{selectedStationName}</span>
                     </div>
                     <div className="overflow-x-auto">
                       <table className="min-w-full text-left">
@@ -287,41 +375,49 @@ export default function PassengerSchedulePage() {
                             <tr><td colSpan={5} className="px-6 py-10 text-center text-sm font-medium text-red-600">{loadError}</td></tr>
                           ) : schedules.length === 0 ? (
                             <tr><td colSpan={5} className="px-6 py-10 text-center text-sm text-slate-500">Không có lịch trình phù hợp.</td></tr>
-                          ) : schedules.map((row) => (
-                            <tr
-                              key={row.id}
-                              className={`border-t border-slate-100 transition-colors hover:bg-blue-50/40 ${
-                                row.status === "DELAYED" ? "bg-red-50/30" : "bg-white"
-                              }`}
-                            >
-                              <td className="px-6 py-4 text-sm font-medium text-slate-700">{routeName(row.routeId)}</td>
-                              <td
-                                className={`px-6 py-4 text-sm font-bold ${
-                                  row.status === "DELAYED" ? "text-red-600" : "text-blue-600"
+                          ) : schedules.map((row) => {
+                            const nextArrival = getNextArrival(row, currentTime);
+                            return (
+                              <tr
+                                key={row.id}
+                                className={`border-t border-slate-100 transition-colors hover:bg-blue-50/40 ${
+                                  row.status === "DELAYED" ? "bg-red-50/30" : "bg-white"
                                 }`}
                               >
-                                {row.arrivalTime}
-                              </td>
-                              <td className="px-6 py-4 text-sm font-medium text-slate-900">{row.departureTime}</td>
-                              <td className="px-6 py-4 text-sm text-slate-900">{directionLabel(row)}</td>
-                              <td className="px-6 py-4 text-right">
-                                <span
-                                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${
-                                    row.status === "DELAYED"
-                                      ? "bg-red-100 text-red-700"
-                                      : row.status === "ACTIVE" ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-700"
+                                <td className="px-6 py-4 text-sm font-medium text-slate-700">{routeName(row.routeId)}</td>
+                                <td
+                                  className={`px-6 py-4 text-sm font-bold ${
+                                    row.status === "DELAYED" ? "text-red-600" : "text-blue-600"
                                   }`}
                                 >
-                                  <Circle
-                                    className={`h-1.5 w-1.5 fill-current ${
-                                      row.status === "DELAYED" ? "text-red-500" : row.status === "ACTIVE" ? "text-green-500" : "text-slate-500"
+                                  <div>{nextArrival.time}</div>
+                                  {nextArrival.countdown ? (
+                                    <div className="mt-1 text-xs font-semibold text-slate-500">
+                                      {nextArrival.countdown}
+                                    </div>
+                                  ) : null}
+                                </td>
+                                <td className="px-6 py-4 text-sm font-medium text-slate-900">{row.departureTime}</td>
+                                <td className="px-6 py-4 text-sm text-slate-900">{directionLabel(row)}</td>
+                                <td className="px-6 py-4 text-right">
+                                  <span
+                                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${
+                                      row.status === "DELAYED"
+                                        ? "bg-red-100 text-red-700"
+                                        : row.status === "ACTIVE" ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-700"
                                     }`}
-                                  />
-                                  {statusLabel(row.status)}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
+                                  >
+                                    <Circle
+                                      className={`h-1.5 w-1.5 fill-current ${
+                                        row.status === "DELAYED" ? "text-red-500" : row.status === "ACTIVE" ? "text-green-500" : "text-slate-500"
+                                      }`}
+                                    />
+                                    {statusLabel(row.status)}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
@@ -399,6 +495,7 @@ export default function PassengerSchedulePage() {
             </section>
           </main>
         </div>
+        <PassengerChatbotWidget />
       </div>
     </>
   );

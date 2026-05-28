@@ -9,13 +9,26 @@ interface BackendStation {
   name: string;
   address?: string;
   location?: string;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
+  la_titude?: number | string | null;
+  long_titude?: number | string | null;
   status: "ACTIVE" | "INACTIVE" | string;
   // Backend có thể trả thêm các field khác
   [key: string]: unknown;
 }
 
 // ── Map Backend → UI ──────────────────────────────────────────────────────────
+function toCoordinateString(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? String(numericValue) : "";
+}
+
 function mapToUI(b: BackendStation): Station {
+  const lat = toCoordinateString(b.latitude ?? b.la_titude);
+  const lng = toCoordinateString(b.longitude ?? b.long_titude);
+
   return {
     id: b.stationId,
     code: b.stationCode ?? b.stationId.slice(0, 8).toUpperCase(),
@@ -23,7 +36,9 @@ function mapToUI(b: BackendStation): Station {
     line: (b.line as string) ?? "—",
     zone: b.address ?? b.location ?? "—",
     status: b.status?.toLowerCase() === "active" ? "active" : "inactive",
-    location: b.address ?? b.location ?? "",
+    location: lat && lng ? `${lat}, ${lng}` : "",
+    lat,
+    lng,
   };
 }
 
@@ -34,7 +49,14 @@ function mapToBackend(data: Partial<Station> & { latitude?: number; longitude?: 
   let latitude: number | undefined = data.latitude;
   let longitude: number | undefined = data.longitude;
 
-  if (!latitude && !longitude && data.location) {
+  if (data.lat !== undefined) {
+    latitude = parseFloat(data.lat);
+  }
+  if (data.lng !== undefined) {
+    longitude = parseFloat(data.lng);
+  }
+
+  if (latitude === undefined && longitude === undefined && data.location) {
     const parts = data.location.split(",");
     if (parts.length === 2) {
       latitude = parseFloat(parts[0].trim());
