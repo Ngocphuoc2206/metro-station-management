@@ -26,11 +26,11 @@ export default function KanbanCard({ incident, onDragStart }: Props) {
 
   const getSeverityLabel = (severity: string) => {
     switch (severity) {
-      case "critical": return "CRITICAL";
+      case "critical": return "Nghiêm trọng";
       case "warning":
-      case "high": return "HIGH";
-      case "medium": return "MEDIUM";
-      case "low": return "LOW";
+      case "high": return "Cao";
+      case "medium": return "Trung bình";
+      case "low": return "Thấp";
       default: return "";
     }
   };

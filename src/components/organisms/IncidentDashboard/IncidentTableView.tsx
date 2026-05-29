@@ -37,9 +37,9 @@ export default function IncidentTableView({ incidents }: Props) {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm text-gray-600">
+    <div className="app-table-shell">
+      <div className="app-table-scroll">
+        <table className="app-table text-left text-sm text-gray-600">
           <thead className="bg-gray-50/50 text-[10px] uppercase font-black text-gray-400 tracking-wider">
             <tr>
               <th className="px-6 py-4 rounded-tl-2xl">Mã Sự Cố (ID)</th>

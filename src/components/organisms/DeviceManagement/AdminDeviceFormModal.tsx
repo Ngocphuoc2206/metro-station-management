@@ -82,6 +82,13 @@ function optionalNumber(value: string) {
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+function statusLabel(status: AdminDeviceStatus) {
+  if (status === "ACTIVE") return "Hoạt động";
+  if (status === "INACTIVE") return "Ngừng hoạt động";
+  if (status === "ERROR") return "Lỗi";
+  return "Bảo trì";
+}
+
 function requestErrorMessage(error: unknown) {
   if (axios.isAxiosError(error)) {
     const responseMessage = error.response?.data?.message;
@@ -226,10 +233,10 @@ export default function AdminDeviceFormModal({
             <label className="space-y-1.5">
               <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500">Trạng thái</span>
               <select value={form.status} onChange={(event) => set("status", event.target.value as AdminDeviceStatus)} className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-blue-400 focus:outline-none">
-                <option value="ACTIVE">ACTIVE</option>
-                <option value="INACTIVE">INACTIVE</option>
-                <option value="ERROR">ERROR</option>
-                <option value="MAINTENANCE">MAINTENANCE</option>
+                <option value="ACTIVE">{statusLabel("ACTIVE")}</option>
+                <option value="INACTIVE">{statusLabel("INACTIVE")}</option>
+                <option value="ERROR">{statusLabel("ERROR")}</option>
+                <option value="MAINTENANCE">{statusLabel("MAINTENANCE")}</option>
               </select>
             </label>
             <label className="space-y-1.5">

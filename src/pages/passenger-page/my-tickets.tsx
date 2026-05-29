@@ -6,6 +6,8 @@ import PassengerShell from "@components/templates/PassengerShell";
 import { myTicketApi, myTicketErrorMessage } from "@features/myTicket/myTicketApi";
 import type { MyTicketDto, QrTokenResult, TicketHistoryRow } from "@features/myTicket/myTicketTypes";
 
+const QR_TTL_FALLBACK_SECONDS = 600;
+
 const formatDate = (value?: string) => {
   if (!value) return "--";
   const date = new Date(value);
@@ -38,6 +40,21 @@ const routeName = (ticket: MyTicketDto) =>
   ticket.routeName ||
   [ticket.originStationName, ticket.destinationStationName].filter(Boolean).join(" - ") ||
   "Không giới hạn chặng";
+
+const resolveQrSeconds = (qrResult: QrTokenResult) => {
+  if (typeof qrResult.ttlSeconds === "number" && Number.isFinite(qrResult.ttlSeconds) && qrResult.ttlSeconds > 0) {
+    return Math.max(0, Math.floor(qrResult.ttlSeconds));
+  }
+
+  if (qrResult.expiresAt) {
+    const expiresAt = new Date(qrResult.expiresAt).getTime();
+    if (!Number.isNaN(expiresAt)) {
+      return Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+    }
+  }
+
+  return QR_TTL_FALLBACK_SECONDS;
+};
 
 export default function MyTicketsPage() {
   const [tickets, setTickets] = useState<MyTicketDto[]>([]);
@@ -129,7 +146,7 @@ export default function MyTicketsPage() {
         image = await generator.toDataURL(response.token, { margin: 1, width: 220 });
       }
       setQr(response);
-      setSeconds(60);
+      setSeconds(resolveQrSeconds(response));
       setQrImage(image);
     } catch (requestError) {
       setQrError(myTicketErrorMessage(requestError, "Không thể tạo QR token"));

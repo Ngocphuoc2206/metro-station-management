@@ -67,7 +67,7 @@ export default function StaffPortalShell({
   breadcrumb,
   headerTitle,
   headerMode = "breadcrumb",
-  searchPlaceholder = "Tìm kiếm giao dịch, ticket code...",
+  searchPlaceholder = "Tìm kiếm giao dịch, mã vé...",
   searchValue,
   onSearchChange,
   systemStatus = { label: "SYSTEM NORMAL", tone: "green" },
@@ -76,7 +76,7 @@ export default function StaffPortalShell({
 
   const navItems = [
     {
-      label: "Dashboard",
+      label: "Bảng điều khiển",
       href: "/staff/gate-ops-dashboard",
       icon: LayoutDashboard,
       active: router.pathname === "/staff/gate-ops-dashboard",
@@ -101,8 +101,8 @@ export default function StaffPortalShell({
     },
   ];
 
-  const sectionLabel = breadcrumb?.section ?? "Staff Portal";
-  const pageLabel = breadcrumb?.page ?? "Dashboard";
+  const sectionLabel = breadcrumb?.section ?? "Cổng nhân viên";
+  const pageLabel = breadcrumb?.page ?? "Bảng điều khiển";
 
   return (
     <div className="min-h-screen w-full bg-[radial-gradient(circle_at_8%_12%,rgba(37,99,235,0.10),transparent_42%),radial-gradient(circle_at_92%_18%,rgba(16,185,129,0.10),transparent_38%),linear-gradient(180deg,#f8fafc_0%,#eef2ff_48%,#f8fafc_100%)]">
@@ -114,10 +114,10 @@ export default function StaffPortalShell({
                 <BrandMark className="h-5 w-5" />
               </div>
               <Link href="/" className="text-xl font-bold leading-8 text-blue-600">
-                MetroNext
+                Metro
               </Link>
             </div>
-            <p className="mt-1 text-sm font-medium leading-5 text-slate-500">Staff Portal</p>
+            <p className="mt-1 text-sm font-medium leading-5 text-slate-500">Cổng nhân viên</p>
           </div>
 
           <nav className="flex-1 px-3">
@@ -145,12 +145,12 @@ export default function StaffPortalShell({
               <img
                 className="h-8 w-8 rounded-full bg-slate-300 object-cover"
                 src="https://placehold.co/32x32"
-                alt="Avatar"
+                alt="Ảnh đại diện"
               />
               <div className="min-w-0">
-                <p className="truncate text-xs font-bold leading-4 text-slate-900">Admin User</p>
+                <p className="truncate text-xs font-bold leading-4 text-slate-900">Người dùng quản trị</p>
                 <p className="truncate text-[10px] font-normal uppercase leading-4 text-slate-500">
-                  Station Master
+                  Trưởng ga
                 </p>
               </div>
             </div>
@@ -210,7 +210,7 @@ export default function StaffPortalShell({
               <button
                 type="button"
                 className="relative inline-flex items-center justify-center rounded-full p-2 text-slate-500 hover:bg-slate-50"
-                aria-label="Notifications"
+                aria-label="Thông báo"
               >
                 <Bell className="h-5 w-5" />
                 <span className="absolute right-[6px] top-[6px] h-2 w-2 rounded-full border-2 border-white bg-red-500" />
@@ -220,7 +220,7 @@ export default function StaffPortalShell({
                 <button
                   type="button"
                   className="inline-flex items-center justify-center rounded-full p-2 text-slate-500 hover:bg-slate-50"
-                  aria-label="Settings"
+                  aria-label="Cài đặt"
                 >
                   <Settings2 className="h-5 w-5" />
                 </button>

@@ -298,7 +298,7 @@ export default function StaffDashboard() {
       <div className="flex items-start justify-between">
         <div>
           <nav className="text-xs text-gray-400 mb-0.5 flex items-center gap-1">
-            <span>Staff Portal</span>
+            <span>Cổng nhân viên</span>
             <span>›</span>
             <span className="text-blue-600 font-medium">Dashboard</span>
           </nav>
@@ -307,7 +307,7 @@ export default function StaffDashboard() {
         </div>
         <div className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-          <span className="text-xs font-bold text-green-600">SYSTEM NORMAL</span>
+            <span className="text-xs font-bold text-green-600">HỆ THỐNG ỔN ĐỊNH</span>
         </div>
       </div>
 
@@ -362,7 +362,7 @@ export default function StaffDashboard() {
           <span className="text-xs text-gray-400 font-mono">Cập nhật: {clock}</span>
           {/* Auto toggle */}
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-gray-600">Auto</span>
+            <span className="text-xs font-semibold text-gray-600">Tự động</span>
             <button
               onClick={() => setAutoRefresh(v => !v)}
               className={`relative h-5 w-9 rounded-full transition-colors ${autoRefresh ? "bg-blue-600" : "bg-gray-200"}`}
@@ -375,7 +375,7 @@ export default function StaffDashboard() {
             className="flex items-center gap-1.5 text-xs font-bold text-blue-600 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition"
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-            Refresh
+            Làm mới
           </button>
         </div>
       </div>
@@ -454,9 +454,9 @@ export default function StaffDashboard() {
           {/* Counters */}
           <div className="grid grid-cols-3 border-b border-gray-50">
             {[
-              { label:"ONLINE",  count: online.length,  color: "text-green-600" },
-              { label:"OFFLINE", count: offline.length, color: "text-gray-400" },
-              { label:"ALERTS",  count: errorD.length,  color: "text-red-500" },
+               { label:"TRỰC TUYẾN",  count: online.length,  color: "text-green-600" },
+               { label:"NGOẠI TUYẾN", count: offline.length, color: "text-gray-400" },
+               { label:"CẢNH BÁO",  count: errorD.length,  color: "text-red-500" },
             ].map(c => (
               <div key={c.label} className="py-3 text-center">
                 <p className={`text-lg font-black ${c.color}`}>{loading ? "—" : c.count}</p>
@@ -483,7 +483,7 @@ export default function StaffDashboard() {
                       </div>
                     </div>
                     <span className={`text-[10px] font-black ${st==="ONLINE"?"text-green-600":st==="ERROR"?"text-red-500":"text-gray-400"}`}>
-                      ● {st}
+                      ● {st === "ONLINE" ? "Trực tuyến" : st === "ERROR" ? "Lỗi" : "Ngoại tuyến"}
                     </span>
                   </div>
                 );
@@ -498,14 +498,15 @@ export default function StaffDashboard() {
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-50">
           <div>
             <h2 className="text-sm font-bold text-gray-900">Giao dịch gần đây</h2>
-            <p className="text-[11px] text-gray-400">Time window: {timeWindow}</p>
+              <p className="text-[11px] text-gray-400">Khoảng thời gian: {timeWindow}</p>
           </div>
           <Link href="/staff/transaction-logs" className="text-xs font-semibold text-blue-600 hover:text-blue-700">Xem chi tiết</Link>
         </div>
-        <table className="w-full text-xs">
+        <div className="app-table-scroll">
+        <table className="app-table app-table-compact text-xs">
           <thead>
             <tr className="border-b border-gray-50">
-              {["Thời gian","Ga","Thiết bị","Ticket Ref","Kết quả"].map(h => (
+              {["Thời gian","Ga","Thiết bị","Mã vé","Kết quả"].map(h => (
                 <th key={h} className="px-6 py-3 text-left font-bold text-blue-600">{h}</th>
               ))}
             </tr>
@@ -536,6 +537,7 @@ export default function StaffDashboard() {
             })}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* ── Recent Incidents ── */}
@@ -574,7 +576,8 @@ export default function StaffDashboard() {
             <Link href="/staff/incidents" className="text-xs font-semibold text-blue-600 hover:text-blue-700">Xem lịch sử</Link>
           </div>
         </div>
-        <table className="w-full text-xs">
+        <div className="app-table-scroll">
+        <table className="app-table app-table-compact text-xs">
           <thead>
             <tr className="border-b border-gray-50">
               {["Thời gian","Vị trí","Loại sự cố","Mức độ","Trạng thái"].map(h => (
@@ -600,6 +603,7 @@ export default function StaffDashboard() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

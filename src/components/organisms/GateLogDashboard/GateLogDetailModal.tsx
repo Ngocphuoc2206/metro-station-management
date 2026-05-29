@@ -1,8 +1,8 @@
 import type { GateLog } from "@features/gateLog/gateLogTypes";
 
 const ACTION_LABEL: Record<string, string> = {
-  TAP_IN: "Tap-In",
-  TAP_OUT: "Tap-Out",
+  TAP_IN: "Vào ga",
+  TAP_OUT: "Ra ga",
 };
 
 interface Props {
@@ -58,16 +58,16 @@ export default function GateLogDetailModal({ log, onClose }: Props) {
         }`}>
           <span className={`h-2 w-2 flex-shrink-0 rounded-full ${allowed ? "bg-green-500" : "bg-red-500"}`} />
           <span className={`text-sm font-semibold ${allowed ? "text-green-700" : "text-red-700"}`}>
-            {allowed ? "ALLOW - Được phép qua cổng" : `DENY - ${log.message || "Bị từ chối"}`}
+            {allowed ? "Cho phép - Được phép qua cổng" : `Từ chối - ${log.message || "Bị từ chối"}`}
           </span>
         </div>
 
         <div className="px-6 py-4">
           <Row label="Thời gian" value={formatDateTime(log.timestamp)} />
           <Row label="Mã cổng" value={log.gateCode || log.gateId} />
-          <Row label="Gate ID" value={log.gateId} />
+          <Row label="Mã cổng" value={log.gateId} />
           <Row label="Mã vé" value={log.ticketCode || log.ticketId} />
-          <Row label="Ticket ID" value={log.ticketId} />
+          <Row label="Mã vé" value={log.ticketId} />
           <Row label="Hành động" value={ACTION_LABEL[log.action] ?? log.action} />
           <Row label="Kết quả" value={log.result} />
           <Row label="Ga" value={log.stationName || log.stationId} />

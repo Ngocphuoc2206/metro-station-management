@@ -34,8 +34,8 @@ export default function AuditLogTable({ logs }: Props) {
   };
 
   return (
-    <div className="overflow-x-auto custom-scrollbar w-full">
-      <table className="w-full text-left border-collapse min-w-[1000px]">
+    <div className="app-table-scroll custom-scrollbar w-full">
+      <table className="app-table min-w-[1000px] text-left border-collapse">
         <thead>
           <tr>
             <th className="px-6 py-5 border-b border-gray-100 text-xs font-bold text-gray-500 uppercase tracking-widest whitespace-nowrap">Thời gian</th>

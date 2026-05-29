@@ -12,6 +12,15 @@ import AdminDeviceFormModal from "./AdminDeviceFormModal";
 
 const statuses: AdminDeviceStatus[] = ["ACTIVE", "INACTIVE", "ERROR", "MAINTENANCE"];
 
+function statusLabel(status: AdminDeviceStatus | string) {
+  const value = status.toUpperCase();
+  if (value === "ACTIVE") return "Hoạt động";
+  if (value === "INACTIVE") return "Ngừng hoạt động";
+  if (value === "ERROR") return "Lỗi";
+  if (value === "MAINTENANCE") return "Bảo trì";
+  return status;
+}
+
 function statusClass(status: string) {
   const value = status.toUpperCase();
   if (value === "ACTIVE") return "bg-green-50 text-green-700 border-green-200";
@@ -152,13 +161,17 @@ export default function AdminDeviceManagement() {
         </select>
         <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="min-w-[170px] rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-700 focus:outline-none">
           <option value="">Tất cả trạng thái</option>
-          {statuses.map((status) => <option key={status} value={status}>{status}</option>)}
+          {statuses.map((status) => (
+            <option key={status} value={status}>
+              {statusLabel(status)}
+            </option>
+          ))}
         </select>
       </div>
 
-      <div className="min-h-[420px] overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+      <div className="app-table-shell min-h-[420px]">
+        <div className="app-table-scroll">
+          <table className="app-table text-left text-sm">
             <thead>
               <tr className="border-b border-gray-100 text-xs font-medium tracking-wider text-gray-400">
                 <th className="px-6 py-4">MÃ THIẾT BỊ</th>
@@ -191,7 +204,11 @@ export default function AdminDeviceManagement() {
                       onChange={(event) => changeStatus(device, event.target.value as AdminDeviceStatus)}
                       className={`rounded-full border px-3 py-1 text-xs font-medium focus:outline-none ${statusClass(device.status)}`}
                     >
-                      {statuses.map((status) => <option key={status} value={status}>{status}</option>)}
+                      {statuses.map((status) => (
+                        <option key={status} value={status}>
+                          {statusLabel(status)}
+                        </option>
+                      ))}
                     </select>
                   </td>
                   <td className="px-6 py-4 text-right">
@@ -203,7 +220,7 @@ export default function AdminDeviceManagement() {
           </table>
         </div>
         {!loading && !error ? (
-          <div className="border-t border-gray-50 px-6 py-4 text-sm text-gray-500">
+          <div className="app-table-summary">
             Hiển thị {filteredDevices.length} trong {devices.length} thiết bị
           </div>
         ) : null}

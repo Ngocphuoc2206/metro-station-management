@@ -39,11 +39,19 @@ export default function PassengerShell({ children }: PassengerShellProps) {
             </div>
 
             <div className="ml-4 flex items-center gap-4">
-              <button className="relative flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-600">
+              <button
+                type="button"
+                aria-label="Thông báo"
+                className="relative flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-600"
+              >
                 <Bell className="h-5 w-5" />
                 <span className="absolute right-2 top-2 h-2 w-2 rounded-full border-2 border-white bg-red-500" />
               </button>
-              <button className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-600">
+              <button
+                type="button"
+                aria-label="Cài đặt"
+                className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-600"
+              >
                 <Settings className="h-5 w-5" />
               </button>
               <button

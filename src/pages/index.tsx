@@ -74,5 +74,5 @@ export default function HomePage() {
 }
 
 HomePage.getLayout = function getLayout(page: ReactElement) {
-  return <UserLayout title="Home">{page}</UserLayout>;
+  return <UserLayout title="Trang chủ">{page}</UserLayout>;
 };

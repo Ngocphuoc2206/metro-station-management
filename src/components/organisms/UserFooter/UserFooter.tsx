@@ -58,7 +58,7 @@ export const UserFooter = () => {
                   />
                 </svg>
               </div>
-              <div className="text-lg font-bold leading-7 text-neutral-900">MetroNext</div>
+              <div className="text-lg font-bold leading-7 text-neutral-900">Metro</div>
             </div>
 
             <p className="text-sm leading-6 text-slate-500">
@@ -120,7 +120,7 @@ export const UserFooter = () => {
 
         <div className="flex flex-col gap-4 border-t border-slate-200 pt-8 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-sm font-normal leading-5 text-slate-500">
-            © 2024 MetroNext. All rights reserved.
+            © 2024 Metro. Bảo lưu mọi quyền.
           </div>
 
           <div className="flex items-center gap-6">

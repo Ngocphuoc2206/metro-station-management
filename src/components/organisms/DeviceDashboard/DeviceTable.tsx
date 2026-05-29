@@ -25,8 +25,8 @@ export default function DeviceTable({ devices, selectedId, onSelect }: Props) {
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+    <div className="app-table-scroll">
+      <table className="app-table app-table-compact text-sm">
         <thead>
           <tr className="border-b border-gray-100">
             {["MÃ THIẾT BỊ", "LOẠI", "TRẠNG THÁI", "LAST SEEN"].map((col) => (

@@ -107,8 +107,8 @@ export default function UserList({
       </div>
 
       {/* TABLE */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
+      <div className="app-table-scroll">
+        <table className="app-table text-left border-collapse">
           <thead>
             <tr className="bg-white border-b border-gray-100">
               <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider w-[25%]">Người dùng</th>
@@ -210,7 +210,7 @@ export default function UserList({
       </div>
       
       {/* PAGINATION (MOCK) */}
-      <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between bg-gray-50/30">
+      <div className="app-table-summary bg-gray-50/30">
         <span className="text-xs text-gray-500">Hiển thị 1 - {data.length} của {data.length} người dùng</span>
         <div className="flex items-center gap-1">
           <button className="p-1 text-gray-400 hover:text-blue-600 disabled:opacity-50" disabled>

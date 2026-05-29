@@ -24,3 +24,104 @@ body,
 #__next * {
   font-family: Inter, "Segoe UI", Roboto, sans-serif;
 }
+
+.app-table-shell {
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  border-radius: 1rem;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.app-table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.app-table-scroll::-webkit-scrollbar {
+  height: 10px;
+}
+
+.app-table-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+
+.app-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 760px;
+}
+
+.app-table thead tr {
+  border-bottom: 1px solid #e5e7eb;
+  background: #f8fafc;
+}
+
+.app-table th {
+  padding: 0.95rem 1.25rem;
+  text-align: left;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.app-table td {
+  padding: 1rem 1.25rem;
+  vertical-align: middle;
+}
+
+.app-table tbody tr {
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.app-table tbody tr:last-child {
+  border-bottom: 0;
+}
+
+.app-table-compact td {
+  padding-top: 0.8rem;
+  padding-bottom: 0.8rem;
+}
+
+.app-table-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-top: 1px solid #f1f5f9;
+  padding: 0.95rem 1.25rem;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.app-panel {
+  border: 1px solid #e5e7eb;
+  border-radius: 1rem;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+@media (max-width: 768px) {
+  .app-table {
+    min-width: 680px;
+  }
+
+  .app-table th {
+    padding: 0.8rem 0.9rem;
+    font-size: 0.68rem;
+  }
+
+  .app-table td {
+    padding: 0.85rem 0.9rem;
+  }
+
+  .app-table-summary {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 0.85rem 0.9rem;
+  }
+}

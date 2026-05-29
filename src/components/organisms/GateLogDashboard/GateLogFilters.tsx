@@ -50,6 +50,11 @@ function Select({
 
 export default function GateLogFilters({ filters, stations, gates, loading, onChange }: Props) {
   const gateOptions = gates.filter((gate) => !filters.stationId || gate.stationId === filters.stationId);
+  const resultOptions = [
+    { label: "Tất cả kết quả", value: "" },
+    { label: "Cho phép", value: "ALLOW" },
+    { label: "Từ chối", value: "DENY" },
+  ];
 
   const set = (key: keyof GateLogs) => (value: string) => {
     if (key === "stationId") {
@@ -108,11 +113,7 @@ export default function GateLogFilters({ filters, stations, gates, loading, onCh
         value={filters.result}
         onChange={set("result")}
         disabled={loading}
-        options={[
-          { label: "Tất cả kết quả", value: "" },
-          { label: "ALLOW", value: "ALLOW" },
-          { label: "DENY", value: "DENY" },
-        ]}
+        options={resultOptions}
       />
 
       {hasFilter ? (
