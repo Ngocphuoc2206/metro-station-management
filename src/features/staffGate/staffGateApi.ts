@@ -23,7 +23,7 @@ function isGateDevice(item: BackendGate) {
 }
 
 function mapGate(item: BackendGate): GateResponse {
-  const gateId = item.gateId ?? item.deviceId ?? item.id ?? "";
+  const gateId = item.gateId ?? item.id ?? item.deviceId ?? "";
   const gateCode = item.gateCode ?? item.deviceCode ?? item.code ?? gateId;
 
   return {

@@ -87,6 +87,7 @@ const normalizeQrToken = (raw: unknown): QrTokenResult => {
     qrToken: qrToken || undefined,
     qrCodeUrl: text(item.qrCodeUrl) || undefined,
     ticketId: text(item.ticketId) || undefined,
+    createdAt: text(item.createdAt ?? item.issuedAt ?? item.generatedAt ?? item.createdDate) || undefined,
     expiresAt: text(item.expiresAt ?? item.expiredAt ?? item.expirationTime) || undefined,
     ttlSeconds: optionalNumber(item.ttlSeconds),
   };

@@ -29,6 +29,7 @@ export type QrTokenResult = {
   qrToken?: string;
   qrCodeUrl?: string;
   ticketId?: string;
+  createdAt?: string;
   expiresAt?: string;
   ttlSeconds?: number;
 };
