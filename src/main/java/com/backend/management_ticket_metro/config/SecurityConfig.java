@@ -84,7 +84,8 @@ public class SecurityConfig {
         corsConfiguration.setAllowedOrigins(List.of(
                 "http://15.134.61.110",
                 "http://15.134.61.110:3000",
-                "http://localhost:3000"
+                "http://localhost:3000",
+                "https://metro-station-management.vercel.app"
         ));
         corsConfiguration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         corsConfiguration.setAllowedHeaders(List.of("*"));
