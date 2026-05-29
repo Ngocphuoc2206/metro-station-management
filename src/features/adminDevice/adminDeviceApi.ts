@@ -24,12 +24,11 @@ function normalizeDevice(raw: RawDevice): AdminDeviceResponse {
     name: raw.name ?? raw.deviceName ?? raw.deviceCode ?? raw.deviceId ?? "",
     ipAddress: raw.ipAddress,
     macAddress: raw.macAddress,
-    status: raw.status ?? "OFFLINE",
+    status: raw.status ?? "INACTIVE",
     stationId: raw.stationId,
     stationName: raw.stationName,
     typeId: raw.typeId,
     typeName: raw.typeName ?? raw.type ?? raw.deviceType,
-    lastMaintenance: raw.lastMaintenance,
     additionalDetails: raw.additionalDetails ?? raw.config,
   };
 }
@@ -67,4 +66,3 @@ export const adminDeviceApi = {
     return normalizeDevice(unwrapApiResponse<RawDevice>(res.data));
   },
 };
-

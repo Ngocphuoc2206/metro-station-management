@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import axios from "axios";
 import type { Station } from "@features/station/stationTypes";
 import type {
   AdminDeviceRequest,
@@ -15,7 +16,6 @@ type DeviceForm = {
   stationId: string;
   typeId: string;
   status: AdminDeviceStatus;
-  lastMaintenance: string;
   detailKind: DeviceDetailKind;
   directionMode: string;
   gateType: string;
@@ -45,8 +45,7 @@ const emptyForm: DeviceForm = {
   macAddress: "",
   stationId: "",
   typeId: "",
-  status: "ONLINE",
-  lastMaintenance: "",
+  status: "ACTIVE",
   detailKind: "GATE",
   directionMode: "IN",
   gateType: "",
@@ -81,6 +80,21 @@ function optionalNumber(value: string) {
   return value.trim() ? Number(value) : undefined;
 }
 
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function requestErrorMessage(error: unknown) {
+  if (axios.isAxiosError(error)) {
+    const responseMessage = error.response?.data?.message;
+    if (typeof responseMessage === "string" && responseMessage.trim()) {
+      return responseMessage;
+    }
+    if (error.response?.status) {
+      return `Backend trả về HTTP ${error.response.status}.`;
+    }
+  }
+  return "Không thể lưu thiết bị. Vui lòng kiểm tra dữ liệu hoặc API backend.";
+}
+
 export default function AdminDeviceFormModal({
   isOpen,
   device,
@@ -107,10 +121,9 @@ export default function AdminDeviceFormModal({
       macAddress: device.macAddress ?? "",
       stationId: device.stationId ?? "",
       typeId: device.typeId ?? "",
-      status: (["ONLINE", "OFFLINE", "MAINTENANCE"].includes(device.status.toUpperCase())
+      status: (["ACTIVE", "INACTIVE", "ERROR", "MAINTENANCE"].includes(device.status.toUpperCase())
         ? device.status.toUpperCase()
-        : "OFFLINE") as AdminDeviceStatus,
-      lastMaintenance: device.lastMaintenance?.slice(0, 16) ?? "",
+        : "INACTIVE") as AdminDeviceStatus,
       detailKind: inferDetailKind(device),
       directionMode: detailValue(device, "directionMode") || "IN",
       gateType: detailValue(device, "gateType"),
@@ -145,21 +158,33 @@ export default function AdminDeviceFormModal({
       setError("Vui lòng nhập mã, tên, ga và Type ID của thiết bị.");
       return;
     }
+    if (!uuidPattern.test(form.stationId) || !uuidPattern.test(form.typeId.trim())) {
+      setError("Ga và Type ID phải là ID UUID hợp lệ theo backend.");
+      return;
+    }
+    if (form.detailKind === "GATE" && (!form.directionMode || !form.gateType.trim())) {
+      setError("Thiết bị Gate cần Direction mode và Gate type.");
+      return;
+    }
+    const passageCount = optionalNumber(form.passageCount);
+    if (form.detailKind === "GATE" && (passageCount === undefined || !Number.isInteger(passageCount) || passageCount < 0)) {
+      setError("Passage count phải là số nguyên không âm.");
+      return;
+    }
     const payload: AdminDeviceRequest = {
       deviceCode: form.deviceCode.trim(),
       name: form.name.trim(),
       ipAddress: form.ipAddress.trim() || undefined,
       macAddress: form.macAddress.trim() || undefined,
+      status: form.status,
       stationId: form.stationId,
       typeId: form.typeId.trim(),
-      status: form.status,
-      lastMaintenance: form.lastMaintenance || undefined,
     };
     if (form.detailKind === "GATE") {
-      payload.directionMode = form.directionMode || undefined;
-      payload.gateType = form.gateType.trim() || undefined;
+      payload.directionMode = form.directionMode;
+      payload.gateType = form.gateType.trim();
       payload.emergencyMode = form.emergencyMode;
-      payload.passageCount = optionalNumber(form.passageCount);
+      payload.passageCount = passageCount;
     } else if (form.detailKind === "TICKET_MACHINE") {
       payload.cardStockLevel = optionalNumber(form.cardStockLevel);
       payload.acceptedPaymentMethods = form.acceptedPaymentMethods.trim() || undefined;
@@ -174,8 +199,8 @@ export default function AdminDeviceFormModal({
     setError("");
     try {
       await onSubmit(payload);
-    } catch {
-      setError("Không thể lưu thiết bị. Vui lòng kiểm tra dữ liệu hoặc API backend.");
+    } catch (submitError) {
+      setError(requestErrorMessage(submitError));
     } finally {
       setIsSubmitting(false);
     }
@@ -201,8 +226,9 @@ export default function AdminDeviceFormModal({
             <label className="space-y-1.5">
               <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500">Trạng thái</span>
               <select value={form.status} onChange={(event) => set("status", event.target.value as AdminDeviceStatus)} className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-blue-400 focus:outline-none">
-                <option value="ONLINE">ONLINE</option>
-                <option value="OFFLINE">OFFLINE</option>
+                <option value="ACTIVE">ACTIVE</option>
+                <option value="INACTIVE">INACTIVE</option>
+                <option value="ERROR">ERROR</option>
                 <option value="MAINTENANCE">MAINTENANCE</option>
               </select>
             </label>
@@ -216,10 +242,6 @@ export default function AdminDeviceFormModal({
             <Field label="Type ID *" value={form.typeId} onChange={(value) => set("typeId", value)} placeholder="UUID loại thiết bị" />
             <Field label="IP Address" value={form.ipAddress} onChange={(value) => set("ipAddress", value)} placeholder="192.168.1.10" />
             <Field label="MAC Address" value={form.macAddress} onChange={(value) => set("macAddress", value)} placeholder="00:1A:2B:3C:4D:5E" />
-            <label className="space-y-1.5">
-              <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500">Bảo trì gần nhất</span>
-              <input type="datetime-local" value={form.lastMaintenance} onChange={(event) => set("lastMaintenance", event.target.value)} className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-blue-400 focus:outline-none" />
-            </label>
           </div>
 
           <div className="my-6 border-t border-gray-100" />
@@ -233,8 +255,15 @@ export default function AdminDeviceFormModal({
           </div>
           {form.detailKind === "GATE" ? (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-              <Field label="Direction mode" value={form.directionMode} onChange={(value) => set("directionMode", value)} placeholder="IN / OUT / BI" />
-              <Field label="Gate type" value={form.gateType} onChange={(value) => set("gateType", value)} placeholder="STANDARD" />
+              <label className="space-y-1.5">
+                <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500">Direction mode *</span>
+                <select value={form.directionMode} onChange={(event) => set("directionMode", event.target.value)} className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-blue-400 focus:outline-none">
+                  <option value="IN">IN</option>
+                  <option value="OUT">OUT</option>
+                  <option value="BI">BI</option>
+                </select>
+              </label>
+              <Field label="Gate type *" value={form.gateType} onChange={(value) => set("gateType", value)} placeholder="Swing Gate" />
               <Field label="Passage count" value={form.passageCount} onChange={(value) => set("passageCount", value)} type="number" />
               <Checkbox label="Emergency mode" checked={form.emergencyMode} onChange={(value) => set("emergencyMode", value)} />
             </div>

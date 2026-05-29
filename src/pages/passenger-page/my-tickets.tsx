@@ -20,7 +20,8 @@ const formatTime = (value?: string) => {
 
 const ticketStatus = (value: string) => {
   const status = value.toUpperCase();
-  if (["READY", "ACTIVE", "VALID", "IN_USE"].some((item) => status.includes(item))) return "Sẵn sàng sử dụng";
+  if (["USED", "COMPLETED", "CONSUMED", "FINISHED", "CHECKED_OUT", "TAP_OUT", "EXITED"].some((item) => status.includes(item))) return "Đã dùng";
+  if (["READY", "ACTIVE", "VALID", "IN_USE", "CHECKED_IN", "TAP_IN", "ENTERED"].some((item) => status.includes(item))) return "Sẵn sàng sử dụng";
   if (["EXPIRED", "INVALID", "CANCELLED", "INACTIVE"].some((item) => status.includes(item))) return "Hết hạn";
   return "Chưa dùng";
 };
@@ -88,6 +89,7 @@ export default function MyTicketsPage() {
     total: tickets.length,
     active: tickets.filter((ticket) => ticketStatus(ticket.status) === "Sẵn sàng sử dụng").length,
     unused: tickets.filter((ticket) => ticketStatus(ticket.status) === "Chưa dùng").length,
+    used: tickets.filter((ticket) => ticketStatus(ticket.status) === "Đã dùng").length,
     expired: tickets.filter((ticket) => ticketStatus(ticket.status) === "Hết hạn").length,
   }), [tickets]);
 
@@ -167,6 +169,7 @@ export default function MyTicketsPage() {
               ["Tổng số vé", stats.total, "text-slate-900"],
               ["Sẵn sàng sử dụng", stats.active, "text-green-600"],
               ["Chưa dùng", stats.unused, "text-amber-600"],
+              ["Đã dùng", stats.used, "text-slate-600"],
               ["Hết hạn", stats.expired, "text-red-600"],
             ].map(([label, value, color]) => (
               <div key={String(label)} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -178,7 +181,7 @@ export default function MyTicketsPage() {
           <section className="flex flex-wrap gap-3 rounded-2xl border border-slate-200 bg-white p-4">
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm mã vé hoặc chặng đi" className="h-11 min-w-64 flex-1 rounded-xl border border-slate-200 px-3" />
             <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="h-11 rounded-xl border border-slate-200 px-3">
-              <option value="">Tất cả trạng thái</option><option>Sẵn sàng sử dụng</option><option>Chưa dùng</option><option>Hết hạn</option>
+              <option value="">Tất cả trạng thái</option><option>Sẵn sàng sử dụng</option><option>Chưa dùng</option><option>Đã dùng</option><option>Hết hạn</option>
             </select>
             <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className="h-11 rounded-xl border border-slate-200 px-3">
               <option value="">Tất cả loại vé</option><option>Vé lượt</option><option>Vé ngày</option><option>Vé tháng</option>
@@ -192,7 +195,7 @@ export default function MyTicketsPage() {
                 const active = status === "Sẵn sàng sử dụng";
                 return (
                   <article key={ticket.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                    <div className={`h-1.5 ${active ? "bg-green-500" : status === "Hết hạn" ? "bg-red-500" : "bg-amber-500"}`} />
+                    <div className={`h-1.5 ${active ? "bg-green-500" : status === "Hết hạn" ? "bg-red-500" : status === "Đã dùng" ? "bg-slate-400" : "bg-amber-500"}`} />
                     <div className="space-y-4 p-5">
                       <div className="flex justify-between gap-2">
                         <span className="text-xs font-bold text-slate-400">#{ticket.code}</span>

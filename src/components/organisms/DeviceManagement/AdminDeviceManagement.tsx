@@ -10,19 +10,20 @@ import { stationApi } from "@features/station/stationApi";
 import type { Station } from "@features/station/stationTypes";
 import AdminDeviceFormModal from "./AdminDeviceFormModal";
 
-const statuses: AdminDeviceStatus[] = ["ONLINE", "OFFLINE", "MAINTENANCE"];
+const statuses: AdminDeviceStatus[] = ["ACTIVE", "INACTIVE", "ERROR", "MAINTENANCE"];
 
 function statusClass(status: string) {
   const value = status.toUpperCase();
-  if (value === "ONLINE" || value === "ACTIVE") return "bg-green-50 text-green-700 border-green-200";
+  if (value === "ACTIVE") return "bg-green-50 text-green-700 border-green-200";
+  if (value === "ERROR") return "bg-red-50 text-red-700 border-red-200";
   if (value === "MAINTENANCE") return "bg-amber-50 text-amber-700 border-amber-200";
   return "bg-slate-50 text-slate-600 border-slate-200";
 }
 
-function displayDate(value?: string) {
-  if (!value) return "-";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString("vi-VN", { hour12: false });
+function getStationName(device: AdminDeviceResponse, stations: Station[]) {
+  return stations.find((station) => station.id === device.stationId)?.name
+    ?? device.stationName
+    ?? "-";
 }
 
 export default function AdminDeviceManagement() {
@@ -68,12 +69,12 @@ export default function AdminDeviceManagement() {
   const filteredDevices = useMemo(() => {
     const query = search.trim().toLowerCase();
     return devices.filter((device) => {
-      const text = `${device.deviceCode} ${device.name} ${device.stationName ?? ""} ${device.typeName ?? ""}`.toLowerCase();
+      const text = `${device.deviceCode} ${device.name} ${getStationName(device, stations)} ${device.typeName ?? ""}`.toLowerCase();
       return (!query || text.includes(query))
         && (!statusFilter || device.status.toUpperCase() === statusFilter)
         && (!typeFilter || device.typeName === typeFilter);
     });
-  }, [devices, search, statusFilter, typeFilter]);
+  }, [devices, search, stations, statusFilter, typeFilter]);
 
   const openCreate = () => {
     setEditingDevice(null);
@@ -88,14 +89,21 @@ export default function AdminDeviceManagement() {
   const submit = async (payload: AdminDeviceRequest) => {
     if (editingDevice) {
       const updated = await adminDeviceApi.updateDevice(editingDevice.id, payload);
-      const merged = { ...editingDevice, ...updated, stationId: payload.stationId, typeId: payload.typeId };
+      const stationName = stations.find((station) => station.id === payload.stationId)?.name;
+      const merged = {
+        ...editingDevice,
+        ...updated,
+        stationId: payload.stationId,
+        stationName: stationName ?? updated.stationName ?? editingDevice.stationName,
+        typeId: payload.typeId,
+      };
       setDevices((current) => current.map((device) => device.id === editingDevice.id ? merged : device));
       toast.success("Đã cập nhật thiết bị.");
     } else {
       const created = await adminDeviceApi.createDevice(payload);
       const stationName = stations.find((station) => station.id === payload.stationId)?.name;
       setDevices((current) => [
-        { ...created, stationId: payload.stationId, typeId: payload.typeId, stationName: created.stationName ?? stationName },
+        { ...created, stationId: payload.stationId, typeId: payload.typeId, stationName: stationName ?? created.stationName },
         ...current,
       ]);
       toast.success("Đã thêm thiết bị.");
@@ -158,29 +166,27 @@ export default function AdminDeviceManagement() {
                 <th className="px-6 py-4">LOẠI</th>
                 <th className="px-6 py-4">GA</th>
                 <th className="px-6 py-4">IP ADDRESS</th>
-                <th className="px-6 py-4">BẢO TRÌ GẦN NHẤT</th>
                 <th className="px-6 py-4">TRẠNG THÁI</th>
                 <th className="px-6 py-4 text-right">THAO TÁC</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading ? (
-                <tr><td colSpan={8} className="px-6 py-16 text-center text-gray-400">Đang tải dữ liệu thiết bị...</td></tr>
+                <tr><td colSpan={7} className="px-6 py-16 text-center text-gray-400">Đang tải dữ liệu thiết bị...</td></tr>
               ) : error ? (
-                <tr><td colSpan={8} className="px-6 py-16 text-center text-red-600">{error}</td></tr>
+                <tr><td colSpan={7} className="px-6 py-16 text-center text-red-600">{error}</td></tr>
               ) : filteredDevices.length === 0 ? (
-                <tr><td colSpan={8} className="px-6 py-16 text-center text-gray-500">Không tìm thấy thiết bị phù hợp.</td></tr>
+                <tr><td colSpan={7} className="px-6 py-16 text-center text-gray-500">Không tìm thấy thiết bị phù hợp.</td></tr>
               ) : filteredDevices.map((device) => (
                 <tr key={device.id} className="transition hover:bg-gray-50/50">
                   <td className="px-6 py-4 font-semibold text-blue-600">{device.deviceCode || device.id}</td>
                   <td className="px-6 py-4 font-medium text-gray-900">{device.name}</td>
                   <td className="px-6 py-4 text-gray-600">{device.typeName || "-"}</td>
-                  <td className="px-6 py-4 text-gray-600">{device.stationName || "-"}</td>
+                  <td className="px-6 py-4 text-gray-600">{getStationName(device, stations)}</td>
                   <td className="px-6 py-4 font-mono text-gray-600">{device.ipAddress || "-"}</td>
-                  <td className="px-6 py-4 text-gray-600">{displayDate(device.lastMaintenance)}</td>
                   <td className="px-6 py-4">
                     <select
-                      value={statuses.includes(device.status.toUpperCase() as AdminDeviceStatus) ? device.status.toUpperCase() : "OFFLINE"}
+                      value={statuses.includes(device.status.toUpperCase() as AdminDeviceStatus) ? device.status.toUpperCase() : "INACTIVE"}
                       disabled={changingStatusId === device.id}
                       onChange={(event) => changeStatus(device, event.target.value as AdminDeviceStatus)}
                       className={`rounded-full border px-3 py-1 text-xs font-medium focus:outline-none ${statusClass(device.status)}`}
@@ -216,4 +222,3 @@ export default function AdminDeviceManagement() {
     </div>
   );
 }
-

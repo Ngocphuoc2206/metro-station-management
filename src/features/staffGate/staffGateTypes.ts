@@ -1,3 +1,7 @@
+export type GateScanResult = "ALLOW" | "DENY";
+export type GateAction = "TAP_IN" | "TAP_OUT";
+export type GateStatus = "ACTIVE" | "INACTIVE" | "MAINTENANCE";
+
 export type ScanTicketRequest = {
   qrContent: string;
   deviceId: string;
@@ -5,11 +9,14 @@ export type ScanTicketRequest = {
   gateId: string;
 };
 
+export type UpdateGateStatusRequest = {
+  status: GateStatus;
+};
 
 // Backend: GateScanResponse
 export type GateScanResponse = {
-  result: string;
-  action: string;
+  result: GateScanResult | string;
+  action: GateAction | string;
   message: string;
   ticketId: string;
   ticketCode: string;
@@ -27,8 +34,8 @@ export type GateScanLogResponse = {
   stationName: string;
   ticketId: string;
   ticketCode: string;
-  action: string;
-  result: string;
+  action: GateAction | string;
+  result: GateScanResult | string;
   message: string;
   scannedAt: string;
 };
@@ -40,6 +47,10 @@ export type GateResponse = {
   name: string;
   stationId: string;
   stationName: string;
-  action: string;
-  status: string;
+  action: GateAction | string;
+  status: GateStatus | string;
+  deviceId?: string;
+  deviceCode?: string;
+  type?: string;
+  deviceType?: string;
 };

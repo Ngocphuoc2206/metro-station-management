@@ -274,8 +274,8 @@ export default function StaffDashboard() {
   const stableStationCount = displayedLiveStatuses.filter((station) =>
     isOperationalStatus(station.status),
   ).length;
-  const acceptedScans = gateLogs.filter((log) => log.result?.toUpperCase() === "ACCEPTED").length;
-  const rejectedScans = gateLogs.filter((log) => log.result?.toUpperCase() === "REJECTED").length;
+  const acceptedScans = gateLogs.filter((log) => ["ALLOW", "ACCEPTED", "SUCCESS"].includes(log.result?.toUpperCase() ?? "")).length;
+  const rejectedScans = gateLogs.filter((log) => ["DENY", "REJECTED", "FAILED"].includes(log.result?.toUpperCase() ?? "")).length;
   const congestionLabel =
     congestionLevel >= 80 ? "Mức rất đông" : congestionLevel >= 50 ? "Mức đông" : "Mức ổn định";
   const chartPoints = groupLogsByHour(chartGateLogs);
@@ -516,7 +516,7 @@ export default function StaffDashboard() {
             ) : recentTransactions.length === 0 ? (
               <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-400">Không có giao dịch</td></tr>
             ) : recentTransactions.map((row) => {
-              const accepted = row.result?.toUpperCase() === "ACCEPTED";
+              const accepted = ["ALLOW", "ACCEPTED", "SUCCESS"].includes(row.result?.toUpperCase() ?? "");
               return (
                 <tr key={row.id} className="hover:bg-gray-50/50 transition-colors">
                   <td className="px-6 py-3.5 font-mono text-blue-500 font-medium">{fmtTime(row.scannedAt)}</td>
