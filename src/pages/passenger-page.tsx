@@ -4,7 +4,10 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import PassengerShell from "@components/templates/PassengerShell";
 import { myTicketApi } from "@features/myTicket/myTicketApi";
-import type { MyTicketDto } from "@features/myTicket/myTicketTypes";
+import type {
+  MyTicketDto,
+  QrTokenResult,
+} from "@features/myTicket/myTicketTypes";
 import { tripApi } from "@features/trip/tripApi";
 import type { TripDto } from "@features/trip/tripTypes";
 import {
@@ -12,6 +15,7 @@ import {
   CalendarClock,
   CircleAlert,
   Clock3,
+  Download,
   X,
   ChevronRight,
   CreditCard,
@@ -47,6 +51,7 @@ type TripRow = {
 };
 
 const PURCHASE_SUMMARY_KEY = "metro-passenger-purchase-summary";
+const QR_TTL_FALLBACK_SECONDS = 600;
 
 const statIcons = {
   green: Ticket,
@@ -54,7 +59,6 @@ const statIcons = {
   amber: CreditCard,
   red: Bell,
 };
-
 
 const toneClass = {
   green: {
@@ -79,7 +83,6 @@ const toneClass = {
   },
 };
 
-
 const mapTicketStatus = (status?: string): TicketCard["status"] => {
   const v = (status ?? "").toLowerCase();
   if (
@@ -90,10 +93,23 @@ const mapTicketStatus = (status?: string): TicketCard["status"] => {
     v.includes("checked_out") ||
     v.includes("tap_out") ||
     v.includes("exited")
-  ) return "Đã dùng";
-  if (v.includes("expired") || v.includes("inactive") || v.includes("invalid")) return "Hết hạn";
-  if (v.includes("ready") || v.includes("active") || v.includes("valid") || v.includes("using") || v.includes("in_use") || v.includes("checked_in") || v.includes("tap_in") || v.includes("entered")) return "Sẵn sàng sử dụng";
-  if (v.includes("new") || v.includes("unused") || v.includes("created")) return "Chưa dùng";
+  )
+    return "Đã dùng";
+  if (v.includes("expired") || v.includes("inactive") || v.includes("invalid"))
+    return "Hết hạn";
+  if (
+    v.includes("ready") ||
+    v.includes("active") ||
+    v.includes("valid") ||
+    v.includes("using") ||
+    v.includes("in_use") ||
+    v.includes("checked_in") ||
+    v.includes("tap_in") ||
+    v.includes("entered")
+  )
+    return "Sẵn sàng sử dụng";
+  if (v.includes("new") || v.includes("unused") || v.includes("created"))
+    return "Chưa dùng";
   return "Chưa dùng";
 };
 
@@ -135,7 +151,11 @@ const formatDateTime = (iso?: string) => {
 
 const statusTone = (status?: string) => {
   const value = (status ?? "").toLowerCase();
-  if (value.includes("fail") || value.includes("cancel") || value.includes("reject")) {
+  if (
+    value.includes("fail") ||
+    value.includes("cancel") ||
+    value.includes("reject")
+  ) {
     return "bg-red-100 text-red-700";
   }
   if (value.includes("pending") || value.includes("progress")) {
@@ -144,9 +164,44 @@ const statusTone = (status?: string) => {
   return "bg-green-100 text-green-700";
 };
 
+const parseQrDate = (value?: string) => {
+  if (!value) return Number.NaN;
+  const normalized = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value) ? value : `${value}Z`;
+  return new Date(normalized).getTime();
+};
+
+const resolveQrSeconds = (qrResult: QrTokenResult) => {
+  if (qrResult.expiresAt) {
+    const expiresAt = parseQrDate(qrResult.expiresAt);
+    if (!Number.isNaN(expiresAt)) {
+      return Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+    }
+  }
+
+  if (qrResult.createdAt) {
+    const createdAt = parseQrDate(qrResult.createdAt);
+    if (!Number.isNaN(createdAt)) {
+      const expiresAt = createdAt + QR_TTL_FALLBACK_SECONDS * 1000;
+      return Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+    }
+  }
+
+  if (
+    typeof qrResult.ttlSeconds === "number" &&
+    Number.isFinite(qrResult.ttlSeconds) &&
+    qrResult.ttlSeconds > 0
+  ) {
+    return Math.max(0, Math.floor(qrResult.ttlSeconds));
+  }
+
+  return QR_TTL_FALLBACK_SECONDS;
+};
+
 export default function PassengerPage() {
   const [selectedTicket, setSelectedTicket] = useState<TicketCard | null>(null);
-  const [remainingSeconds, setRemainingSeconds] = useState(60);
+  const [remainingSeconds, setRemainingSeconds] = useState(
+    QR_TTL_FALLBACK_SECONDS,
+  );
 
   const [tickets, setTickets] = useState<MyTicketDto[]>([]);
   const [trips, setTrips] = useState<TripDto[]>([]);
@@ -156,6 +211,7 @@ export default function PassengerPage() {
   const [qrImageUrl, setQrImageUrl] = useState<string | null>(null);
   const [qrError, setQrError] = useState<string | null>(null);
   const [qrRefreshing, setQrRefreshing] = useState(false);
+  const [qrRefreshKey, setQrRefreshKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -210,10 +266,19 @@ export default function PassengerPage() {
   }, []);
 
   const derivedStats: StatCard[] = useMemo(() => {
-    const activeCount = tickets.filter((t) => mapTicketStatus(t.status) === "Sẵn sàng sử dụng").length;
+    const activeCount = tickets.filter(
+      (t) => mapTicketStatus(t.status) === "Sẵn sàng sử dụng",
+    ).length;
     const apiSpend =
-      trips.reduce((sum, trip) => sum + (typeof trip.fare === "number" ? trip.fare : 0), 0) ||
-      tickets.reduce((sum, ticket) => sum + (typeof ticket.price === "number" ? ticket.price : 0), 0);
+      trips.reduce(
+        (sum, trip) => sum + (typeof trip.fare === "number" ? trip.fare : 0),
+        0,
+      ) ||
+      tickets.reduce(
+        (sum, ticket) =>
+          sum + (typeof ticket.price === "number" ? ticket.price : 0),
+        0,
+      );
     const spend = Math.max(apiSpend, localPurchaseSpend);
 
     return [
@@ -230,7 +295,9 @@ export default function PassengerPage() {
       const tone = mapTicketTone(status);
       const route =
         t.routeName ||
-        [t.originStationName, t.destinationStationName].filter(Boolean).join(" - ") ||
+        [t.originStationName, t.destinationStationName]
+          .filter(Boolean)
+          .join(" - ") ||
         "Tuyến metro";
       return {
         rawId: t.id,
@@ -268,20 +335,19 @@ export default function PassengerPage() {
       setQrError(null);
       setQrRefreshing(true);
       try {
-        const tokenRes = await myTicketApi.createQrToken(selectedTicket.rawId as string);
+        const tokenRes = await myTicketApi.createQrToken(
+          selectedTicket.rawId as string,
+        );
         if (cancelled) return;
         if (!tokenRes.token) throw new Error("Backend không trả QR token.");
 
-        let imageUrl = tokenRes.qrCodeUrl;
-        if (!imageUrl) {
-          const qrcode = await import("qrcode");
-          imageUrl = await qrcode.toDataURL(tokenRes.token, {
-            margin: 1,
-            width: 192,
-          });
-        }
+        const qrcode = await import("qrcode");
+        const imageUrl = await qrcode.toDataURL(tokenRes.token, {
+          margin: 1,
+          width: 192,
+        });
         if (!cancelled) {
-          setRemainingSeconds(60);
+          setRemainingSeconds(resolveQrSeconds(tokenRes));
           setQrImageUrl(imageUrl);
         }
       } catch (err) {
@@ -293,14 +359,10 @@ export default function PassengerPage() {
     };
 
     void loadQr();
-    const refreshTimer = window.setInterval(() => {
-      void loadQr();
-    }, 60000);
     return () => {
       cancelled = true;
-      window.clearInterval(refreshTimer);
     };
-  }, [selectedTicket?.rawId]);
+  }, [qrRefreshKey, selectedTicket?.rawId]);
 
   useEffect(() => {
     if (!selectedTicket) {
@@ -314,7 +376,29 @@ export default function PassengerPage() {
     return () => clearInterval(timer);
   }, [selectedTicket]);
 
+  useEffect(() => {
+    if (!selectedTicket?.rawId || !qrImageUrl || qrRefreshing || qrError || remainingSeconds > 0) {
+      return;
+    }
+
+    setQrRefreshKey((current) => current + 1);
+  }, [qrError, qrImageUrl, qrRefreshing, remainingSeconds, selectedTicket?.rawId]);
+
   const countdown = `${String(Math.floor(remainingSeconds / 60)).padStart(2, "0")}:${String(remainingSeconds % 60).padStart(2, "0")}`;
+
+  const downloadQrImage = () => {
+    if (!qrImageUrl || !selectedTicket) return;
+
+    const link = document.createElement("a");
+    link.href = qrImageUrl;
+    const ticketCode = selectedTicket.code.startsWith("#")
+      ? selectedTicket.code.slice(1)
+      : selectedTicket.code;
+    link.download = `metro-qr-${ticketCode}.png`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
 
   return (
     <>
@@ -323,7 +407,7 @@ export default function PassengerPage() {
       </Head>
 
       <PassengerShell>
-        <div className="mx-auto w-full max-w-[1320px] space-y-8">
+        <div className="mx-auto w-full max-w-330 space-y-8">
           <div className="space-y-8">
             <div className="flex flex-wrap items-end justify-between gap-4">
               <div>
@@ -461,7 +545,7 @@ export default function PassengerPage() {
 
                   <div className="overflow-hidden rounded-3xl border border-white/60 bg-white/85 shadow-[0px_10px_30px_-18px_rgba(15,23,42,0.35)] backdrop-blur">
                     <div className="overflow-x-auto">
-                      <div className="min-w-[720px]">
+                      <div className="min-w-180">
                         <div className="grid grid-cols-5 bg-slate-50 text-xs font-bold uppercase text-slate-500">
                           <div className="px-6 py-4">Ngày</div>
                           <div className="px-6 py-4">Ga vào</div>
@@ -484,7 +568,9 @@ export default function PassengerPage() {
                               {row.fare}
                             </div>
                             <div className="px-6 py-4">
-                              <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${statusTone(row.status)}`}>
+                              <span
+                                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${statusTone(row.status)}`}
+                              >
                                 <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
                                 {row.status}
                               </span>
@@ -508,7 +594,10 @@ export default function PassengerPage() {
                     Thao tác nhanh
                   </h3>
                   <div className="space-y-3">
-                    <Link href="/passenger-page/buy-tickets-step-1" className="flex w-full items-center justify-between rounded-3xl border border-blue-600/10 bg-blue-600/5 p-4 text-blue-600">
+                    <Link
+                      href="/passenger-page/buy-tickets-step-1"
+                      className="flex w-full items-center justify-between rounded-3xl border border-blue-600/10 bg-blue-600/5 p-4 text-blue-600"
+                    >
                       <div className="flex items-center gap-3">
                         <Ticket className="h-5 w-5" />
                         <span className="text-base font-bold">Mua vé lượt</span>
@@ -516,7 +605,10 @@ export default function PassengerPage() {
                       <ChevronRight className="h-4 w-4" />
                     </Link>
 
-                    <Link href="/passenger-page/my-tickets" className="flex w-full items-center justify-between rounded-3xl bg-slate-100 p-4 text-slate-700">
+                    <Link
+                      href="/passenger-page/my-tickets"
+                      className="flex w-full items-center justify-between rounded-3xl bg-slate-100 p-4 text-slate-700"
+                    >
                       <div className="flex items-center gap-3">
                         <CalendarClock className="h-5 w-5" />
                         <span className="text-base font-bold">Vé của tôi</span>
@@ -524,10 +616,15 @@ export default function PassengerPage() {
                       <ChevronRight className="h-4 w-4" />
                     </Link>
 
-                    <Link href="/passenger-page/history" className="flex w-full items-center justify-between rounded-3xl bg-slate-100 p-4 text-slate-700">
+                    <Link
+                      href="/passenger-page/history"
+                      className="flex w-full items-center justify-between rounded-3xl bg-slate-100 p-4 text-slate-700"
+                    >
                       <div className="flex items-center gap-3">
                         <Clock3 className="h-5 w-5" />
-                        <span className="text-base font-bold">Lịch sử chuyến</span>
+                        <span className="text-base font-bold">
+                          Lịch sử chuyến
+                        </span>
                       </div>
                       <ChevronRight className="h-4 w-4" />
                     </Link>
@@ -553,7 +650,7 @@ export default function PassengerPage() {
                     alt="Metro map"
                     className="h-full w-full object-cover"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/30 to-black/0" />
+                  <div className="absolute inset-0 bg-linear-to-r from-black/80 via-black/30 to-black/0" />
                   <div className="absolute inset-x-4 bottom-4 text-white">
                     <p className="text-xs font-bold uppercase tracking-wider text-white/80">
                       Trạng thái hệ thống
@@ -600,7 +697,10 @@ export default function PassengerPage() {
                 <div className="mb-6 flex justify-center">
                   <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
                     <img
-                      src={qrImageUrl ?? "https://placehold.co/192x192?text=QR+Loading"}
+                      src={
+                        qrImageUrl ??
+                        "https://placehold.co/192x192?text=QR+Loading"
+                      }
                       alt={qrImageUrl ? "Ticket QR" : "Đang tải QR"}
                       className={`h-48 w-48 ${qrRefreshing ? "opacity-40" : ""}`}
                     />
@@ -627,7 +727,9 @@ export default function PassengerPage() {
                   <CircleAlert className="h-4 w-4 text-red-500" />
                   <p className="text-sm font-bold text-red-600">
                     {qrRefreshing ? "Đang đổi mã QR..." : "Đổi mã mới sau: "}
-                    {!qrRefreshing ? <span className="font-black">{countdown}</span> : null}
+                    {!qrRefreshing ? (
+                      <span className="font-black">{countdown}</span>
+                    ) : null}
                   </p>
                 </div>
 
@@ -636,6 +738,16 @@ export default function PassengerPage() {
                   <br />
                   ga
                 </p>
+
+                <button
+                  type="button"
+                  onClick={downloadQrImage}
+                  disabled={!qrImageUrl || qrRefreshing}
+                  className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 py-3 text-sm font-bold text-blue-600 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+                >
+                  <Download className="h-4 w-4" />
+                  Tải ảnh QR
+                </button>
               </div>
 
               <div className="border-t border-slate-100 bg-slate-50 px-6 py-5">

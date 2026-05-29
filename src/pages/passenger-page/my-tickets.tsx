@@ -41,16 +41,30 @@ const routeName = (ticket: MyTicketDto) =>
   [ticket.originStationName, ticket.destinationStationName].filter(Boolean).join(" - ") ||
   "Không giới hạn chặng";
 
-const resolveQrSeconds = (qrResult: QrTokenResult) => {
-  if (typeof qrResult.ttlSeconds === "number" && Number.isFinite(qrResult.ttlSeconds) && qrResult.ttlSeconds > 0) {
-    return Math.max(0, Math.floor(qrResult.ttlSeconds));
-  }
+const parseQrDate = (value?: string) => {
+  if (!value) return Number.NaN;
+  const normalized = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value) ? value : `${value}Z`;
+  return new Date(normalized).getTime();
+};
 
+const resolveQrSeconds = (qrResult: QrTokenResult) => {
   if (qrResult.expiresAt) {
-    const expiresAt = new Date(qrResult.expiresAt).getTime();
+    const expiresAt = parseQrDate(qrResult.expiresAt);
     if (!Number.isNaN(expiresAt)) {
       return Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
     }
+  }
+
+  if (qrResult.createdAt) {
+    const createdAt = parseQrDate(qrResult.createdAt);
+    if (!Number.isNaN(createdAt)) {
+      const expiresAt = createdAt + QR_TTL_FALLBACK_SECONDS * 1000;
+      return Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+    }
+  }
+
+  if (typeof qrResult.ttlSeconds === "number" && Number.isFinite(qrResult.ttlSeconds) && qrResult.ttlSeconds > 0) {
+    return Math.max(0, Math.floor(qrResult.ttlSeconds));
   }
 
   return QR_TTL_FALLBACK_SECONDS;

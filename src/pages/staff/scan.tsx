@@ -143,6 +143,20 @@ function humanizeScanMessage(raw?: string) {
     .toLowerCase();
 
   if (
+    normalized.includes("getusermedia") ||
+    normalized.includes("mediadevices") ||
+    normalized.includes("secure context") ||
+    normalized.includes("notallowederror") ||
+    normalized.includes("permission denied")
+  ) {
+    return {
+      message: "KhÃ´ng thá»ƒ má»Ÿ camera trÃªn trÃ¬nh duyá»‡t hiá»‡n táº¡i.",
+      detail:
+        "Camera chá»‰ hoáº¡t Ä‘á»™ng trÃªn HTTPS hoáº·c localhost. HÃ£y kiá»ƒm tra domain deploy, quyá»n camera vÃ  thá»­ láº¡i.",
+    };
+  }
+
+  if (
     normalized.includes("expired") ||
     normalized.includes("expire") ||
     normalized.includes("het han")
@@ -243,6 +257,22 @@ function humanizeScanMessage(raw?: string) {
     detail:
       "Nếu lỗi lặp lại, vui lòng kiểm tra log quét và trạng thái hệ thống.",
   };
+}
+
+function getCameraSupportError() {
+  if (typeof window === "undefined" || typeof navigator === "undefined") {
+    return "TrÃ¬nh duyá»‡t chÆ°a sáºµn sÃ ng Ä‘á»ƒ má»Ÿ camera.";
+  }
+
+  if (!window.isSecureContext) {
+    return "Camera chá»‰ hoáº¡t Ä‘á»™ng khi website cháº¡y HTTPS hoáº·c localhost.";
+  }
+
+  if (!navigator.mediaDevices?.getUserMedia) {
+    return "TrÃ¬nh duyá»‡t khÃ´ng há»— trá»£ camera hoáº·c camera API Ä‘ang bá»‹ cháº·n.";
+  }
+
+  return null;
 }
 
 function normalizeValidationResult(
@@ -572,12 +602,19 @@ function StaffScanPage() {
         setGates(gateItems);
         const initialStationId = stationItems[0]?.stationId || "";
         setStation((current) => current || initialStationId);
-        setGate(
-          (current) =>
-            current ||
-            pickGateForMode(gateItems, initialStationId, "TAP-IN")?.gateId ||
-            "",
-        );
+        setGate((current) => {
+          const selectedStation = initialStationId;
+          const currentGate = gateItems.find((item) => item.gateId === current);
+          if (
+            currentGate &&
+            (!selectedStation || currentGate.stationId === selectedStation) &&
+            matchesMode(currentGate.action, "TAP-IN")
+          ) {
+            return current;
+          }
+
+          return pickGateForMode(gateItems, selectedStation, "TAP-IN")?.gateId || "";
+        });
         setFilterError(null);
       })
       .catch(() => {
@@ -800,6 +837,11 @@ function StaffScanPage() {
         const videoEl = videoRef.current;
         if (!videoEl) {
           throw new Error("Không tìm thấy phần tử video");
+        }
+
+        const cameraSupportError = getCameraSupportError();
+        if (cameraSupportError) {
+          throw new Error(cameraSupportError);
         }
 
         const mod = await import("@zxing/browser");
