@@ -67,10 +67,10 @@ function isAccepted(result?: string) {
 function formatAction(action?: string) {
   const normalized = (action ?? "").toUpperCase().replace("_", "-");
   if (normalized === "IN" || normalized === "TAP-IN" || normalized === "ENTRY") {
-    return "Tap-In";
+    return "Vào ga";
   }
   if (normalized === "OUT" || normalized === "TAP-OUT" || normalized === "EXIT") {
-    return "Tap-Out";
+    return "Ra ga";
   }
   return action || "-";
 }
@@ -157,7 +157,7 @@ function TransactionLogsPage() {
   };
 
   const exportCsv = () => {
-    const headers = ["Thời gian", "Ga", "Thiết bị", "Hành động", "Ticket code", "Kết quả", "Lý do"];
+    const headers = ["Thời gian", "Ga", "Thiết bị", "Hành động", "Mã vé", "Kết quả", "Lý do"];
     const lines = logs.map((log) =>
       [
         formatDateTime(log.scannedAt),
@@ -219,7 +219,7 @@ function TransactionLogsPage() {
               disabled={logs.length === 0}
               className="rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-slate-900 outline outline-1 outline-offset-[-1px] outline-slate-200 disabled:cursor-not-allowed disabled:text-slate-400"
             >
-              Export CSV
+              Xuất CSV
             </button>
           </div>
 
@@ -288,8 +288,8 @@ function TransactionLogsPage() {
                   className="w-full rounded-xl bg-slate-50 px-4 py-2 text-sm text-slate-900 outline outline-1 outline-offset-[-1px] outline-slate-200"
                 >
                   <option value="">Tất cả trạng thái</option>
-                  <option value="ALLOW">ALLOW</option>
-                  <option value="DENY">DENY</option>
+                  <option value="ALLOW">Cho phép</option>
+                  <option value="DENY">Từ chối</option>
                 </select>
               </label>
             </div>
@@ -308,7 +308,7 @@ function TransactionLogsPage() {
               <div className="min-w-[1080px]">
                 <div className="grid grid-cols-[12rem_12rem_12rem_8rem_12rem_8rem_1fr] gap-5 border-b border-slate-200 bg-slate-50 px-6 py-4 text-[10px] font-bold uppercase tracking-wide text-slate-500">
                   <div>Thời gian</div><div>Ga</div><div>Thiết bị</div><div>Hành động</div>
-                  <div>Ticket code</div><div>Kết quả</div><div>Lý do</div>
+                  <div>Mã vé</div><div>Kết quả</div><div>Lý do</div>
                 </div>
                 {loading ? (
                   <div className="px-6 py-10 text-center text-sm text-slate-500">Đang tải lịch sử quét...</div>
@@ -329,9 +329,9 @@ function TransactionLogsPage() {
                       <div className="text-sm text-slate-600">{formatDateTime(log.scannedAt)}</div>
                       <div className="text-sm font-medium text-slate-900">{log.stationName || log.stationId || "-"}</div>
                       <div className="text-sm font-medium text-slate-900">{log.gateCode || log.gateId || "-"}</div>
-                      <div><span className={`rounded-md px-2.5 py-1 text-[10px] font-bold uppercase ${action === "Tap-In" ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"}`}>{action}</span></div>
+                      <div><span className={`rounded-md px-2.5 py-1 text-[10px] font-bold uppercase ${action === "Vào ga" ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"}`}>{action}</span></div>
                       <div className="font-mono text-sm font-medium text-blue-600">{log.ticketCode || log.ticketId || "-"}</div>
-                      <div><span className={`rounded-md px-2.5 py-1 text-[10px] font-bold uppercase ${accepted ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>{accepted ? "ALLOW" : "DENY"}</span></div>
+                      <div><span className={`rounded-md px-2.5 py-1 text-[10px] font-bold uppercase ${accepted ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>{accepted ? "Cho phép" : "Từ chối"}</span></div>
                       <div className={`text-sm font-medium ${accepted ? "text-slate-400" : "text-red-600"}`}>{log.message || "-"}</div>
                     </button>
                   );

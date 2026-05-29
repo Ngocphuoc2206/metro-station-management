@@ -1,8 +1,8 @@
 import type { GateLog } from "@features/gateLog/gateLogTypes";
 
 const ACTION_LABEL: Record<string, string> = {
-  TAP_IN: "Tap-In",
-  TAP_OUT: "Tap-Out",
+  TAP_IN: "Vào ga",
+  TAP_OUT: "Ra ga",
 };
 
 function formatDateTime(value?: string) {
@@ -38,8 +38,8 @@ export default function GateLogTable({ logs, onDetail, page, pageSize, total, on
 
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+      <div className="app-table-scroll">
+        <table className="app-table app-table-compact text-sm">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50">
               {["Thời gian", "Mã cổng", "Ga", "Mã vé", "Hành động", "Kết quả", "Chi tiết"].map((column) => (
@@ -68,11 +68,11 @@ export default function GateLogTable({ logs, onDetail, page, pageSize, total, on
                 <td className="px-5 py-3.5">
                   {log.result === "ALLOW" ? (
                     <span className="inline-flex rounded-full border border-green-200 bg-green-50 px-2.5 py-0.5 text-xs font-semibold text-green-700">
-                      ALLOW
+                      Cho phép
                     </span>
                   ) : (
                     <span className="inline-flex rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-600">
-                      DENY
+                      Từ chối
                     </span>
                   )}
                 </td>

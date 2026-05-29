@@ -20,8 +20,8 @@ export default function TicketTypeList({ data, onEdit, onDelete }: Props) {
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mt-4">
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
+      <div className="app-table-scroll">
+        <table className="app-table text-left border-collapse">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-100">
               <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider w-[15%]">Mã Loại</th>

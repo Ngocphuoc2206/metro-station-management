@@ -40,28 +40,28 @@ export default function AdminSidebar() {
   };
 
   return (
-    <aside className="w-56 min-h-screen bg-white border-r border-gray-100 flex flex-col justify-between">
+    <aside className="flex min-h-screen w-20 flex-col justify-between border-r border-gray-100 bg-white sm:w-56">
       {/* Logo */}
       <div>
-        <div className="px-5 py-5 border-b border-gray-50">
-          <div className="flex items-center gap-2.5">
+        <div className="border-b border-gray-50 px-3 py-5 sm:px-5">
+          <div className="flex items-center justify-center gap-2.5 sm:justify-start">
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
               <svg className="w-4.5 h-4.5 text-white" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
               </svg>
             </div>
-            <div>
-              <p className="text-sm font-bold text-gray-900 leading-tight">MetroNext</p>
-              <p className="text-xs text-gray-400 leading-tight">Enterprise System</p>
+            <div className="hidden sm:block">
+              <p className="text-sm font-bold text-gray-900 leading-tight">Metro</p>
+              <p className="text-xs text-gray-400 leading-tight">Hệ thống doanh nghiệp</p>
             </div>
           </div>
         </div>
 
         {/* Nav */}
-        <nav className="px-3 py-4 space-y-5">
+        <nav className="space-y-5 px-2 py-4 sm:px-3">
           {NAV_GROUPS.map((group) => (
             <div key={group.heading}>
-              <p className="text-xs font-semibold text-gray-400 tracking-widest px-2 mb-2">
+              <p className="mb-2 hidden px-2 text-xs font-semibold tracking-widest text-gray-400 sm:block">
                 {group.heading}
               </p>
               <ul className="space-y-0.5">
@@ -72,13 +72,13 @@ export default function AdminSidebar() {
                     <li key={item.label}>
                       <a
                         href={item.href}
-                        className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${active
+                        className={`flex items-center justify-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors sm:justify-start ${active
                             ? "bg-blue-600 text-white font-medium"
                             : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                           }`}
                       >
                         <Icon active={active} />
-                        {item.label}
+                        <span className="hidden sm:inline">{item.label}</span>
                       </a>
                     </li>
                   );
@@ -90,23 +90,24 @@ export default function AdminSidebar() {
       </div>
 
       {/* User */}
-      <div className="px-4 py-4 border-t border-gray-100">
-        <div className="flex items-center gap-2.5 mb-3">
+      <div className="border-t border-gray-100 px-3 py-4 sm:px-4">
+        <div className="mb-3 flex items-center justify-center gap-2.5 sm:justify-start">
           <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
             <span className="text-blue-700 text-xs font-bold">
               {name ? name.charAt(0).toUpperCase() : "A"}
             </span>
           </div>
-          <div className="min-w-0">
+          <div className="hidden min-w-0 sm:block">
             <p className="text-xs font-semibold text-gray-900 truncate">{name || "Admin User"}</p>
             <p className="text-xs text-gray-400 truncate">{email || "Super Admin"}</p>
           </div>
         </div>
         <button
           onClick={handleLogout}
-          className="w-full text-xs text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-lg py-1.5 transition-colors"
+          className="w-full rounded-lg py-1.5 text-xs text-gray-500 transition-colors hover:bg-red-50 hover:text-red-500"
         >
-          Đăng xuất
+          <span className="hidden sm:inline">Đăng xuất</span>
+          <span className="sm:hidden">Thoát</span>
         </button>
       </div>
     </aside>

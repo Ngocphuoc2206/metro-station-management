@@ -238,7 +238,7 @@ export default function ScheduleManagement() {
       ) : null}
 
       <div>
-        <section className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+        <section className="app-table-shell">
           <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
             <div>
               <h2 className="text-base font-bold text-gray-900">
@@ -253,8 +253,8 @@ export default function ScheduleManagement() {
             </span>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="min-w-[900px] w-full text-left text-sm">
+          <div className="app-table-scroll">
+            <table className="app-table min-w-[900px] text-left text-sm">
               <thead className="border-b border-gray-100 bg-gray-50 text-xs font-bold uppercase text-gray-400">
                 <tr>
                   <th className="px-5 py-3">Tuyến</th>

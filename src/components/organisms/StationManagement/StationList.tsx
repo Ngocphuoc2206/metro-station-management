@@ -168,9 +168,9 @@ export default function StationList() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden min-h-[400px] flex flex-col relative">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
+      <div className="app-table-shell relative flex min-h-[400px] flex-col">
+        <div className="app-table-scroll">
+          <table className="app-table text-left text-sm">
             <thead>
               <tr className="border-b border-gray-50 text-gray-400">
                 <th className="px-6 py-4 font-medium tracking-wider text-xs">
@@ -323,7 +323,7 @@ export default function StationList() {
         </div>
 
         {/* Pagination Dummy */}
-        <div className="p-4 border-t border-gray-50 mt-auto flex items-center justify-between text-sm text-gray-500">
+        <div className="app-table-summary mt-auto">
           <p>
             Hiển thị 1 - {stations.length} trong {total} nhà ga
           </p>

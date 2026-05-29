@@ -193,10 +193,10 @@ export default function GateLogDashboard() {
           <span className="font-semibold text-gray-900">{logs.length}</span> bản ghi
         </p>
         <span className="rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700">
-          ALLOW {allowCount}
+          Cho phép {allowCount}
         </span>
         <span className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-600">
-          DENY {denyCount}
+          Từ chối {denyCount}
         </span>
       </div>
 

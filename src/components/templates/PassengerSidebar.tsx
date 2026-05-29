@@ -17,12 +17,12 @@ const BrandMark = ({ className = "h-8 w-8" }: { className?: string }) => (
 );
 
 const navItems = [
-  { label: "Dashboard", href: "/passenger-page", icon: LayoutDashboard },
+  { label: "Bảng điều khiển", href: "/passenger-page", icon: LayoutDashboard },
   { label: "Mua vé", href: "/passenger-page/buy-tickets-step-1", icon: Ticket },
   { label: "Vé của tôi", href: "/passenger-page/my-tickets", icon: QrCode },
   { label: "Lịch sử chuyến", href: "/passenger-page/history", icon: History },
   { label: "Lịch tàu", href: "/passenger-page/schedule", icon: TrainFront },
-  { label: "Bản đồ live", href: "/passenger-page/live-map", icon: MapPinned },
+  { label: "Bản đồ trực tuyến", href: "/passenger-page/live-map", icon: MapPinned },
   { label: "Tài khoản", href: "/passenger-page/account", icon: UserRound },
 ];
 
@@ -66,13 +66,13 @@ export default function PassengerSidebar() {
   }, []);
 
   const displayName = profile?.fullName?.trim() || name || "Hành khách";
-  const displayEmail = profile?.email || email || "MetroNext";
+  const displayEmail = profile?.email || email || "Metro";
 
   return (
     <aside className="hidden w-64 shrink-0 border-r border-slate-200/80 bg-white/90 backdrop-blur lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col">
       <div className="flex items-center gap-3 p-6">
         <BrandMark className="h-8 w-8" />
-        <Link href="/" className="text-xl font-bold leading-6 text-neutral-900">MetroNext</Link>
+        <Link href="/" className="text-xl font-bold leading-6 text-neutral-900">Metro</Link>
       </div>
 
       <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-4 pb-4">
@@ -90,7 +90,7 @@ export default function PassengerSidebar() {
 
       <div className="shrink-0 border-t border-slate-200 bg-white/95 p-4">
         <div className="flex items-center gap-3 rounded-2xl p-2" title={`${displayName} - ${displayEmail}`}>
-          <img className="h-10 w-10 rounded-full object-cover" src={profile?.avatarUrl || "https://placehold.co/40x40"} alt="Passenger avatar" />
+          <img className="h-10 w-10 rounded-full object-cover" src={profile?.avatarUrl || "https://placehold.co/40x40"} alt="Ảnh đại diện hành khách" />
           <div className="min-w-0">
             <p className="truncate text-sm font-bold text-neutral-900">{displayName}</p>
             <p className="truncate text-xs text-slate-500">{displayEmail}</p>

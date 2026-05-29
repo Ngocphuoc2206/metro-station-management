@@ -52,8 +52,8 @@ export default function ShiftIncidentList({ incidents, isLoading }: Props) {
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+      <div className="app-table-scroll">
+        <table className="app-table text-sm">
           <thead>
             <tr className="border-b border-gray-50 text-left">
               <th className="px-6 py-4 text-xs font-bold text-gray-400 tracking-wide w-32">MÃ SỰ CỐ (ID)</th>

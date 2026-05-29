@@ -30,7 +30,7 @@ export default function IncidentKanbanView({ incidents, onStatusChange }: Props)
     }
   };
 
-  const handleDragLeave = (e: React.DragEvent) => {
+  const handleDragLeave = () => {
     setDragOverCol(null);
   };
 
@@ -74,7 +74,7 @@ export default function IncidentKanbanView({ incidents, onStatusChange }: Props)
               {colIncidents.length === 0 && (
                 <div className="h-full border-2 border-dashed border-gray-200 rounded-xl flex items-center justify-center p-6 text-center">
                   <span className="text-xs font-medium text-gray-400">
-                    Kéo thả thẻ vào đây để Đóng/Cập nhật
+                    Kéo thả thẻ vào đây để cập nhật trạng thái
                   </span>
                 </div>
               )}

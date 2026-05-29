@@ -35,12 +35,12 @@ export const UserHeader = () => {
             href="/"
             className="text-xl font-bold leading-6 text-neutral-900"
           >
-            MetroNext
+            Metro
           </Link>
         </div>
 
         <nav
-          aria-label="Main navigation"
+          aria-label="Điều hướng chính"
           className="hidden flex-1 justify-center md:flex"
         >
           <ul className="flex items-center gap-9">

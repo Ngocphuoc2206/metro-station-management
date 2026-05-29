@@ -38,8 +38,8 @@ export default function ReportDataTable({ rows }: Props) {
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto custom-scrollbar">
-        <table className="w-full text-left border-collapse min-w-[1000px]">
+      <div className="app-table-scroll custom-scrollbar">
+        <table className="app-table min-w-[1000px] text-left border-collapse">
           <thead>
             <tr>
               <th className="px-6 py-5 border-b border-gray-100 text-[11px] font-bold text-blue-600 uppercase tracking-widest whitespace-nowrap bg-blue-50/30">Ngày</th>
