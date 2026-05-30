@@ -224,6 +224,7 @@ export default function MyTicketsPage() {
               {visibleTickets.map((ticket) => {
                 const status = ticketStatus(ticket.status);
                 const active = status === "Sẵn sàng sử dụng";
+                const used = status === "Đã dùng";
                 return (
                   <article key={ticket.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                     <div className={`h-1.5 ${active ? "bg-green-500" : status === "Hết hạn" ? "bg-red-500" : status === "Đã dùng" ? "bg-slate-400" : "bg-amber-500"}`} />
@@ -236,7 +237,9 @@ export default function MyTicketsPage() {
                       <p className="border-t border-slate-100 pt-3 text-sm text-slate-600">Hiệu lực: {formatDate(ticket.validFrom)} - {formatDate(ticket.validTo)}</p>
                     </div>
                     <div className="flex gap-2 bg-slate-50 p-4">
-                      <button type="button" onClick={() => openQr(ticket)} disabled={!active} className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-blue-600 py-2 text-xs font-bold text-white disabled:bg-slate-300"><QrCode className="h-4 w-4" />QR</button>
+                      {!used ? (
+                        <button type="button" onClick={() => openQr(ticket)} disabled={!active} className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-blue-600 py-2 text-xs font-bold text-white disabled:bg-slate-300"><QrCode className="h-4 w-4" />QR</button>
+                      ) : null}
                       <button type="button" onClick={() => openDetail(ticket.id)} className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700">Chi tiết</button>
                     </div>
                   </article>
