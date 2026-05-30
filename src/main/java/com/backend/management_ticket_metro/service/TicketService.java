@@ -8,6 +8,7 @@ import com.backend.management_ticket_metro.exception.AppException;
 import com.backend.management_ticket_metro.mapper.OrderMapper;
 import com.backend.management_ticket_metro.repository.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -21,6 +22,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class TicketService {
     // Set 10 minutes
     private static final long QR_TOKEN_TTL_SECONDS = 600;
@@ -271,85 +273,115 @@ public class TicketService {
 
     @Transactional(readOnly = true)
     public PageResponse<TripResponse> getMyTripHistory(
-            int page, int limit, LocalDateTime from, LocalDateTime to, String stationId, String ticketId) {
+            int page, int limit, LocalDateTime from, LocalDateTime to, String stationId) {
+
+        log.info("Get my trips history stationId: {}", stationId);
 
         User user = getCurrentUser();
 
-        // 1. Fetch all valid ticket usage logs based on filter criteria
+        // Lấy vé của user
+        Ticket ticket = ticketRepository.findByUser(user)
+                .orElseThrow(() -> new AppException(ErrorCode.TICKET_NOT_FOUND));
+
+        String ticketId = ticket.getId();
+
+        // Lấy toàn bộ log thô
         List<TicketUsage> rawLogs = ticketUsageRepository.findTripHistoryRaw(user, ticketId, stationId, from, to);
 
-        // Cache station names in a map to avoid redundant DB queries inside the loop, optimizing performance
-        Map<String, String> stationNameMap = stationRepository.findAll().stream()
-                .collect(Collectors.toMap(Station::getStationId, Station::getName));
+        if (rawLogs.isEmpty()) {
+            log.warn("Rawlogs is empty");
+            return PageResponse.<TripResponse>builder().items(new ArrayList<>()).page(page).limit(limit).total(0).build();
+        }
 
-        // 2. Group ticket usage logs by Ticket ID
+        // Chỉ lấy các Station ID có trong log
+        Set<String> stationIdsInLogs = rawLogs.stream()
+                .map(TicketUsage::getStationId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        Map<String, String> stationNameMap = stationRepository.findByStationIdIn(stationIdsInLogs).stream()
+                .collect(Collectors.toMap(Station::getStationId, Station::getName, (oldVal, newVal) -> oldVal));
+
+        // Nhóm theo Ticket ID
         Map<String, List<TicketUsage>> logsByTicket = rawLogs.stream()
                 .collect(Collectors.groupingBy(tu -> tu.getTicket().getId()));
 
         List<TripResponse> allTrips = new ArrayList<>();
 
-        // 3. Execute TAP_IN and TAP_OUT pairing algorithm for each ticket
+        // Thuật toán ghép cặp (Đi từ CŨ nhất đến MỚI nhất)
         for (Map.Entry<String, List<TicketUsage>> entry : logsByTicket.entrySet()) {
             String tId = entry.getKey();
-            // Logs for this ticket are sorted in descending order (Newest first)
             List<TicketUsage> ticketLogs = entry.getValue();
 
-            TicketUsage tempTapOut = null;
+            // Đảm bảo log được xếp từ cũ đến mới để thuật toán chạy đúng
+            ticketLogs.sort(Comparator.comparing(TicketUsage::getScannedAt));
+
+            TicketUsage tempTapIn = null;
 
             for (TicketUsage log : ticketLogs) {
                 String currentStationName = stationNameMap.getOrDefault(log.getStationId(), "Unknown Station");
+                boolean isTapOut = log.getGateId() != null && log.getGateId().contains("OUT");
 
-                if (log.getGateId() != null && log.getGateId().contains("OUT")) {
-                    // If a tap-out log is found, temporarily hold it
-                    tempTapOut = log;
+                if (!isTapOut) {
+                    // Nếu gặp TAP_IN mới
+                    if (tempTapIn != null) {
+                        // Chuyến trước đó bị quên TAP_OUT -> Đóng chuyến trước đó dạng IN_COMPLETE hoặc IN_PROGRESS
+                        allTrips.add(buildTrip(tempTapIn, null, tId, stationNameMap));
+                    }
+                    tempTapIn = log; // Giữ lại TAP_IN hiện tại
                 } else {
-                    // If a tap-in log is found
-                    if (tempTapOut != null) {
-                        // If a tap-out log was previously held -> The trip is completed
-                        allTrips.add(TripResponse.builder()
-                                .id("TRIP-" + log.getId().substring(0, 8))
-                                .ticketId(tId)
-                                .originStation(currentStationName)
-                                .destinationStation(stationNameMap.getOrDefault(tempTapOut.getStationId(), "Unknown Station"))
-                                .checkIn(log.getScannedAt())
-                                .checkOut(tempTapOut.getScannedAt())
-                                .status("COMPLETED")
-                                .build());
-                        tempTapOut = null; // Reset the temporary variable
+                    // Nếu gặp TAP_OUT
+                    if (tempTapIn != null) {
+                        // Có cặp hoàn chỉnh
+                        allTrips.add(buildTrip(tempTapIn, log, tId, stationNameMap));
+                        tempTapIn = null; // Reset
                     } else {
-                        // If a tap-in log is found without a corresponding tap-out -> The trip is in transit
-                        allTrips.add(TripResponse.builder()
-                                .id("TRIP-" + log.getId().substring(0, 8))
-                                .ticketId(tId)
-                                .originStation(currentStationName)
-                                .destinationStation("In Transit")
-                                .checkIn(log.getScannedAt())
-                                .checkOut(null)
-                                .status("IN_PROGRESS")
-                                .build());
+                        // Xuất hiện TAP_OUT không có TAP_IN (Lỗi quẹt thẻ đầu vào)
+                        allTrips.add(buildTrip(null, log, tId, stationNameMap));
                     }
                 }
             }
+
+            // Xử lý log cuối cùng nếu nó là một TAP_IN chưa có TAP_OUT (Chuyến đi đang diễn ra)
+            if (tempTapIn != null) {
+                allTrips.add(buildTrip(tempTapIn, null, tId, stationNameMap));
+            }
         }
 
-        // 4. Sort all paired trips by the latest check-in time first
+        //Sắp xếp lại danh sách trip cuối cùng: MỚI NHẤT lên đầu để hiển thị
         allTrips.sort((t1, t2) -> t2.getCheckIn().compareTo(t1.getCheckIn()));
 
-        //  5. Perform manual pagination on the resulting list
+        // 5. Phân trang thủ công (Hạn chế lỗi Index Out Of Bound)
         int totalItems = allTrips.size();
-        int fromIndex = (page - 1) * limit;
+        int fromIndex = Math.min((page - 1) * limit, totalItems);
         int toIndex = Math.min(fromIndex + limit, totalItems);
 
-        List<TripResponse> pagedTrips = new ArrayList<>();
-        if (fromIndex < totalItems) {
-            pagedTrips = allTrips.subList(fromIndex, toIndex);
-        }
+        List<TripResponse> pagedTrips = (fromIndex < totalItems) ? allTrips.subList(fromIndex, toIndex) : new ArrayList<>();
 
         return PageResponse.<TripResponse>builder()
                 .items(pagedTrips)
                 .page(page)
                 .limit(limit)
                 .total(totalItems)
+                .build();
+    }
+
+    // Hàm bổ trợ build Trip gọn gàng và an toàn hơn
+    private TripResponse buildTrip(TicketUsage tapIn, TicketUsage tapOut, String ticketId, Map<String, String> stationNameMap) {
+        String idSource = tapIn != null ? tapIn.getId() : (tapOut != null ? tapOut.getId() : UUID.randomUUID().toString());
+        String tripId = "TRIP-" + (idSource.length() > 8 ? idSource.substring(0, 8) : idSource);
+
+        String origin = tapIn != null ? stationNameMap.getOrDefault(tapIn.getStationId(), "Unknown Station") : "No Check-in";
+        String dest = tapOut != null ? stationNameMap.getOrDefault(tapOut.getStationId(), "Unknown Station") : "In Transit";
+
+        return TripResponse.builder()
+                .id(tripId)
+                .ticketId(ticketId)
+                .originStation(origin)
+                .destinationStation(dest)
+                .checkIn(tapIn != null ? tapIn.getScannedAt() : null)
+                .checkOut(tapOut != null ? tapOut.getScannedAt() : null)
+                .status(tapIn != null && tapOut != null ? "COMPLETED" : (tapIn != null ? "IN_PROGRESS" : "INCOMPLETE_DATA"))
                 .build();
     }
 }
