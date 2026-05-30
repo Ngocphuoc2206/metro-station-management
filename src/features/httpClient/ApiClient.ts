@@ -4,6 +4,7 @@ export const apiClient = axios.create({
   baseURL: process.env.NEXT_PUBLIC_BASE_API_ENDPOINT || "http://localhost:8080/api/v1",
   headers: {
     "Content-Type": "application/json",
+    "ngrok-skip-browser-warning": "true",
   },
 });
 
@@ -60,7 +61,12 @@ apiClient.interceptors.response.use(
           const refreshRes = await axios.post(
             `${process.env.NEXT_PUBLIC_BASE_API_ENDPOINT || "http://15.134.61.110:8080/api/v1"}/auth/refresh`,
             { refreshToken: storedRefreshToken },
-            { headers: { "Content-Type": "application/json" } }
+            {
+              headers: {
+                "Content-Type": "application/json",
+                "ngrok-skip-browser-warning": "true",
+              },
+            }
           );
 
           const newToken = refreshRes.data?.results?.token;
