@@ -85,7 +85,8 @@ public class SecurityConfig {
                 "http://15.134.61.110",
                 "http://15.134.61.110:3000",
                 "http://localhost:3000",
-                "https://metro-station-management.vercel.app"
+                "https://metro-station-management.vercel.app",
+                "https://pronounced-shellie-undefensive.ngrok-free.dev"
         ));
         corsConfiguration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         corsConfiguration.setAllowedHeaders(List.of("*"));
