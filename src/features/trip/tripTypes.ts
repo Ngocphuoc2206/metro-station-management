@@ -4,7 +4,6 @@ export type TripQuery = {
   from?: string;
   to?: string;
   stationId?: string;
-  ticketId?: string;
 };
 
 export type TripDto = {
