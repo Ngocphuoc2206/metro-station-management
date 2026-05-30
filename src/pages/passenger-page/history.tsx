@@ -9,6 +9,9 @@ import type { TripDto, TripPage } from "@features/trip/tripTypes";
 
 const LIMIT = 10;
 
+const toStartDateTime = (value: string) => value ? `${value}T00:00:00` : undefined;
+const toEndDateTime = (value: string) => value ? `${value}T23:59:59` : undefined;
+
 const formatDate = (value?: string) => {
   if (!value) return "--";
   const date = new Date(value);
@@ -29,8 +32,7 @@ export default function PassengerHistoryPage() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [stationId, setStationId] = useState("");
-  const [ticketId, setTicketId] = useState("");
-  const [filters, setFilters] = useState({ from: "", to: "", stationId: "", ticketId: "" });
+  const [filters, setFilters] = useState({ from: "", to: "", stationId: "" });
   const [page, setPage] = useState(0);
   const [result, setResult] = useState<TripPage>({ items: [], page: 0, limit: LIMIT, total: 0, totalPages: 1 });
   const [selected, setSelected] = useState<TripDto | null>(null);
@@ -50,10 +52,9 @@ export default function PassengerHistoryPage() {
       const data = await tripApi.list({
         page,
         limit: LIMIT,
-        from: filters.from || undefined,
-        to: filters.to || undefined,
+        from: toStartDateTime(filters.from),
+        to: toEndDateTime(filters.to),
         stationId: filters.stationId || undefined,
-        ticketId: filters.ticketId || undefined,
       });
       if (active.current) setResult(data);
     } catch (requestError) {
@@ -73,16 +74,15 @@ export default function PassengerHistoryPage() {
 
   const applyFilters = () => {
     setPage(0);
-    setFilters({ from, to, stationId, ticketId });
+    setFilters({ from, to, stationId });
   };
 
   const resetFilters = () => {
     setFrom("");
     setTo("");
     setStationId("");
-    setTicketId("");
     setPage(0);
-    setFilters({ from: "", to: "", stationId: "", ticketId: "" });
+    setFilters({ from: "", to: "", stationId: "" });
   };
 
   const exportCsv = () => {
@@ -115,14 +115,13 @@ export default function PassengerHistoryPage() {
             <div><p className="text-sm text-slate-500">Hành khách / Lịch sử chuyến</p><h1 className="mt-1 text-4xl font-black text-slate-900">Lịch sử chuyến</h1></div>
             <button type="button" onClick={exportCsv} className="flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white"><Download className="h-4 w-4" />Xuất CSV trang hiện tại</button>
           </div>
-          <section className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 md:grid-cols-5">
+          <section className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 md:grid-cols-4">
             <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} className="h-11 rounded-xl border border-slate-200 px-3" aria-label="Từ ngày" />
             <input type="date" value={to} onChange={(event) => setTo(event.target.value)} className="h-11 rounded-xl border border-slate-200 px-3" aria-label="Đến ngày" />
             <select value={stationId} onChange={(event) => setStationId(event.target.value)} className="h-11 rounded-xl border border-slate-200 px-3">
               <option value="">Tất cả ga</option>
               {stations.map((station) => <option key={station.id} value={station.id}>{station.name}</option>)}
             </select>
-            <input value={ticketId} onChange={(event) => setTicketId(event.target.value)} placeholder="Ticket ID" className="h-11 rounded-xl border border-slate-200 px-3" />
             <div className="flex gap-2"><button type="button" onClick={applyFilters} className="flex-1 rounded-xl bg-blue-600 px-3 text-sm font-bold text-white">Lọc</button><button type="button" onClick={resetFilters} className="rounded-xl border border-slate-200 px-3 text-sm">Xóa</button></div>
           </section>
           {error ? <p className="rounded-xl bg-red-50 p-4 text-sm text-red-700">{error}</p> : null}
