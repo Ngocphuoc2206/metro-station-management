@@ -279,14 +279,19 @@ public class TicketService {
 
         User user = getCurrentUser();
 
-        // Lấy vé của user
-        Ticket ticket = ticketRepository.findByUser(user)
-                .orElseThrow(() -> new AppException(ErrorCode.TICKET_NOT_FOUND));
+        // 1. Lấy tất cả các vé của user
+        List<Ticket> tickets = ticketRepository.findByUser(user);
 
-        String ticketId = ticket.getId();
+        if (tickets.isEmpty()) {
+            log.warn("User has no tickets");
+            return PageResponse.<TripResponse>builder().items(new ArrayList<>()).page(page).limit(limit).total(0).build();
+        }
 
-        // Lấy toàn bộ log thô
-        List<TicketUsage> rawLogs = ticketUsageRepository.findTripHistoryRaw(user, ticketId, stationId, from, to);
+        Set<String> ticketIds = tickets.stream()
+                .map(Ticket::getId)
+                .collect(Collectors.toSet());
+
+        List<TicketUsage> rawLogs = ticketUsageRepository.findTripHistoryRaw(user, ticketIds, stationId, from, to);
 
         if (rawLogs.isEmpty()) {
             log.warn("Rawlogs is empty");

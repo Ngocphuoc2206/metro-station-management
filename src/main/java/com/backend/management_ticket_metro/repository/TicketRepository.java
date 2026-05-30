@@ -19,7 +19,7 @@ public interface TicketRepository extends JpaRepository<Ticket, String> {
 
     List<Ticket> findByOrder(Order order);
 
-    Optional<Ticket> findByUser(User user);
+    List<Ticket> findByUser(User user);
 
     List<Ticket> findByUserOrderByIssuedAtDesc(User user);
 
