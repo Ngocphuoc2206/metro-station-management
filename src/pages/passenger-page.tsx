@@ -164,6 +164,22 @@ const statusTone = (status?: string) => {
   return "bg-green-100 text-green-700";
 };
 
+const isUsedTicketStatus = (status: TicketCard["status"]) => status === "Đã dùng";
+
+const downloadTextFile = (filename: string, content: string, mimeType: string) => {
+  if (typeof document === "undefined") return;
+
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+};
+
 const parseQrDate = (value?: string) => {
   if (!value) return Number.NaN;
   const normalized = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value) ? value : `${value}Z`;
@@ -386,6 +402,39 @@ export default function PassengerPage() {
 
   const countdown = `${String(Math.floor(remainingSeconds / 60)).padStart(2, "0")}:${String(remainingSeconds % 60).padStart(2, "0")}`;
 
+  const downloadDashboardCsv = () => {
+    const rows = [
+      ["Loai", "Ma", "Trang thai", "Tuyen", "Gia tri"],
+      ...derivedRecentTickets.map((ticket) => [
+        "Ve gan day",
+        ticket.code,
+        ticket.status,
+        ticket.route,
+        ticket.type,
+      ]),
+      ...derivedTableRows.map((trip) => [
+        "Chuyen gan nhat",
+        trip.date,
+        trip.status,
+        `${trip.from} - ${trip.to}`,
+        trip.fare,
+      ]),
+    ];
+    const csv = rows
+      .map((row) =>
+        row
+          .map((cell) => `"${String(cell).replace(/"/g, '""')}"`)
+          .join(","),
+      )
+      .join("\n");
+
+    downloadTextFile(
+      `metro-passenger-dashboard-${new Date().toISOString().slice(0, 10)}.csv`,
+      `\uFEFF${csv}`,
+      "text/csv;charset=utf-8",
+    );
+  };
+
   const downloadQrImage = () => {
     if (!qrImageUrl || !selectedTicket) return;
 
@@ -421,6 +470,18 @@ export default function PassengerPage() {
                 </h1>
               </div>
 
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                type="button"
+                onClick={downloadDashboardCsv}
+                disabled={!derivedRecentTickets.length && !derivedTableRows.length}
+                className="relative inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 shadow-[0px_8px_18px_-14px_rgba(15,23,42,0.35)] transition hover:border-blue-200 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:hidden"
+              >
+                <Download className="h-4 w-4" />
+                Tải xuống
+                <span>Táº£i xuá»‘ng</span>
+              </button>
+
               <Link
                 href="/passenger-page/buy-tickets-step-1"
                 className="relative inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-6 py-2.5 text-sm font-bold text-white shadow-[0px_10px_15px_-3px_rgba(19,127,236,0.20)]"
@@ -428,6 +489,7 @@ export default function PassengerPage() {
                 <Plus className="h-4 w-4" />
                 <span>Mua vé ngay</span>
               </Link>
+              </div>
             </div>
 
             {isLoading ? (
@@ -488,7 +550,7 @@ export default function PassengerPage() {
                         key={ticket.code}
                         className={`rounded-3xl border border-white/60 border-t-4 bg-white/85 p-5 shadow-[0px_10px_30px_-18px_rgba(15,23,42,0.35)] backdrop-blur ${
                           toneClass[ticket.tone].border
-                        } ${ticket.disabled ? "opacity-75" : ""}`}
+                        } ${ticket.disabled || isUsedTicketStatus(ticket.status) ? "opacity-75" : ""}`}
                       >
                         <div className="mb-4 flex items-start justify-between">
                           <span
@@ -511,9 +573,9 @@ export default function PassengerPage() {
                         <button
                           type="button"
                           onClick={() => {
-                            if (!ticket.disabled) setSelectedTicket(ticket);
+                            if (!ticket.disabled && !isUsedTicketStatus(ticket.status)) setSelectedTicket(ticket);
                           }}
-                          className={`inline-flex w-full items-center justify-center gap-1 rounded-2xl py-2 text-xs font-bold ${
+                          className={`${isUsedTicketStatus(ticket.status) ? "hidden" : "inline-flex"} w-full items-center justify-center gap-1 rounded-2xl py-2 text-xs font-bold ${
                             ticket.disabled
                               ? "border border-slate-300 text-slate-500"
                               : "border border-blue-600 text-blue-600"
