@@ -26,10 +26,9 @@ public class MyTripController {
             @RequestParam(defaultValue = "10") int limit,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
-            @RequestParam(required = false) String stationId,
-            @RequestParam(required = false) String ticketId
+            @RequestParam(required = false) String stationId
     ) {
-        PageResponse<TripResponse> results = ticketService.getMyTripHistory(page, limit, from, to, stationId, ticketId);
+        PageResponse<TripResponse> results = ticketService.getMyTripHistory(page, limit, from, to, stationId);
         return ApiResponse.<PageResponse<TripResponse>>builder()
                 .results(results)
                 .build();
