@@ -8,6 +8,8 @@ export interface Station {
   zone: string; // Khu vực / Quận (Mock field req by UI)
   status: StationStatus; // Hoạt động / Tạm ngưng
   location: string; // From ERD, lat/long or address string
+  lat: string;
+  lng: string;
 }
 
 export interface StationFilters {

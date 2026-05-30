@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useDispatch } from "react-redux";
 
 import { loginSchema, type LoginFormValues } from "@features/auth/validations";
-import { loginUser } from "@features/auth/authApi";
+import { loginUser, USE_MOCK_AUTH } from "@features/auth/authApi";
 import { loginSuccess } from "@stores/slices/userSlice";
 import { type AppDispatch } from "@stores/index";
 import EyeIcon from "@components/parts/EyeIcon/EyeIcon";
@@ -28,12 +28,6 @@ export default function LoginForm() {
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "" },
   });
-
-  const ROLE_PATHS: Record<string, string> = {
-    passenger: "/dashboard/passenger",
-    staff: "/staff",
-    admin: "/dashboard/admin",
-  };
 
   const onSubmit = async (data: LoginFormValues) => {
     setApiError(null);
@@ -164,15 +158,17 @@ export default function LoginForm() {
         </Link>
       </p>
 
-      <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 space-y-1">
-        <p className="text-xs text-amber-700 font-semibold">🧪 Mock Mode — chưa kết nối API</p>
-        <p className="text-xs text-amber-600">Dùng một trong các tài khoản sau (mật khẩu bất kỳ ≥ 6 ký tự):</p>
-        <ul className="text-xs text-amber-700 font-mono space-y-0.5 mt-1">
-          <li>• <strong>admin@test.vn</strong> → Quản trị viên</li>
-          <li>• <strong>staff@test.vn</strong> → Nhân viên ga</li>
-          <li>• <strong>passenger@test.vn</strong> → Hành khách</li>
-        </ul>
-      </div>
+      {USE_MOCK_AUTH && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 space-y-1">
+          <p className="text-xs text-amber-700 font-semibold">🧪 Mock Mode — chưa kết nối API</p>
+          <p className="text-xs text-amber-600">Dùng một trong các tài khoản sau (mật khẩu bất kỳ ≥ 6 ký tự):</p>
+          <ul className="text-xs text-amber-700 font-mono space-y-0.5 mt-1">
+            <li>• <strong>admin@test.vn</strong> → Quản trị viên</li>
+            <li>• <strong>staff@test.vn</strong> → Nhân viên ga</li>
+            <li>• <strong>passenger@test.vn</strong> → Hành khách</li>
+          </ul>
+        </div>
+      )}
     </form>
   );
 }

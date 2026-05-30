@@ -18,8 +18,8 @@ export const signupSchema = z
       .string()
       .min(1, "Số điện thoại là bắt buộc")
       .regex(
-        /^0\d{9,10}$/,
-        "Số điện thoại không hợp lệ (phải bắt đầu bằng 0, 10-11 chữ số)"
+        /^(0|\+84)\d{9,10}$/,
+        "Số điện thoại không hợp lệ"
       ),
 
     password: z

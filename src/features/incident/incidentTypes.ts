@@ -27,7 +27,9 @@ export interface IncidentRecord {
 
 export interface IncidentFormData {
   title: string;
-  deviceId: string;
+  stationId: string;   // bắt buộc theo BE
+  deviceId?: string;
+  gateId?: string;
   severity: IncidentSeverity;
   description?: string;
   images?: File[];

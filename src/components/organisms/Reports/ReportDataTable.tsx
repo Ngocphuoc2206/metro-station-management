@@ -1,19 +1,10 @@
-interface ReportRow {
-  date: string;
-  count: number;
-  revenueSingle: number;
-  revenueMonthly: number;
-  status: "MATCHED" | "PENDING" | "DISCREPANCY";
+import type { ReportRow } from "@features/admin/useReportData";
+
+interface Props {
+  rows: ReportRow[];
 }
 
-const tableData: ReportRow[] = [
-  { date: "20/10/2023", count: 12450, revenueSingle: 186750000, revenueMonthly: 45000000, status: "MATCHED" },
-  { date: "19/10/2023", count: 11800, revenueSingle: 177000000, revenueMonthly: 42000000, status: "MATCHED" },
-  { date: "18/10/2023", count: 13200, revenueSingle: 198000000, revenueMonthly: 50000000, status: "PENDING" },
-  { date: "17/10/2023", count: 10500, revenueSingle: 157500000, revenueMonthly: 38000000, status: "DISCREPANCY" },
-];
-
-export default function ReportDataTable() {
+export default function ReportDataTable({ rows }: Props) {
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
@@ -47,8 +38,8 @@ export default function ReportDataTable() {
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto custom-scrollbar">
-        <table className="w-full text-left border-collapse min-w-[1000px]">
+      <div className="app-table-scroll custom-scrollbar">
+        <table className="app-table min-w-[1000px] text-left border-collapse">
           <thead>
             <tr>
               <th className="px-6 py-5 border-b border-gray-100 text-[11px] font-bold text-blue-600 uppercase tracking-widest whitespace-nowrap bg-blue-50/30">Ngày</th>
@@ -61,7 +52,14 @@ export default function ReportDataTable() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
-            {tableData.map((row, idx) => {
+            {rows.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="px-6 py-10 text-center text-gray-400 text-sm">
+                  Không có dữ liệu báo cáo.
+                </td>
+              </tr>
+            ) : (
+              rows.map((row, idx) => {
               const total = row.revenueSingle + row.revenueMonthly;
               return (
                 <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
@@ -76,7 +74,8 @@ export default function ReportDataTable() {
                   </td>
                 </tr>
               );
-            })}
+            })
+            )}
           </tbody>
         </table>
       </div>

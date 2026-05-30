@@ -5,6 +5,8 @@ import { PersistGate } from "redux-persist/integration/react";
 import { Toaster } from "react-hot-toast";
 
 import { store, persistor } from "@stores/index";
+import { LanguageProvider } from "@/features/i18n/LanguageProvider";
+import LanguageSwitcher from "@/components/i18n/LanguageSwitcher";
 
 import "@/pages/styles.css";
 import "@/styles/globals.css";
@@ -23,8 +25,11 @@ export default function MyApp({ Component, pageProps }: AppPropsWithLayout) {
   return (
     <Provider store={store}>
       <PersistGate loading={null} persistor={persistor}>
-        <Toaster position="top-center" toastOptions={{ duration: 4000 }} />
-        {getLayout(<Component {...pageProps} />)}
+        <LanguageProvider>
+          <Toaster position="top-center" toastOptions={{ duration: 4000 }} />
+          {getLayout(<Component {...pageProps} />)}
+          <LanguageSwitcher />
+        </LanguageProvider>
       </PersistGate>
     </Provider>
   );

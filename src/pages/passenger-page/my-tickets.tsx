@@ -1,447 +1,281 @@
 import Head from "next/head";
-import Link from "next/link";
-import { useMemo, useState } from "react";
-import {
-  Bell,
-  CalendarDays,
-  ChevronDown,
-  ChevronRight,
-  CircleAlert,
-  History,
-  LayoutDashboard,
-  QrCode,
-  Search,
-  Settings,
-  Ticket,
-  TrainFront,
-  UserRound,
-  X,
-} from "lucide-react";
+import Image from "next/image";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { CircleAlert, Loader2, QrCode, X } from "lucide-react";
+import PassengerShell from "@components/templates/PassengerShell";
+import { myTicketApi, myTicketErrorMessage } from "@features/myTicket/myTicketApi";
+import type { MyTicketDto, QrTokenResult, TicketHistoryRow } from "@features/myTicket/myTicketTypes";
 
-const BrandMark = ({ className = "h-8 w-8" }: { className?: string }) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 32 32"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <path
-      d="M5.333 16c0-5.97 4.697-10.667 10.667-10.667h8v8c0 5.97-4.697 10.667-10.667 10.667h-8v-8Z"
-      fill="#2563EB"
-    />
-    <path
-      d="M8 18.667c0-5.97 4.697-10.667 10.667-10.667H24v5.333c0 5.97-4.697 10.667-10.667 10.667H8v-5.333Z"
-      fill="#1D4ED8"
-    />
-  </svg>
-);
+const QR_TTL_FALLBACK_SECONDS = 600;
 
-type TicketItem = {
-  id: string;
-  status: "Hoạt động" | "Chưa dùng" | "Hết hạn";
-  ticketType: "Vé lượt" | "Vé tháng" | "Vé ngày";
-  route: string;
-  validFrom: string;
-  validTo: string;
-  active: boolean;
+const formatDate = (value?: string) => {
+  if (!value) return "--";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString("vi-VN");
 };
 
-const navItems = [
-  { label: "Dashboard", active: false, href: "/passenger-page", icon: LayoutDashboard },
-  { label: "Mua vé", active: false, href: "/passenger-page/buy-tickets-step-1", icon: Ticket },
-  { label: "Vé của tôi", active: true, href: "/passenger-page/my-tickets", icon: QrCode },
-  { label: "Lịch sử chuyến", active: false, href: "/passenger-page/history", icon: History },
-  { label: "Lịch tàu", active: false, href: "/passenger-page/schedule", icon: TrainFront },
-  { label: "Tài khoản", active: false, href: "/passenger-page/account", icon: UserRound },
-];
+const formatTime = (value?: string) => {
+  if (!value) return "--";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString("vi-VN");
+};
 
-const tickets: TicketItem[] = [
-  {
-    id: "#MNX-2938",
-    status: "Hoạt động",
-    ticketType: "Vé lượt",
-    route: "Bến Thành → Suối Tiên",
-    validFrom: "12/10/2023",
-    validTo: "13/10/2023",
-    active: true,
-  },
-  {
-    id: "#MNX-3102",
-    status: "Chưa dùng",
-    ticketType: "Vé lượt",
-    route: "Ga Ba Son → Ga Văn Thánh",
-    validFrom: "15/10/2023",
-    validTo: "16/10/2023",
-    active: true,
-  },
-  {
-    id: "#MNX-4421",
-    status: "Hoạt động",
-    ticketType: "Vé tháng",
-    route: "Toàn hệ thống (Nội thành)",
-    validFrom: "01/10/2023",
-    validTo: "31/10/2023",
-    active: true,
-  },
-  {
-    id: "#MNX-1823",
-    status: "Hết hạn",
-    ticketType: "Vé ngày",
-    route: "Toàn hệ thống Metro",
-    validFrom: "05/10/2023",
-    validTo: "05/10/2023",
-    active: false,
-  },
-];
+const ticketStatus = (value: string) => {
+  const status = value.toUpperCase();
+  if (["USED", "COMPLETED", "CONSUMED", "FINISHED", "CHECKED_OUT", "TAP_OUT", "EXITED"].some((item) => status.includes(item))) return "Đã dùng";
+  if (["READY", "ACTIVE", "VALID", "IN_USE", "CHECKED_IN", "TAP_IN", "ENTERED"].some((item) => status.includes(item))) return "Sẵn sàng sử dụng";
+  if (["EXPIRED", "INVALID", "CANCELLED", "INACTIVE"].some((item) => status.includes(item))) return "Hết hạn";
+  return "Chưa dùng";
+};
 
-const statusStyle = {
-  "Hoạt động": "bg-green-500/10 text-green-600",
-  "Chưa dùng": "bg-amber-500/10 text-amber-600",
-  "Hết hạn": "bg-red-500/10 text-red-600",
+const typeName = (ticket: MyTicketDto) => {
+  const type = `${ticket.ticketTypeName} ${ticket.ticketTypeId ?? ""}`.toLowerCase();
+  if (type.includes("month")) return "Vé tháng";
+  if (type.includes("daily") || type.includes("day")) return "Vé ngày";
+  if (type.includes("single")) return "Vé lượt";
+  return ticket.ticketTypeName || "Vé lượt";
+};
+
+const routeName = (ticket: MyTicketDto) =>
+  ticket.routeName ||
+  [ticket.originStationName, ticket.destinationStationName].filter(Boolean).join(" - ") ||
+  "Không giới hạn chặng";
+
+const parseQrDate = (value?: string) => {
+  if (!value) return Number.NaN;
+  const normalized = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value) ? value : `${value}Z`;
+  return new Date(normalized).getTime();
+};
+
+const resolveQrSeconds = (qrResult: QrTokenResult) => {
+  if (qrResult.expiresAt) {
+    const expiresAt = parseQrDate(qrResult.expiresAt);
+    if (!Number.isNaN(expiresAt)) {
+      return Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+    }
+  }
+
+  if (qrResult.createdAt) {
+    const createdAt = parseQrDate(qrResult.createdAt);
+    if (!Number.isNaN(createdAt)) {
+      const expiresAt = createdAt + QR_TTL_FALLBACK_SECONDS * 1000;
+      return Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+    }
+  }
+
+  if (typeof qrResult.ttlSeconds === "number" && Number.isFinite(qrResult.ttlSeconds) && qrResult.ttlSeconds > 0) {
+    return Math.max(0, Math.floor(qrResult.ttlSeconds));
+  }
+
+  return QR_TTL_FALLBACK_SECONDS;
 };
 
 export default function MyTicketsPage() {
+  const [tickets, setTickets] = useState<MyTicketDto[]>([]);
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("Tất cả");
-  const [typeFilter, setTypeFilter] = useState("Tất cả");
-  const [selectedTicket, setSelectedTicket] = useState<TicketItem | null>(null);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedTicket, setSelectedTicket] = useState<MyTicketDto | null>(null);
+  const [history, setHistory] = useState<TicketHistoryRow[]>([]);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [qrTicket, setQrTicket] = useState<MyTicketDto | null>(null);
+  const [qr, setQr] = useState<QrTokenResult | null>(null);
+  const [qrImage, setQrImage] = useState<string | null>(null);
+  const [qrError, setQrError] = useState<string | null>(null);
+  const [qrLoading, setQrLoading] = useState(false);
+  const [seconds, setSeconds] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    myTicketApi.list()
+      .then((data) => {
+        if (active) setTickets(data);
+      })
+      .catch((requestError) => {
+        if (active) setError(myTicketErrorMessage(requestError, "Không thể tải danh sách vé"));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const visibleTickets = useMemo(() => {
+    const keyword = query.trim().toLowerCase();
     return tickets.filter((ticket) => {
-      const matchesQuery =
-        query.length === 0 ||
-        ticket.id.toLowerCase().includes(query.toLowerCase()) ||
-        ticket.route.toLowerCase().includes(query.toLowerCase());
-      const matchesStatus = statusFilter === "Tất cả" || ticket.status === statusFilter;
-      const matchesType =
-        typeFilter === "Tất cả" ||
-        (typeFilter === "Vé lượt" && ticket.ticketType === "Vé lượt") ||
-        (typeFilter === "Vé tháng" && ticket.ticketType === "Vé tháng") ||
-        (typeFilter === "Vé ngày" && ticket.ticketType === "Vé ngày");
-      return matchesQuery && matchesStatus && matchesType;
+      const status = ticketStatus(ticket.status);
+      const type = typeName(ticket);
+      const matchesQuery = !keyword ||
+        `${ticket.code} ${routeName(ticket)} ${type}`.toLowerCase().includes(keyword);
+      return matchesQuery && (!statusFilter || status === statusFilter) && (!typeFilter || type === typeFilter);
     });
-  }, [query, statusFilter, typeFilter]);
+  }, [query, statusFilter, tickets, typeFilter]);
+
+  const stats = useMemo(() => ({
+    total: tickets.length,
+    active: tickets.filter((ticket) => ticketStatus(ticket.status) === "Sẵn sàng sử dụng").length,
+    unused: tickets.filter((ticket) => ticketStatus(ticket.status) === "Chưa dùng").length,
+    used: tickets.filter((ticket) => ticketStatus(ticket.status) === "Đã dùng").length,
+    expired: tickets.filter((ticket) => ticketStatus(ticket.status) === "Hết hạn").length,
+  }), [tickets]);
+
+  const openDetail = async (id: string) => {
+    setSelectedTicket(tickets.find((ticket) => ticket.id === id) ?? null);
+    setDetailLoading(true);
+    setDetailError(null);
+    setHistory([]);
+    try {
+      const [detail, usage] = await Promise.all([
+        myTicketApi.getById(id),
+        myTicketApi.getHistory(id),
+      ]);
+      setSelectedTicket(detail);
+      setHistory(usage);
+    } catch (requestError) {
+      setDetailError(myTicketErrorMessage(requestError, "Không thể tải chi tiết vé"));
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const loadQr = useCallback(async (ticket: MyTicketDto, refresh = false) => {
+    if (!refresh) {
+      setQrTicket(ticket);
+      setQr(null);
+      setQrImage(null);
+    }
+    setQrError(null);
+    setQrLoading(true);
+    try {
+      const response = await myTicketApi.createQrToken(ticket.id);
+      if (!response.token) throw new Error("Backend không trả QR token.");
+      let image = response.qrCodeUrl;
+      if (!image) {
+        const generator = await import("qrcode");
+        image = await generator.toDataURL(response.token, { margin: 1, width: 220 });
+      }
+      setQr(response);
+      setSeconds(resolveQrSeconds(response));
+      setQrImage(image);
+    } catch (requestError) {
+      setQrError(myTicketErrorMessage(requestError, "Không thể tạo QR token"));
+    } finally {
+      setQrLoading(false);
+    }
+  }, []);
+
+  const openQr = (ticket: MyTicketDto) => {
+    void loadQr(ticket);
+  };
+
+  useEffect(() => {
+    if (!qr) return;
+    const timer = window.setInterval(() => {
+      setSeconds((previous) => Math.max(previous - 1, 0));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [qr]);
+
+  useEffect(() => {
+    if (!qrTicket || !qr || seconds > 0 || qrLoading || qrError) return;
+    void loadQr(qrTicket, true);
+  }, [loadQr, qr, qrError, qrLoading, qrTicket, seconds]);
 
   return (
     <>
-      <Head>
-        <title>Vé của tôi | MetroNext</title>
-      </Head>
-
-      <div className="min-h-screen w-full bg-[linear-gradient(180deg,#f8fafc_0%,#eef2ff_45%,#f8fafc_100%)]">
-        <div className="flex min-h-screen w-full">
-          <aside className="hidden w-64 shrink-0 border-r border-slate-200 bg-white lg:flex lg:flex-col">
-            <div className="flex items-center gap-3 p-6">
-              <div className="flex h-8 w-8 items-center justify-center overflow-hidden">
-                <BrandMark className="h-8 w-8" />
+      <Head><title>Vé của tôi | MetroNext</title></Head>
+      <PassengerShell>
+        <div className="mx-auto max-w-7xl space-y-6">
+          <div>
+            <p className="text-sm text-slate-500">Hành khách / Vé của tôi</p>
+            <h1 className="mt-1 text-4xl font-black text-slate-900">Vé của tôi</h1>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-4">
+            {[
+              ["Tổng số vé", stats.total, "text-slate-900"],
+              ["Sẵn sàng sử dụng", stats.active, "text-green-600"],
+              ["Chưa dùng", stats.unused, "text-amber-600"],
+              ["Đã dùng", stats.used, "text-slate-600"],
+              ["Hết hạn", stats.expired, "text-red-600"],
+            ].map(([label, value, color]) => (
+              <div key={String(label)} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <p className="text-xs font-bold uppercase text-slate-500">{label}</p>
+                <p className={`mt-2 text-3xl font-black ${color}`}>{value}</p>
               </div>
-              <Link href="/" className="text-xl font-bold leading-6 text-neutral-900">
-                MetroNext
-              </Link>
-            </div>
-
-            <nav className="flex-1 space-y-1 px-4">
-              {navItems.map((item) => {
-                const Icon = item.icon;
+            ))}
+          </div>
+          <section className="flex flex-wrap gap-3 rounded-2xl border border-slate-200 bg-white p-4">
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm mã vé hoặc chặng đi" className="h-11 min-w-64 flex-1 rounded-xl border border-slate-200 px-3" />
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="h-11 rounded-xl border border-slate-200 px-3">
+              <option value="">Tất cả trạng thái</option><option>Sẵn sàng sử dụng</option><option>Chưa dùng</option><option>Đã dùng</option><option>Hết hạn</option>
+            </select>
+            <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className="h-11 rounded-xl border border-slate-200 px-3">
+              <option value="">Tất cả loại vé</option><option>Vé lượt</option><option>Vé ngày</option><option>Vé tháng</option>
+            </select>
+          </section>
+          {error ? <p className="rounded-xl bg-red-50 p-4 text-sm text-red-700">{error}</p> : null}
+          {loading ? <p className="flex items-center justify-center gap-2 rounded-2xl bg-white p-10 text-slate-500"><Loader2 className="h-5 w-5 animate-spin" />Đang tải vé</p> : (
+            <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+              {visibleTickets.map((ticket) => {
+                const status = ticketStatus(ticket.status);
+                const active = status === "Sẵn sàng sử dụng";
                 return (
-                  <Link
-                    key={item.label}
-                    href={item.href}
-                    className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition ${
-                      item.active
-                        ? "bg-blue-600/10 text-blue-600"
-                        : "text-slate-700 hover:bg-slate-100"
-                    }`}
-                  >
-                    <Icon className={`h-4 w-4 ${item.active ? "text-blue-600" : "text-slate-500"}`} />
-                    <span className={`text-sm ${item.active ? "font-semibold" : "font-medium"}`}>
-                      {item.label}
-                    </span>
-                  </Link>
+                  <article key={ticket.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                    <div className={`h-1.5 ${active ? "bg-green-500" : status === "Hết hạn" ? "bg-red-500" : status === "Đã dùng" ? "bg-slate-400" : "bg-amber-500"}`} />
+                    <div className="space-y-4 p-5">
+                      <div className="flex justify-between gap-2">
+                        <span className="text-xs font-bold text-slate-400">#{ticket.code}</span>
+                        <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold">{status}</span>
+                      </div>
+                      <div><p className="font-bold text-slate-900">{typeName(ticket)}</p><p className="mt-1 text-sm text-slate-600">{routeName(ticket)}</p></div>
+                      <p className="border-t border-slate-100 pt-3 text-sm text-slate-600">Hiệu lực: {formatDate(ticket.validFrom)} - {formatDate(ticket.validTo)}</p>
+                    </div>
+                    <div className="flex gap-2 bg-slate-50 p-4">
+                      <button type="button" onClick={() => openQr(ticket)} disabled={!active} className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-blue-600 py-2 text-xs font-bold text-white disabled:bg-slate-300"><QrCode className="h-4 w-4" />QR</button>
+                      <button type="button" onClick={() => openDetail(ticket.id)} className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700">Chi tiết</button>
+                    </div>
+                  </article>
                 );
               })}
-            </nav>
-
-            <div className="border-t border-slate-200 p-4">
-              <div className="flex items-center gap-3 rounded-2xl p-2">
-                <img
-                  className="h-10 w-10 rounded-full object-cover"
-                  src="https://placehold.co/40x40"
-                  alt="Passenger avatar"
-                />
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-bold text-neutral-900">Anh Yang Say Hi (Dzz)</p>
-                  <p className="truncate text-xs text-slate-500">Hành khách Gold</p>
-                </div>
-              </div>
+              {!visibleTickets.length ? <div className="col-span-full rounded-2xl bg-white p-10 text-center text-sm text-slate-500"><CircleAlert className="mx-auto mb-2 h-8 w-8" />Không có vé phù hợp.</div> : null}
             </div>
-          </aside>
-
-          <main className="flex min-w-0 flex-1 flex-col">
-            <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-slate-200/80 bg-white/80 px-4 backdrop-blur sm:px-8">
-              <div className="relative w-full max-w-md">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input
-                  className="w-full rounded-xl bg-slate-100 py-2.5 pl-10 pr-4 text-sm text-neutral-900 outline-none placeholder:text-slate-500"
-                  placeholder="Tìm kiếm ga, vé, lịch trình..."
-                  readOnly
-                />
-              </div>
-
-              <div className="ml-4 flex items-center gap-4">
-                <button className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
-                  <Bell className="h-5 w-5" />
-                  <span className="absolute right-2 top-2 h-2 w-2 rounded-full border-2 border-white bg-red-500" />
-                </button>
-                <button className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
-                  <Settings className="h-5 w-5" />
-                </button>
-              </div>
-            </header>
-
-            <section className="flex-1 p-4 sm:p-8">
-              <div className="mx-auto w-full max-w-[1320px] space-y-6">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 text-sm font-medium text-slate-500">
-                    <span>Hành khách</span>
-                    <ChevronRight className="h-3.5 w-3.5" />
-                    <span className="text-slate-900">Vé của tôi</span>
-                  </div>
-                  <h1 className="text-4xl font-black leading-10 text-slate-900">Vé của tôi</h1>
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Tổng số vé</p>
-                    <p className="mt-2 text-3xl font-black text-slate-900">12</p>
-                  </div>
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Đang hoạt động</p>
-                    <p className="mt-2 text-3xl font-black text-green-600">4</p>
-                  </div>
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Chưa dùng</p>
-                    <p className="mt-2 text-3xl font-black text-amber-600">3</p>
-                  </div>
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Hết hạn</p>
-                    <p className="mt-2 text-3xl font-black text-red-600">5</p>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
-                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_160px_160px_minmax(0,1fr)_auto]">
-                    <div className="space-y-1">
-                      <p className="px-1 text-[11px] font-bold uppercase tracking-wide text-slate-500">Mã vé</p>
-                      <div className="relative">
-                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                        <input
-                          value={query}
-                          onChange={(event) => setQuery(event.target.value)}
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-900 outline-none placeholder:text-slate-500"
-                          placeholder="Tìm mã vé (#MNX...)"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <p className="px-1 text-[11px] font-bold uppercase tracking-wide text-slate-500">Trạng thái</p>
-                      <div className="relative">
-                        <select
-                          value={statusFilter}
-                          onChange={(event) => setStatusFilter(event.target.value)}
-                          className="h-9 w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 outline-none"
-                        >
-                          <option>Tất cả</option>
-                          <option>Hoạt động</option>
-                          <option>Chưa dùng</option>
-                          <option>Hết hạn</option>
-                        </select>
-                        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <p className="px-1 text-[11px] font-bold uppercase tracking-wide text-slate-500">Loại vé</p>
-                      <div className="relative">
-                        <select
-                          value={typeFilter}
-                          onChange={(event) => setTypeFilter(event.target.value)}
-                          className="h-9 w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 outline-none"
-                        >
-                          <option>Tất cả</option>
-                          <option>Vé lượt</option>
-                          <option>Vé ngày</option>
-                          <option>Vé tháng</option>
-                        </select>
-                        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <p className="px-1 text-[11px] font-bold uppercase tracking-wide text-slate-500">Thời gian</p>
-                      <div className="relative">
-                        <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                        <input
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-900 outline-none placeholder:text-slate-500"
-                          placeholder="Thời gian (Từ ngày - Đến ngày)"
-                          readOnly
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex items-end">
-                      <button
-                        onClick={() => {
-                          setQuery("");
-                          setStatusFilter("Tất cả");
-                          setTypeFilter("Tất cả");
-                        }}
-                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                      >
-                        Đặt lại
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
-                  {visibleTickets.map((ticket) => (
-                    <article
-                      key={ticket.id}
-                      className={`overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] transition hover:-translate-y-0.5 hover:shadow-md ${
-                        ticket.active ? "" : "opacity-70"
-                      }`}
-                    >
-                      <div
-                        className={`h-1.5 ${
-                          ticket.status === "Hoạt động"
-                            ? "bg-green-500"
-                            : ticket.status === "Chưa dùng"
-                              ? "bg-amber-500"
-                              : "bg-red-500"
-                        }`}
-                      />
-                      <div className="space-y-4 p-5">
-                        <div className="flex items-start justify-between">
-                          <span className="text-xs font-bold tracking-wide text-slate-400">{ticket.id}</span>
-                          <span
-                            className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase ${statusStyle[ticket.status]}`}
-                          >
-                            {ticket.status}
-                          </span>
-                        </div>
-
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <Ticket className={`h-3.5 w-3.5 ${ticket.active ? "text-blue-600" : "text-slate-400"}`} />
-                            <h3 className="text-base font-bold text-slate-900">{ticket.ticketType}</h3>
-                          </div>
-                          <p className="text-sm text-slate-600">{ticket.route}</p>
-                        </div>
-
-                        <div className="space-y-1 border-t border-slate-100 pt-2">
-                          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Hiệu lực</p>
-                          <p className="text-sm font-medium text-slate-900">
-                            {ticket.validFrom} - {ticket.validTo}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex gap-2 bg-slate-50 p-4">
-                        {ticket.active ? (
-                          <button
-                            onClick={() => setSelectedTicket(ticket)}
-                            className="inline-flex flex-1 items-center justify-center gap-1 rounded-xl bg-blue-600 py-2 text-xs font-bold text-white hover:bg-blue-700"
-                          >
-                            <QrCode className="h-3.5 w-3.5" />
-                            Hiển thị QR
-                          </button>
-                        ) : (
-                          <button className="inline-flex flex-1 items-center justify-center gap-1 rounded-xl bg-slate-200 py-2 text-xs font-bold text-slate-500">
-                            <CircleAlert className="h-3.5 w-3.5" />
-                            Vô hiệu
-                          </button>
-                        )}
-
-                        <button className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-white">
-                          Chi tiết
-                        </button>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-
-                {visibleTickets.length === 0 && (
-                  <div className="rounded-xl border border-slate-200 bg-white p-10 text-center shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
-                    <CircleAlert className="mx-auto h-10 w-10 text-slate-300" />
-                    <p className="mt-2 text-sm font-medium text-slate-500">Không tìm thấy vé phù hợp bộ lọc</p>
-                  </div>
-                )}
-
-                <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                  <p className="text-sm text-slate-500">
-                    Hiển thị <span className="font-bold">{Math.min(visibleTickets.length, 4)}</span> trên <span className="font-bold">12</span> vé
-                  </p>
-
-                  <div className="flex gap-2">
-                    <button className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900">
-                      Trước
-                    </button>
-                    <button className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900">
-                      Tiếp
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </section>
-          </main>
+          )}
         </div>
-      </div>
+      </PassengerShell>
 
-      {selectedTicket && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-[2px]">
-          <div className="w-full max-w-md overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
-              <h3 className="text-lg font-bold text-slate-900">Mã QR Vào cổng</h3>
-              <button
-                onClick={() => setSelectedTicket(null)}
-                className="flex h-6 w-6 items-center justify-center rounded-2xl text-slate-400"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
+      {(selectedTicket || detailLoading || detailError) && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/40">
+          <aside className="h-full w-full max-w-md overflow-y-auto bg-white p-6 shadow-xl">
+            <div className="flex items-center justify-between"><h2 className="text-xl font-bold">Chi tiết vé</h2><button onClick={() => { setSelectedTicket(null); setDetailError(null); }}><X /></button></div>
+            {detailLoading ? <p className="mt-8 text-sm text-slate-500">Đang tải chi tiết...</p> : null}
+            {detailError ? <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{detailError}</p> : null}
+            {selectedTicket ? <div className="mt-6 space-y-4 text-sm">
+              <p><span className="text-slate-500">Mã vé:</span> <strong>{selectedTicket.code}</strong></p>
+              <p><span className="text-slate-500">Loại vé:</span> {typeName(selectedTicket)}</p>
+              <p><span className="text-slate-500">Chặng:</span> {routeName(selectedTicket)}</p>
+              <p><span className="text-slate-500">Trạng thái:</span> {ticketStatus(selectedTicket.status)}</p>
+              <h3 className="border-t border-slate-100 pt-5 font-bold">Lịch sử sử dụng vé</h3>
+              {history.map((row) => <div key={row.id} className="rounded-xl bg-slate-50 p-3"><p className="font-semibold">{row.action || row.result || "Sử dụng vé"}</p><p className="text-slate-500">{formatTime(row.time)} - {row.stationName || row.stationId || "--"} - {row.gateCode || "--"}</p></div>)}
+              {!history.length ? <p className="text-slate-500">Chưa có lịch sử sử dụng.</p> : null}
+            </div> : null}
+          </aside>
+        </div>
+      )}
+
+      {qrTicket && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center">
+            <div className="flex justify-between"><h2 className="text-lg font-bold">Mã QR vào cổng</h2><button onClick={() => setQrTicket(null)}><X className="h-5 w-5" /></button></div>
+            <div className="my-6 flex h-56 items-center justify-center rounded-xl border border-slate-200">
+              {qrImage ? <Image src={qrImage} width={220} height={220} unoptimized alt="QR vé động" className={qrLoading ? "opacity-40" : ""} /> : qrError ? <p className="px-4 text-sm text-red-600">{qrError}</p> : <Loader2 className="h-6 w-6 animate-spin text-blue-600" />}
             </div>
-
-            <div className="space-y-6 px-8 py-8">
-              <div className="mx-auto w-fit rounded-xl border border-slate-200 bg-white p-4 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
-                <img src="https://placehold.co/192x192" className="h-48 w-48" alt="Ticket QR code" />
-              </div>
-
-              <div className="space-y-1 text-center">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Mã vé của bạn</p>
-                <p className="text-2xl font-black text-blue-600">{selectedTicket.id}</p>
-              </div>
-
-              <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-center text-sm font-bold text-red-600">
-                Mã sẽ hết hạn sau: 01:59
-              </div>
-
-              <p className="text-center text-sm leading-6 text-slate-500">
-                Đưa mã này vào máy quét tại cổng để vào
-                <br />
-                ga
-              </p>
-            </div>
-
-            <div className="border-t border-slate-100 bg-slate-50 px-6 py-5">
-              <button
-                onClick={() => setSelectedTicket(null)}
-                className="w-full rounded-xl bg-blue-600 py-3 text-base font-bold text-white shadow-[0px_10px_15px_-3px_rgba(19,127,236,0.20)]"
-              >
-                Đóng
-              </button>
-            </div>
+            <p className="font-bold text-blue-600">#{qrTicket.code}</p>
+            {qr ? <p className="mt-3 rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-600">{qrLoading ? "Đang đổi mã QR..." : <>Đổi mã mới sau {String(Math.floor(seconds / 60)).padStart(2, "0")}:{String(seconds % 60).padStart(2, "0")}</>}</p> : null}
           </div>
         </div>
       )}

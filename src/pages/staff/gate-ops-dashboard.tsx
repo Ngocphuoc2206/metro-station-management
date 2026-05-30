@@ -1,7 +1,11 @@
 import Head from "next/head";
 import StaffPortalShell from "@components/templates/StaffPortalShell";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw, Filter } from "lucide-react";
+import { liveApi, liveErrorMessage } from "@features/live/liveApi";
+import type { LiveStationStatusDto } from "@features/live/liveTypes";
+import { publicApi } from "@features/public/publicApi";
+import type { StationDto } from "@features/public/publicTypes";
 
 type GateStatus = {
   gate: string;
@@ -127,33 +131,99 @@ export default function GateOpsDashboardPage() {
   const [deviceFilter, setDeviceFilter] = useState("all");
   const [timeWindow, setTimeWindow] = useState<"15m" | "1h" | "24h">("1h");
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const [lastUpdatedAt, setLastUpdatedAt] = useState(() =>
-    new Date().toLocaleTimeString("vi-VN", { hour12: false }),
-  );
+  const [lastUpdatedAt, setLastUpdatedAt] = useState("--:--:--");
+  const [liveStations, setLiveStations] = useState<LiveStationStatusDto[]>([]);
+  const [stationCatalog, setStationCatalog] = useState<StationDto[]>([]);
+  const [isLoadingLiveStatus, setIsLoadingLiveStatus] = useState(true);
+  const [liveStatusError, setLiveStatusError] = useState<string | null>(null);
+
+  const loadLiveStatuses = useCallback(async () => {
+    setIsLoadingLiveStatus(true);
+    setLiveStatusError(null);
+    try {
+      const statuses = await liveApi.getStationStatuses();
+      setLiveStations(statuses);
+      const latestUpdate = statuses
+        .map((station) => station.updatedAt)
+        .filter(Boolean)
+        .map((updatedAt) => new Date(updatedAt as string))
+        .filter((date) => !Number.isNaN(date.getTime()))
+        .sort((left, right) => right.getTime() - left.getTime())[0];
+      setLastUpdatedAt(
+        (latestUpdate ?? new Date()).toLocaleTimeString("vi-VN", { hour12: false }),
+      );
+    } catch (error) {
+      setLiveStatusError(liveErrorMessage(error));
+    } finally {
+      setIsLoadingLiveStatus(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadLiveStatuses();
+    publicApi.getStations().then(setStationCatalog).catch(() => {
+      // Station IDs remain usable when station labels cannot be loaded.
+    });
+  }, [loadLiveStatuses]);
 
   useEffect(() => {
     if (!autoRefresh) return;
-    const id = window.setInterval(() => {
-      setLastUpdatedAt(new Date().toLocaleTimeString("vi-VN", { hour12: false }));
-    }, 15000);
+    const id = window.setInterval(loadLiveStatuses, 15000);
     return () => window.clearInterval(id);
-  }, [autoRefresh]);
+  }, [autoRefresh, loadLiveStatuses]);
+
+  const stationNamesById = useMemo(
+    () => new Map(stationCatalog.map((station) => [station.id, station.name])),
+    [stationCatalog],
+  );
+  const selectedStationName =
+    stationFilter === "all" ? null : stationNamesById.get(stationFilter) ?? stationFilter;
+  const liveStationOptions = useMemo(
+    () =>
+      liveStations.map((station) => ({
+        id: station.stationId,
+        name: stationNamesById.get(station.stationId) ?? station.name ?? station.stationId,
+      })),
+    [liveStations, stationNamesById],
+  );
 
   const filteredTxns = useMemo(() => {
     return recentTransactions.filter((t) => {
-      const stationOk = stationFilter === "all" ? true : t.station === stationFilter;
+      const stationOk = selectedStationName === null ? true : t.station === selectedStationName;
       const deviceOk = deviceFilter === "all" ? true : t.device === deviceFilter;
       return stationOk && deviceOk;
     });
-  }, [deviceFilter, stationFilter]);
+  }, [deviceFilter, selectedStationName]);
 
-  const deviceHealth = useMemo(() => {
-    // Mocked summary: reusing gateStatuses + a fixed alert/offline assumption.
-    const online = gateStatuses.filter((g) => g.status === "ONLINE").length;
-    const offline = gateStatuses.filter((g) => g.status === "OFFLINE").length;
-    const alert = 1;
-    return { online, offline, alert, total: online + offline + alert };
-  }, []);
+  const displayedLiveStations = useMemo(
+    () => liveStations.filter((station) =>
+      stationFilter === "all" ||
+      station.stationId === stationFilter ||
+      stationNamesById.get(station.stationId) === stationFilter,
+    ),
+    [liveStations, stationFilter, stationNamesById],
+  );
+
+  const stationHealth = useMemo(() => {
+    const isOperational = (status: string) =>
+      ["ACTIVE", "NORMAL", "ONLINE", "OPERATIONAL"].some((value) =>
+        status.toUpperCase().includes(value),
+      );
+    const operational = displayedLiveStations.filter((station) => isOperational(station.status)).length;
+    const alerts = displayedLiveStations.filter((station) => !isOperational(station.status));
+    const maxCongestion = displayedLiveStations.reduce(
+      (maximum, station) => Math.max(maximum, station.congestionLevel ?? 0),
+      0,
+    );
+    return {
+      operational,
+      offline: alerts.length,
+      alert: alerts.length,
+      total: displayedLiveStations.length,
+      maxCongestion,
+      alertMessages: alerts.map((station) => station.message).filter(Boolean),
+    };
+  }, [displayedLiveStations]);
 
   return (
     <>
@@ -183,9 +253,11 @@ export default function GateOpsDashboardPage() {
                 className="h-10 w-44 appearance-none rounded-2xl bg-slate-50 px-4 text-sm text-slate-900 outline outline-1 outline-offset-[-1px] outline-slate-200"
               >
                 <option value="all">Tất cả ga</option>
-                <option value="Ga Bến Thành">Ga Bến Thành</option>
-                <option value="Ga Ba Son">Ga Ba Son</option>
-                <option value="Ga Văn Thánh">Ga Văn Thánh</option>
+                {liveStationOptions.map((station) => (
+                  <option key={station.id} value={station.id}>
+                    {station.name}
+                  </option>
+                ))}
               </select>
 
               <select
@@ -230,7 +302,7 @@ export default function GateOpsDashboardPage() {
               </div>
               <button
                 type="button"
-                onClick={() => setLastUpdatedAt(new Date().toLocaleTimeString("vi-VN", { hour12: false }))}
+                onClick={loadLiveStatuses}
                 className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-4 py-2 text-sm font-bold leading-5 text-white"
               >
                 <RefreshCw className="h-4 w-4" aria-hidden="true" />
@@ -239,6 +311,12 @@ export default function GateOpsDashboardPage() {
             </div>
           </div>
 
+          {liveStatusError ? (
+            <div className="rounded-2xl border border-red-100 bg-red-50 px-5 py-3 text-sm font-semibold text-red-700">
+              {liveStatusError}
+            </div>
+          ) : null}
+
           <div className="grid gap-6 lg:grid-cols-4">
             <article className="relative rounded-3xl bg-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] outline outline-1 outline-offset-[-1px] outline-slate-200">
               <div className="absolute left-5 top-5 flex w-44 items-start justify-between">
@@ -246,7 +324,7 @@ export default function GateOpsDashboardPage() {
                   <div className="h-4 w-5 rounded bg-blue-600" aria-hidden="true" />
                 </div>
                 <div className="flex items-center gap-1">
-                  <span className="text-xs font-bold leading-4 text-green-500">+12%</span>
+                  <span className="text-xs font-bold leading-4 text-green-500">LIVE</span>
                   <span className="h-1.5 w-3 rounded bg-green-500" aria-hidden="true" />
                 </div>
               </div>
@@ -257,10 +335,10 @@ export default function GateOpsDashboardPage() {
               </div>
               <div className="absolute left-5 top-[97px] h-8 w-44">
                 <span className="absolute left-0 top-[-0.5px] text-2xl font-bold leading-8 text-slate-900">
-                  1,284
+                  {isLoadingLiveStatus ? "--" : stationHealth.maxCongestion}
                 </span>
                 <span className="absolute left-[71px] top-[8.5px] text-sm font-normal leading-5 text-slate-400">
-                  ng/giờ
+                  mức ùn tắc
                 </span>
               </div>
               <div className="h-[152px]" />
@@ -271,15 +349,15 @@ export default function GateOpsDashboardPage() {
                 <div className="rounded-2xl bg-purple-50 p-2">
                   <div className="h-4 w-4 rounded bg-purple-600" aria-hidden="true" />
                 </div>
-                <span className="text-xs font-bold leading-4 text-slate-400">Hôm nay</span>
+                <span className="text-xs font-bold leading-4 text-slate-400">N/A</span>
               </div>
               <div className="absolute left-5 top-[77px] w-44">
                 <p className="text-xs font-bold uppercase leading-4 tracking-wide text-slate-500">
-                  Vé đã quét (Hôm nay)
+                  Vé đã quét
                 </p>
               </div>
               <div className="absolute left-5 top-[97px] w-44">
-                <span className="text-2xl font-bold leading-8 text-slate-900">24,502</span>
+                <span className="text-sm font-semibold leading-8 text-slate-500">API không cung cấp</span>
               </div>
               <div className="h-[152px]" />
             </article>
@@ -290,7 +368,7 @@ export default function GateOpsDashboardPage() {
                   <div className="h-5 w-5 rounded bg-red-600" aria-hidden="true" />
                 </div>
                 <div className="rounded-full bg-red-100 px-2 py-0.5">
-                  <span className="text-[10px] font-bold leading-4 text-red-600">2 LỖI</span>
+                  <span className="text-[10px] font-bold leading-4 text-red-600">LIVE</span>
                 </div>
               </div>
               <div className="absolute left-5 top-[77px] w-44">
@@ -299,7 +377,9 @@ export default function GateOpsDashboardPage() {
                 </p>
               </div>
               <div className="absolute left-5 top-[97px] w-44">
-                <span className="text-2xl font-bold leading-8 text-slate-900">02</span>
+                <span className="text-2xl font-bold leading-8 text-slate-900">
+                  {isLoadingLiveStatus ? "--" : stationHealth.alert.toString().padStart(2, "0")}
+                </span>
               </div>
               <div className="h-[152px]" />
             </article>
@@ -309,24 +389,30 @@ export default function GateOpsDashboardPage() {
                 <div className="rounded-2xl bg-green-50 p-2">
                   <div className="h-3.5 w-5 rounded bg-green-600" aria-hidden="true" />
                 </div>
-                <span className="text-xs font-bold leading-4 text-green-500">98% Online</span>
+                <span className="text-xs font-bold leading-4 text-green-500">LIVE</span>
               </div>
               <div className="absolute left-5 top-[77px] w-44">
                 <p className="text-xs font-bold uppercase leading-4 tracking-wide text-slate-500">
-                  Trạng thái thiết bị
+                  Trạng thái thiết bị / ga
                 </p>
               </div>
               <div className="absolute left-5 top-[97px] h-8 w-44">
                 <span className="absolute left-0 top-[-0.5px] text-2xl font-bold leading-8 text-slate-900">
-                  48/50
+                  {isLoadingLiveStatus ? "--" : `${stationHealth.operational}/${stationHealth.total}`}
                 </span>
                 <span className="absolute left-[78px] top-[8.5px] text-sm font-normal leading-5 text-slate-400">
-                  Hoạt động
+                  Bình thường
                 </span>
               </div>
               <div className="h-[152px]" />
             </article>
           </div>
+
+          {stationHealth.alertMessages.length > 0 ? (
+            <div className="rounded-2xl border border-amber-100 bg-amber-50 px-5 py-3 text-sm font-medium text-amber-800">
+              {stationHealth.alertMessages.join(" | ")}
+            </div>
+          ) : null}
 
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_384px]">
             <section className="rounded-3xl bg-white p-6 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] outline outline-1 outline-offset-[-1px] outline-slate-200">
@@ -395,15 +481,15 @@ export default function GateOpsDashboardPage() {
               <div className="mb-6 grid grid-cols-3 gap-3 rounded-3xl bg-slate-50 p-4 outline outline-1 outline-offset-[-1px] outline-slate-100">
                 <div className="rounded-2xl bg-white p-3 outline outline-1 outline-offset-[-1px] outline-slate-200">
                   <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Online</div>
-                  <div className="mt-1 text-xl font-black text-slate-900">{deviceHealth.online}</div>
+                  <div className="mt-1 text-xl font-black text-slate-900">{stationHealth.operational}</div>
                 </div>
                 <div className="rounded-2xl bg-white p-3 outline outline-1 outline-offset-[-1px] outline-slate-200">
                   <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Offline</div>
-                  <div className="mt-1 text-xl font-black text-slate-900">{deviceHealth.offline}</div>
+                  <div className="mt-1 text-xl font-black text-slate-900">{stationHealth.offline}</div>
                 </div>
                 <div className="rounded-2xl bg-white p-3 outline outline-1 outline-offset-[-1px] outline-slate-200">
                   <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Alerts</div>
-                  <div className="mt-1 text-xl font-black text-slate-900">{deviceHealth.alert}</div>
+                  <div className="mt-1 text-xl font-black text-slate-900">{stationHealth.alert}</div>
                 </div>
               </div>
 

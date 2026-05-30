@@ -5,6 +5,7 @@ import { useSelector } from "react-redux";
 import { useRouter } from "next/router";
 import type { RootState } from "@stores/index";
 import LoginForm from "@components/organisms/LoginForm/LoginForm";
+import { ROLE_PATHS } from "@/const/Role";
 
 const LoginPage: NextPage = () => {
   const router = useRouter();
@@ -12,7 +13,7 @@ const LoginPage: NextPage = () => {
 
   useEffect(() => {
     if (isLoggedIn && role) {
-      const redirectTo = (router.query.redirectTo as string) || `/dashboard/${role}`;
+      const redirectTo = (router.query.redirectTo as string) || ROLE_PATHS[role] || "/auth/login";
       router.replace(redirectTo);
     }
   }, [isLoggedIn, role, router]);
@@ -57,7 +58,7 @@ const LoginPage: NextPage = () => {
                     <path d="M15 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" />
                   </svg>
                 </div>
-                <span className="text-lg font-bold tracking-tight text-gray-900">MetroNext</span>
+                <span className="text-lg font-bold tracking-tight text-gray-900">Metro</span>
               </div>
 
               {/* Headline */}
@@ -83,7 +84,7 @@ const LoginPage: NextPage = () => {
                     </div>
                     <div>
                       <p className="text-gray-900 font-semibold text-sm">Hơn 2.000+ người dùng</p>
-                      <p className="text-gray-500 text-xs">đang sử dụng MetroNext mỗi ngày</p>
+                      <p className="text-gray-500 text-xs">đang sử dụng Metro mỗi ngày</p>
                     </div>
                   </div>
                 </div>
@@ -101,7 +102,7 @@ const LoginPage: NextPage = () => {
                     <path d="M8 5c0-1.1.9-2 2-2h4c1.1 0 2 .9 2 2v2h1a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h1V5z" />
                   </svg>
                 </div>
-                <span className="font-bold text-xl text-blue-600">MetroNext</span>
+                <span className="font-bold text-xl text-blue-600">Metro</span>
               </div>
 
               <div className="mb-7">

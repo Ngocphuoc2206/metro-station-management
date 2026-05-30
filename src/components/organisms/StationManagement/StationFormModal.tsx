@@ -4,12 +4,22 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Station } from "@features/station/stationTypes";
 
+const coordinateSchema = (min: number, max: number, label: string) =>
+  z
+    .string()
+    .trim()
+    .min(1, `Vui lòng nhập ${label}`)
+    .refine((value) => Number.isFinite(Number(value)), `${label} phải là số`)
+    .refine((value) => {
+      const numericValue = Number(value);
+      return numericValue >= min && numericValue <= max;
+    }, `${label} không hợp lệ`);
+
 const schema = z.object({
   name: z.string().min(2, "Tên ga phải có ít nhất 2 ký tự"),
-  line: z.string().min(1, "Vui lòng chọn tuyến"),
   zone: z.string().min(1, "Vui lòng nhập khu vực"),
-  lat: z.string().min(1, "Vui lòng nhập vĩ độ (LAT)"),
-  lng: z.string().min(1, "Vui lòng nhập kinh độ (LONG)"),
+  lat: coordinateSchema(-90, 90, "vĩ độ (LAT)"),
+  lng: coordinateSchema(-180, 180, "kinh độ (LONG)"),
   status: z.enum(["active", "inactive"]),
 });
 
@@ -39,7 +49,6 @@ export default function StationFormModal({
     resolver: zodResolver(schema),
     defaultValues: {
       name: "",
-      line: "L1",
       zone: "",
       lat: "",
       lng: "",
@@ -52,21 +61,20 @@ export default function StationFormModal({
   useEffect(() => {
     if (isOpen) {
       if (station) {
-        // Parse LAT/LONG from location string if it's in "lat,lng" format. If not, just mock it.
-        const [lat = "10.7769", lng = "106.7009"] = station.location.split(",");
+        const [locationLat = "", locationLng = ""] = station.location.split(",");
+        const lat = station.lat || locationLat.trim();
+        const lng = station.lng || locationLng.trim();
         
         reset({
           name: station.name,
-          line: station.line,
           zone: station.zone,
-          lat: lat.trim(),
-          lng: lng.trim(),
+          lat,
+          lng,
           status: station.status,
         });
       } else {
         reset({
           name: "",
-          line: "L1",
           zone: "",
           lat: "",
           lng: "",
@@ -80,12 +88,28 @@ export default function StationFormModal({
 
   const currentStatus = watch("status");
 
+  const applyCoordinatePaste = (event: React.ClipboardEvent<HTMLInputElement>) => {
+    const pastedText = event.clipboardData.getData("text");
+    const match = pastedText.match(/(-?\d+(?:[.,]\d+)?)\s*[,;\s]\s*(-?\d+(?:[.,]\d+)?)/);
+    if (!match) return;
+
+    const lat = match[1].replace(",", ".");
+    const lng = match[2].replace(",", ".");
+    if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lng))) return;
+
+    event.preventDefault();
+    setValue("lat", lat, { shouldDirty: true, shouldValidate: true });
+    setValue("lng", lng, { shouldDirty: true, shouldValidate: true });
+  };
+
   const submitHandler = async (data: FormData) => {
     // Combine lat and lng into location
     await onSubmit({
       name: data.name,
-      line: data.line,
+      line: station?.line ?? "L1",
       zone: data.zone,
+      lat: data.lat.trim(),
+      lng: data.lng.trim(),
       location: `${data.lat}, ${data.lng}`,
       status: data.status,
     });
@@ -126,32 +150,6 @@ export default function StationFormModal({
               {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
             </div>
 
-            {/* TUYẾN */}
-            <div>
-              <label className="block text-[11px] font-bold text-gray-500 mb-1.5 uppercase tracking-wider">Tuyến</label>
-              <div className={`relative flex items-center w-full px-3 py-2 bg-white border rounded-xl transition-colors ${
-                  errors.line ? "border-red-300 focus-within:border-red-400" : "border-gray-200 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100"
-                }`}>
-                {/* Fake Tag */}
-                <span className="flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-md border border-blue-100 mr-2">
-                  L1
-                  <svg className="w-3 h-3 cursor-pointer" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </span>
-                <input
-                  type="text"
-                  placeholder="Tìm và chọn tuyến..."
-                  className="flex-1 bg-transparent text-sm focus:outline-none placeholder-gray-400 min-w-0"
-                />
-                <svg className="w-4 h-4 text-gray-400 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </div>
-              <input type="hidden" {...register("line")} value="L1" />
-              {errors.line && <p className="text-red-500 text-xs mt-1">{errors.line.message}</p>}
-            </div>
-
             {/* KHU VỰC (ZONE) */}
             <div>
               <label className="block text-[11px] font-bold text-gray-500 mb-1.5 uppercase tracking-wider">Khu vực (Zone)</label>
@@ -181,11 +179,13 @@ export default function StationFormModal({
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-gray-400">LAT</span>
                   <input
                     type="text"
+                    inputMode="decimal"
                     {...register("lat")}
+                    onPaste={applyCoordinatePaste}
                     className={`w-full pl-10 pr-3 py-2.5 bg-white border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 transition-colors ${
                       errors.lat ? "border-red-300 focus:border-red-400" : "border-gray-200 focus:border-blue-400"
                     }`}
-                    placeholder="10.77..."
+                    placeholder="10.7769"
                   />
                   {errors.lat && <p className="text-red-500 text-xs mt-1">{errors.lat.message}</p>}
                 </div>
@@ -193,15 +193,20 @@ export default function StationFormModal({
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-gray-400">LONG</span>
                   <input
                     type="text"
+                    inputMode="decimal"
                     {...register("lng")}
+                    onPaste={applyCoordinatePaste}
                     className={`w-full pl-12 pr-3 py-2.5 bg-white border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 transition-colors ${
                       errors.lng ? "border-red-300 focus:border-red-400" : "border-gray-200 focus:border-blue-400"
                     }`}
-                    placeholder="106.69..."
+                    placeholder="106.7009"
                   />
                   {errors.lng && <p className="text-red-500 text-xs mt-1">{errors.lng.message}</p>}
                 </div>
               </div>
+              <p className="mt-2 text-xs leading-5 text-gray-500">
+                Có thể dán trực tiếp cặp tọa độ từ bản đồ, ví dụ: 10.7769, 106.7009.
+              </p>
             </div>
 
             <hr className="border-gray-100 my-4" />

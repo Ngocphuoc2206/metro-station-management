@@ -1,6 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { User, UserRole } from "./userTypes";
 import { apiClient } from "@features/httpClient/ApiClient";
+import {
+  API_ENDPOINTS,
+  type ApiResponse,
+  withPathParam,
+} from "@features/httpClient/apiEndpoints";
 
 // Type returned from backend
 export interface BackendUser {
@@ -12,11 +17,6 @@ export interface BackendUser {
   roles: { roleId: string; roleName: string }[];
   address?: string;
   dob?: string;
-}
-
-export interface ApiResponse<T> {
-  code: number;
-  results: T;
 }
 
 // Convert Backend => UI
@@ -41,7 +41,9 @@ function mapBackendUserToUI(b: BackendUser): User {
 
 export const userApi = {
   getUsers: async (): Promise<User[]> => {
-    const res = await apiClient.get<ApiResponse<BackendUser[]>>("/users");
+    const res = await apiClient.get<ApiResponse<BackendUser[]>>(
+      API_ENDPOINTS.users.base,
+    );
     const data = res.data.results || [];
     return data.map(mapBackendUserToUI);
   },
@@ -59,13 +61,12 @@ export const userApi = {
   },
 
   updateUser: async (id: string, updates: Partial<User>): Promise<User> => {
-    // Admin update status
+    // Admin update status via PATCH /users/{userId}/status?status=BLOCKED|ACTIVE
     if (updates.status) {
-      const statusToUpdate = updates.status.toUpperCase() as
-        | "ACTIVE"
-        | "INACTIVE";
+      // Backend spec: ACTIVE | BLOCKED (không phải INACTIVE)
+      const statusParam = updates.status === "active" ? "ACTIVE" : "BLOCKED";
       const res = await apiClient.patch<ApiResponse<BackendUser>>(
-        `/users/${id}/status?status=${statusToUpdate}`,
+        `${withPathParam(API_ENDPOINTS.users.base, id)}/status?status=${statusParam}`,
       );
       return mapBackendUserToUI(res.data.results);
     }
@@ -85,14 +86,15 @@ export const userApi = {
 // API DÀNH CHO CÁ NHÂN (MY-PROFILE)
 // ==========================================
 export async function getMyProfile() {
-  const res =
-    await apiClient.get<ApiResponse<BackendUser>>("/users/my-profile");
+  const res = await apiClient.get<ApiResponse<BackendUser>>(
+    API_ENDPOINTS.users.me,
+  );
   return res.data.results;
 }
 
 export async function updateMyProfile(data: any) {
   const res = await apiClient.put<ApiResponse<BackendUser>>(
-    "/users/my-profile",
+    API_ENDPOINTS.users.me,
     data,
   );
   return res.data.results;

@@ -40,11 +40,12 @@ export type LoginRequest = {
 export type LoginApiResponse = {
   code: number;
   results: {
+    authenticated?: boolean;
     token: string;
-    userId: string;
-    fullName: string;
-    email: string;
-    roles: { roleId: string; roleName: string }[];
+    userId?: string;
+    fullName?: string;
+    email?: string;
+    roles?: { roleId: string; roleName: string }[];
   };
 };
 

@@ -10,7 +10,9 @@ const STAFF_NAV = [
   { label: "Tổng quan", href: "/staff", icon: DashboardIcon },
   { label: "Thiết bị", href: "/staff/devices", icon: EquipmentIcon },
   { label: "Sự cố", href: "/staff/incidents", icon: IncidentIcon },
+  { label: "Quét vé", href: "/staff/scan", icon: ScanIcon },
   { label: "Nhật ký soát vé", href: "/staff/ticket-log", icon: TicketLogIcon },
+  { label: "Nhật ký giao dịch", href: "/staff/transaction-logs", icon: TransactionIcon },
   {
     label: "Hồ sơ ca trực",
     href: "/staff/shift-profile",
@@ -21,7 +23,7 @@ const STAFF_NAV = [
 export default function StaffSidebar() {
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
-  const { name, email, role } = useSelector((s: RootState) => s.userReducer);
+  const { name, email } = useSelector((s: RootState) => s.userReducer);
 
   const handleLogout = () => {
     localStorage.removeItem("authToken");
@@ -30,10 +32,10 @@ export default function StaffSidebar() {
   };
 
   return (
-    <aside className="w-64 min-h-screen bg-white border-r border-gray-100 flex flex-col justify-between">
+    <aside className="flex min-h-screen w-20 flex-col justify-between border-r border-gray-100 bg-white sm:w-64">
       <div>
         {/* Logo */}
-        <div className="px-6 py-5 border-b border-gray-50 flex items-center gap-3">
+        <div className="flex items-center justify-center gap-3 border-b border-gray-50 px-3 py-5 sm:justify-start sm:px-6">
           <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
             <svg
               className="w-5 h-5 text-white"
@@ -43,11 +45,11 @@ export default function StaffSidebar() {
               <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
             </svg>
           </div>
-          <span className="font-bold text-gray-900 text-lg">MetroNext</span>
+          <span className="hidden text-lg font-bold text-gray-900 sm:inline">Metro</span>
         </div>
 
         {/* Menu Nav */}
-        <nav className="px-4 py-6 space-y-1">
+        <nav className="space-y-1 px-2 py-6 sm:px-4">
           {STAFF_NAV.map((item) => {
             const active = router.pathname === item.href;
             const Icon = item.icon;
@@ -55,14 +57,14 @@ export default function StaffSidebar() {
               <Link
                 key={item.label}
                 href={item.href}
-                className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+                className={`flex items-center justify-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 sm:justify-start ${
                   active
                     ? "bg-blue-50 text-blue-600"
                     : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
                 }`}
               >
                 <Icon active={active} />
-                {item.label}
+                <span className="hidden sm:inline">{item.label}</span>
               </Link>
             );
           })}
@@ -70,23 +72,23 @@ export default function StaffSidebar() {
       </div>
 
       {/* Cài đặt & User Info */}
-      <div className="px-5 py-4 border-t border-gray-100 space-y-2">
+      <div className="space-y-2 border-t border-gray-100 px-3 py-4 sm:px-5">
         <a
           href="#settings"
-          className="flex items-center gap-3 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-xl transition-colors"
+          className="flex items-center justify-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 sm:justify-start"
         >
           <SettingsIcon active={false} />
-          Cài đặt
+          <span className="hidden sm:inline">Cài đặt</span>
         </a>
 
         <div className="flex items-center justify-between pt-2">
-          <div className="flex items-center gap-3 pt-2 w-full">
+          <div className="flex w-full items-center justify-center gap-3 pt-2 sm:justify-start">
             <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
               <span className="text-emerald-700 font-bold mb-0.5">
                 {name ? name.charAt(0).toUpperCase() : "S"}
               </span>
             </div>
-            <div className="min-w-0 pr-2">
+            <div className="hidden min-w-0 pr-2 sm:block">
               <p className="text-sm font-bold text-gray-900 truncate">
                 {name || "Nhân viên"}
               </p>
@@ -99,9 +101,10 @@ export default function StaffSidebar() {
 
         <button
           onClick={handleLogout}
-          className="w-full text-xs font-semibold text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg py-2 mt-2 transition-colors border border-transparent hover:border-red-100"
+          className="mt-2 w-full rounded-lg border border-transparent py-2 text-xs font-semibold text-gray-400 transition-colors hover:border-red-100 hover:bg-red-50 hover:text-red-500"
         >
-          Đăng xuất
+          <span className="hidden sm:inline">Đăng xuất</span>
+          <span className="sm:hidden">Thoát</span>
         </button>
       </div>
     </aside>
@@ -144,6 +147,22 @@ function IncidentIcon(p: any) {
     <NavIcon
       {...p}
       d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+    />
+  );
+}
+function ScanIcon(p: any) {
+  return (
+    <NavIcon
+      {...p}
+      d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
+    />
+  );
+}
+function TransactionIcon(p: any) {
+  return (
+    <NavIcon
+      {...p}
+      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
     />
   );
 }

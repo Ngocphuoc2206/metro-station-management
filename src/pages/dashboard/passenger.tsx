@@ -1,16 +1,15 @@
-import Head from "next/head";
+import { useEffect } from "react";
+import { useRouter } from "next/router";
 import { withAuth } from "@components/templates/withAuth";
-import PassengerDashboard from "@components/organisms/PassengerDashboard/PassengerDashboard";
 
 function PassengerPortal() {
-  return (
-    <>
-      <Head>
-        <title>Passenger Portal | MetroNext</title>
-      </Head>
-      <PassengerDashboard />
-    </>
-  );
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace("/passenger-page");
+  }, [router]);
+
+  return null;
 }
 
 export default withAuth(PassengerPortal, { allowedRoles: ["passenger"] });

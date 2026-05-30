@@ -9,19 +9,21 @@ const NAV_GROUPS = [
     heading: "QUẢN TRỊ",
     items: [
       { label: "Tổng quan", href: "/dashboard/admin", icon: DashboardIcon },
-      { label: "Ga", href: "/dashboard/admin/stations", icon: StationIcon },
-      { label: "Tuyến", href: "/dashboard/admin/routes", icon: RouteIcon },
-      { label: "Loại vé", href: "/dashboard/admin/ticket-types", icon: TicketIcon },
-      { label: "Bảng giá", href: "/dashboard/admin/fares", icon: PriceIcon },
+      { label: "Ga", href: "/admin/stations", icon: StationIcon },
+      { label: "Thiết bị", href: "/admin/devices", icon: DeviceIcon },
+      { label: "Tuyến", href: "/admin/routes", icon: RouteIcon },
+      { label: "Lịch tàu", href: "/admin/schedules", icon: ScheduleIcon },
+      { label: "Loại vé", href: "/admin/ticket-types", icon: TicketIcon },
+      { label: "Bảng giá", href: "/admin/fares", icon: PriceIcon },
     ],
   },
   {
     heading: "HỆ THỐNG",
     items: [
-      { label: "Người dùng", href: "/dashboard/admin/users", icon: UsersIcon },
-      { label: "Phân quyền", href: "/dashboard/admin/permissions", icon: ShieldIcon },
-      { label: "Báo cáo", href: "/dashboard/admin/reports", icon: ReportIcon },
-      { label: "Audit Logs", href: "/dashboard/admin/audit-logs", icon: LogIcon },
+      { label: "Người dùng", href: "/admin/users", icon: UsersIcon },
+      { label: "Phân quyền", href: "/admin/permissions", icon: ShieldIcon },
+      { label: "Báo cáo", href: "/admin/reports", icon: ReportIcon },
+      { label: "Audit Logs", href: "/admin/audit-logs", icon: LogIcon },
       { label: "Cài đặt", href: "/dashboard/admin/settings", icon: SettingsIcon },
     ],
   },
@@ -38,28 +40,28 @@ export default function AdminSidebar() {
   };
 
   return (
-    <aside className="w-56 min-h-screen bg-white border-r border-gray-100 flex flex-col justify-between">
+    <aside className="flex min-h-screen w-20 flex-col justify-between border-r border-gray-100 bg-white sm:w-56">
       {/* Logo */}
       <div>
-        <div className="px-5 py-5 border-b border-gray-50">
-          <div className="flex items-center gap-2.5">
+        <div className="border-b border-gray-50 px-3 py-5 sm:px-5">
+          <div className="flex items-center justify-center gap-2.5 sm:justify-start">
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
               <svg className="w-4.5 h-4.5 text-white" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
               </svg>
             </div>
-            <div>
-              <p className="text-sm font-bold text-gray-900 leading-tight">MetroNext</p>
-              <p className="text-xs text-gray-400 leading-tight">Enterprise System</p>
+            <div className="hidden sm:block">
+              <p className="text-sm font-bold text-gray-900 leading-tight">Metro</p>
+              <p className="text-xs text-gray-400 leading-tight">Hệ thống doanh nghiệp</p>
             </div>
           </div>
         </div>
 
         {/* Nav */}
-        <nav className="px-3 py-4 space-y-5">
+        <nav className="space-y-5 px-2 py-4 sm:px-3">
           {NAV_GROUPS.map((group) => (
             <div key={group.heading}>
-              <p className="text-xs font-semibold text-gray-400 tracking-widest px-2 mb-2">
+              <p className="mb-2 hidden px-2 text-xs font-semibold tracking-widest text-gray-400 sm:block">
                 {group.heading}
               </p>
               <ul className="space-y-0.5">
@@ -70,13 +72,13 @@ export default function AdminSidebar() {
                     <li key={item.label}>
                       <a
                         href={item.href}
-                        className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${active
+                        className={`flex items-center justify-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors sm:justify-start ${active
                             ? "bg-blue-600 text-white font-medium"
                             : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                           }`}
                       >
                         <Icon active={active} />
-                        {item.label}
+                        <span className="hidden sm:inline">{item.label}</span>
                       </a>
                     </li>
                   );
@@ -88,23 +90,24 @@ export default function AdminSidebar() {
       </div>
 
       {/* User */}
-      <div className="px-4 py-4 border-t border-gray-100">
-        <div className="flex items-center gap-2.5 mb-3">
+      <div className="border-t border-gray-100 px-3 py-4 sm:px-4">
+        <div className="mb-3 flex items-center justify-center gap-2.5 sm:justify-start">
           <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
             <span className="text-blue-700 text-xs font-bold">
               {name ? name.charAt(0).toUpperCase() : "A"}
             </span>
           </div>
-          <div className="min-w-0">
+          <div className="hidden min-w-0 sm:block">
             <p className="text-xs font-semibold text-gray-900 truncate">{name || "Admin User"}</p>
             <p className="text-xs text-gray-400 truncate">{email || "Super Admin"}</p>
           </div>
         </div>
         <button
           onClick={handleLogout}
-          className="w-full text-xs text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-lg py-1.5 transition-colors"
+          className="w-full rounded-lg py-1.5 text-xs text-gray-500 transition-colors hover:bg-red-50 hover:text-red-500"
         >
-          Đăng xuất
+          <span className="hidden sm:inline">Đăng xuất</span>
+          <span className="sm:hidden">Thoát</span>
         </button>
       </div>
     </aside>
@@ -133,8 +136,14 @@ function DashboardIcon({ active }: { active: boolean }) {
 function StationIcon({ active }: { active: boolean }) {
   return <NavIcon active={active} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z" />;
 }
+function DeviceIcon({ active }: { active: boolean }) {
+  return <NavIcon active={active} d="M9 3h6a2 2 0 012 2v14a2 2 0 01-2 2H9a2 2 0 01-2-2V5a2 2 0 012-2z M11 17h2" />;
+}
 function RouteIcon({ active }: { active: boolean }) {
   return <NavIcon active={active} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />;
+}
+function ScheduleIcon({ active }: { active: boolean }) {
+  return <NavIcon active={active} d="M8 7V3m8 4V3M4 11h16M6 5h12a2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V7a2 2 0 012-2zm6 9h.01M15 14h.01M9 17h.01M12 17h.01" />;
 }
 function TicketIcon({ active }: { active: boolean }) {
   return <NavIcon active={active} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />;

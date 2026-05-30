@@ -12,23 +12,39 @@ import TimelineSection from "@components/organisms/IncidentDetail/TimelineSectio
 import QuickActions from "@components/organisms/IncidentDetail/QuickActions";
 import { toast } from "react-hot-toast";
 
-const MOCK_USERS = [
-  "Nguyễn Văn An",
-  "Lê Văn Tuấn",
-  "Trần Minh",
-  "Nguyễn Thu Hà",
-];
+import { userApi } from "@features/user/userApi";
+import type { User } from "@features/user/userTypes";
 
 export default function IncidentDetailPage() {
   const router = useRouter();
   const { id } = router.query;
 
   const [incident, setIncident] = useState<IncidentDetailRecord | null>(null);
+  const [staffList, setStaffList] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [comment, setComment] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const fetchStaff = async () => {
+      try {
+        const users = await userApi.getUsers();
+        // Lọc những user có role staff hoặc admin để phân công
+        setStaffList(users.filter(u => u.role === "staff" || u.role === "admin"));
+      } catch (e) {
+        console.warn("Lỗi lấy danh sách nhân viên (Access Denied). Dùng dữ liệu giả định để test UI.", e);
+        // Fallback vì API chặn quyền Staff
+        setStaffList([
+          { id: "staff-1", name: "Nguyễn Văn An", email: "an@metro.com", role: "staff", status: "active" },
+          { id: "staff-2", name: "Lê Văn Tuấn", email: "tuan@metro.com", role: "staff", status: "active" },
+          { id: "admin-1", name: "Trần Minh", email: "minh@metro.com", role: "admin", status: "active" },
+        ] as User[]);
+      }
+    };
+    fetchStaff();
+  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -74,13 +90,15 @@ export default function IncidentDetailPage() {
 
   const handleAssign = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     if (!incident) return;
-    const assigneeName = e.target.value;
-    if (!assigneeName) return;
+    const assigneeId = e.target.value;
+    const selectedStaff = staffList.find(u => u.id === assigneeId);
+    if (!assigneeId || !selectedStaff) return;
 
     try {
       setActionLoading(true);
-      await incidentApi.assignIncident(incident.id, assigneeName);
-      toast.success(`Đã phân công cho ${assigneeName}`);
+      // Gửi staffId lên API
+      await incidentApi.assignIncident(incident.id, assigneeId);
+      toast.success(`Đã phân công cho ${selectedStaff.name}`);
       await fetchIncident(incident.id);
     } catch (error: any) {
       toast.error(error.message || "Lỗi phân công!");
@@ -299,7 +317,7 @@ export default function IncidentDetailPage() {
                           </svg>
                         </div>
                       )}
-                      <span className="text-xs text-gray-600 truncate max-w-[100px] font-medium">
+                      <span className="text-xs text-gray-600 truncate max-w-25 font-medium">
                         {file.name}
                       </span>
                       <button
@@ -396,7 +414,8 @@ export default function IncidentDetailPage() {
                     Người phụ trách
                   </label>
                   <select
-                    value={incident.assigneeName || ""}
+                    // Hiển thị staff hiện tại: tìm trong danh sách xem ai có name trùng với assigneeName, hoặc id (nếu BE trả về id)
+                    value={staffList.find(u => u.name === incident.assigneeName || u.id === incident.assigneeName)?.id || ""}
                     onChange={handleAssign}
                     disabled={
                       actionLoading ||
@@ -407,11 +426,11 @@ export default function IncidentDetailPage() {
                     className="w-full bg-white border border-gray-200 text-gray-900 text-sm rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="" disabled>
-                      Chưa phân công
+                      {incident.assigneeName ? `Đang giao: ${incident.assigneeName}` : "Chưa phân công"}
                     </option>
-                    {MOCK_USERS.map((u) => (
-                      <option key={u} value={u}>
-                        {u}
+                    {staffList.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.name} - {u.email}
                       </option>
                     ))}
                   </select>

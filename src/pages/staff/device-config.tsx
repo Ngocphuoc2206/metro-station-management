@@ -1,5 +1,7 @@
+import Head from "next/head";
 import { useMemo, useState } from "react";
-import StaffPortalShell from "@/components/templates/StaffPortalShell";
+import StaffLayout from "@components/organisms/StaffDashboard/StaffLayout";
+import { withAuth } from "@components/templates/withAuth";
 import {
   Plus,
   Save,
@@ -65,7 +67,7 @@ const modeOptions = [
   { value: "out", label: "Chỉ lối ra (Out)" },
 ] as const;
 
-export default function DeviceConfigPage() {
+function DeviceConfigPage() {
   const devices = useMemo<DeviceItem[]>(
     () => [
       {
@@ -181,16 +183,21 @@ export default function DeviceConfigPage() {
     : "grid-cols-[minmax(0,1fr)_9rem_14rem_9rem_8rem]";
 
   return (
-    <StaffPortalShell
-      headerMode="stacked"
-      breadcrumb={{ section: "Staff Portal", page: "Cấu hình" }}
-      headerTitle="Cấu hình thiết bị"
-      systemStatus={{ label: "HỆ THỐNG TRỰC TUYẾN", tone: "blue" }}
-    >
-      <div className="-m-8 flex min-h-[calc(100vh-4rem)] bg-neutral-100">
-        <div className="flex flex-1 overflow-hidden">
-          <div className="flex-1 overflow-hidden p-8">
-            <div className={`w-full space-y-6 ${selectedDevice ? "max-w-[1024px]" : "max-w-[1280px]"}`}>
+    <>
+      <Head><title>Cấu hình thiết bị | MetroNext</title></Head>
+      <StaffLayout>
+        <div className="-mx-6 -my-6 flex min-h-[calc(100vh-4rem)] bg-neutral-100">
+          <div className="flex flex-1 overflow-hidden">
+            <div className="flex-1 overflow-hidden p-6">
+              <div className="mb-5">
+                <nav className="text-xs text-gray-400 mb-0.5">
+                  <span>Staff Portal</span>
+                  <span className="mx-1">›</span>
+                  <span className="text-blue-600 font-medium">Cấu hình</span>
+                </nav>
+                <h1 className="text-xl font-bold text-gray-900">Cấu hình thiết bị</h1>
+              </div>
+              <div className={`w-full space-y-6 ${selectedDevice ? "max-w-[1024px]" : "max-w-[1280px]"}`}>
               <div className="flex items-center justify-between gap-6">
                 <div className="flex items-start gap-4">
                   <div className="relative">
@@ -323,10 +330,10 @@ export default function DeviceConfigPage() {
                   })}
                 </div>
               </div>
+              </div>
             </div>
-          </div>
 
-          {selectedDevice ? (
+            {selectedDevice ? (
             <aside className="w-96 shrink-0 overflow-hidden border-l border-slate-200 bg-white">
               <div className="flex items-center justify-between border-b border-slate-200 p-6">
                 <div className="flex items-center gap-3">
@@ -412,6 +419,7 @@ export default function DeviceConfigPage() {
                         </label>
                       </div>
                     </div>
+                  </div>
 
                   <div className="space-y-6">
                     <div className="space-y-2">
@@ -566,11 +574,13 @@ export default function DeviceConfigPage() {
                   Lưu thay đổi
                 </button>
               </div>
-            </div>
-          </aside>
-          ) : null}
+            </aside>
+            ) : null}
+          </div>
         </div>
-      </div>
-    </StaffPortalShell>
+      </StaffLayout>
+    </>
   );
 }
+
+export default withAuth(DeviceConfigPage, { allowedRoles: ["staff", "admin"] });

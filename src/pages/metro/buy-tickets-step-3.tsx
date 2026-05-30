@@ -2,6 +2,9 @@ import type { NextPage } from "next";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
 import PassengerShell from "@components/templates/PassengerShell";
+import { paymentApi } from "@features/payment/paymentApi";
+import { publicApi } from "@features/public/publicApi";
+import type { StationDto } from "@features/public/publicTypes";
 import {
   ArrowLeft,
   ArrowRight,
@@ -15,8 +18,10 @@ import {
 } from "lucide-react";
 
 type JourneyState = {
-  originStation: string;
-  destinationStation: string;
+  originStationId: string;
+  originStationName: string;
+  destinationStationId: string;
+  destinationStationName: string;
   travelDate: string;
   passengerCount: string;
   isRoundTrip: boolean;
@@ -27,6 +32,8 @@ type Step2State = {
   selectedTicketName?: string;
   selectedTicketSubtitle?: string;
   selectedTicketPrice?: number;
+  selectedOrderTotal?: number;
+  orderId?: string;
 };
 
 type PaymentMethod = "ewallet" | "card" | "vietqr";
@@ -42,8 +49,10 @@ const STEP1_STORAGE_KEY = "metro-buy-ticket-step1";
 const STEP2_STORAGE_KEY = "metro-buy-ticket-step2";
 
 const emptyJourneyState: JourneyState = {
-  originStation: "",
-  destinationStation: "",
+  originStationId: "",
+  originStationName: "",
+  destinationStationId: "",
+  destinationStationName: "",
   travelDate: "",
   passengerCount: "",
   isRoundTrip: false,
@@ -91,16 +100,18 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
   const router = useRouter();
   const [journeyState, setJourneyState] =
     useState<JourneyState>(emptyJourneyState);
+  const [stations, setStations] = useState<StationDto[]>([]);
   const [step2State, setStep2State] = useState<Step2State>({});
   const [selectedPaymentMethod, setSelectedPaymentMethod] =
     useState<PaymentMethod>("ewallet");
-  const [promotionCode, setPromotionCode] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
   useEffect(() => {
     const fromQuery = {
-      originStation:
+      originStationId:
         typeof router.query.from === "string" ? router.query.from : "",
-      destinationStation:
+      destinationStationId:
         typeof router.query.to === "string" ? router.query.to : "",
       travelDate:
         typeof router.query.date === "string" ? router.query.date : "",
@@ -112,37 +123,57 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
     };
 
     const hasAllFromQuery =
-      fromQuery.originStation &&
-      fromQuery.destinationStation &&
+      fromQuery.originStationId &&
+      fromQuery.destinationStationId &&
       fromQuery.travelDate &&
       fromQuery.passengerCount;
 
-    if (hasAllFromQuery) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setJourneyState(fromQuery);
-    }
-
     if (typeof window === "undefined") {
+      if (hasAllFromQuery) {
+        setJourneyState({
+          ...fromQuery,
+          originStationName: "",
+          destinationStationName: "",
+        });
+      }
       return;
     }
 
-    if (!hasAllFromQuery) {
-      const rawStep1 = window.sessionStorage.getItem(STEP1_STORAGE_KEY);
-      if (rawStep1) {
-        try {
-          const parsedStep1 = JSON.parse(rawStep1) as JourneyState;
-          if (
-            parsedStep1.originStation &&
-            parsedStep1.destinationStation &&
-            parsedStep1.travelDate &&
-            parsedStep1.passengerCount
-          ) {
-            setJourneyState(parsedStep1);
-          }
-        } catch {
-          setJourneyState(emptyJourneyState);
+    const rawStep1 = window.sessionStorage.getItem(STEP1_STORAGE_KEY);
+    let storedJourney: JourneyState | null = null;
+    if (rawStep1) {
+      try {
+        const parsedStep1 = JSON.parse(rawStep1) as JourneyState;
+        if (
+          parsedStep1.originStationId &&
+          parsedStep1.destinationStationId &&
+          parsedStep1.travelDate &&
+          parsedStep1.passengerCount
+        ) {
+          storedJourney = parsedStep1;
         }
+      } catch {
+        storedJourney = null;
       }
+    }
+
+    if (hasAllFromQuery) {
+      const matchesStoredStations =
+        storedJourney?.originStationId === fromQuery.originStationId &&
+        storedJourney.destinationStationId === fromQuery.destinationStationId;
+      setJourneyState({
+        ...fromQuery,
+        originStationName: matchesStoredStations
+          ? (storedJourney?.originStationName ?? "")
+          : "",
+        destinationStationName: matchesStoredStations
+          ? (storedJourney?.destinationStationName ?? "")
+          : "",
+      });
+    } else if (storedJourney) {
+      setJourneyState(storedJourney);
+    } else {
+      setJourneyState(emptyJourneyState);
     }
 
     const rawStep2 = window.sessionStorage.getItem(STEP2_STORAGE_KEY);
@@ -158,13 +189,29 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
     }
   }, [router.query]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    publicApi.getStations().then((data) => {
+      if (!cancelled) {
+        setStations(data);
+      }
+    }).catch(() => {
+      // Names kept from step 1 remain usable if station lookup fails.
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const ticketTypeFromQuery =
     typeof router.query.ticketType === "string" ? router.query.ticketType : "";
 
   const hasJourneyState = useMemo(() => {
     return Boolean(
-      journeyState.originStation &&
-      journeyState.destinationStation &&
+      journeyState.originStationId &&
+      journeyState.destinationStationId &&
       journeyState.travelDate &&
       journeyState.passengerCount,
     );
@@ -185,7 +232,27 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
     };
   }, [step2State, ticketTypeFromQuery]);
 
-  const subtotal = selectedTicket.price;
+  const stationNamesById = useMemo(
+    () => new Map(stations.map((station) => [station.id, station.name])),
+    [stations],
+  );
+  const originStationName =
+    journeyState.originStationName ||
+    stationNamesById.get(journeyState.originStationId) ||
+    journeyState.originStationId;
+  const destinationStationName =
+    journeyState.destinationStationName ||
+    stationNamesById.get(journeyState.destinationStationId) ||
+    journeyState.destinationStationId;
+
+  const subtotal =
+    step2State.selectedOrderTotal ??
+    selectedTicket.price *
+      (journeyState.passengerCount.match(/\d+/g)?.reduce(
+        (total, count) => total + Number(count),
+        0,
+      ) ?? 1) *
+      (journeyState.isRoundTrip ? 2 : 1);
   const serviceFee = 0;
   const totalPrice = subtotal + serviceFee;
 
@@ -198,26 +265,56 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
     });
   };
 
-  const handleApplyPromotion = () => {
-    if (!promotionCode.trim()) {
-      return;
-    }
-
-    setPromotionCode(promotionCode.trim());
-  };
-
   const handleConfirmPayment = async () => {
     if (!hasJourneyState) {
       return;
     }
 
-    await router.push({
-      pathname: "/passenger-page/payment-success",
-      query: {
-        ...router.query,
-        ticketType: selectedTicket.id,
-      },
-    });
+    setIsProcessing(true);
+    setPaymentError(null);
+
+    try {
+      const orderId =
+        step2State.orderId ||
+        (typeof router.query.orderId === "string" ? router.query.orderId : "");
+      if (!orderId) {
+        throw new Error("Không tìm thấy orderId. Vui lòng quay lại bước chọn vé.");
+      }
+
+      const payment = await paymentApi.init({
+        orderId,
+        method: selectedPaymentMethod,
+      });
+
+      if (!payment.paymentId) {
+        throw new Error("Phản hồi khởi tạo thanh toán không có paymentId");
+      }
+
+      const transactionId =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? `web-${crypto.randomUUID()}`
+          : `web-${Date.now()}`;
+      await paymentApi.callback({
+        paymentId: payment.paymentId,
+        transactionId,
+        isSuccess: true,
+      });
+
+      await router.push({
+        pathname: "/passenger-page/payment-success",
+        query: {
+          ...router.query,
+          ticketType: selectedTicket.id,
+          orderId,
+          paymentId: payment.paymentId,
+        },
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Không thể khởi tạo thanh toán";
+      setPaymentError(message);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -256,6 +353,12 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
                 </h2>
 
                 <div className="flex flex-col gap-4">
+                  {paymentError ? (
+                    <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 outline outline-1 outline-offset-[-1px] outline-red-100">
+                      {paymentError}
+                    </div>
+                  ) : null}
+
                   <button
                     type="button"
                     onClick={() => setSelectedPaymentMethod("ewallet")}
@@ -402,31 +505,6 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
                   </button>
                 </div>
 
-                <div className="flex flex-col gap-2 border-t border-slate-200 pt-10">
-                  <label
-                    htmlFor="promotion-code"
-                    className="text-sm leading-5 font-semibold text-neutral-900"
-                  >
-                    Mã giảm giá
-                  </label>
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <input
-                      id="promotion-code"
-                      type="text"
-                      value={promotionCode}
-                      onChange={(event) => setPromotionCode(event.target.value)}
-                      placeholder="Nhập mã ưu đãi (nếu có)"
-                      className="h-11 flex-1 rounded-xl border border-slate-300 px-3 text-sm text-neutral-900 placeholder:text-gray-500 focus:border-blue-600 focus:outline-none"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleApplyPromotion}
-                      className="rounded-xl bg-slate-200 px-6 py-2.5 text-sm font-bold text-neutral-900 transition hover:bg-slate-300"
-                    >
-                      Áp dụng
-                    </button>
-                  </div>
-                </div>
               </article>
 
               <article className="relative h-24 overflow-hidden rounded-xl">
@@ -461,8 +539,7 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
                           Hành trình
                         </p>
                         <p className="text-sm font-medium leading-5 text-neutral-900">
-                          {journeyState.originStation} -{" "}
-                          {journeyState.destinationStation}
+                          {originStationName} - {destinationStationName}
                         </p>
                       </div>
                     </div>
@@ -519,14 +596,14 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
                   <button
                     type="button"
                     onClick={handleConfirmPayment}
-                    disabled={!hasJourneyState}
+                    disabled={!hasJourneyState || isProcessing}
                     className={`inline-flex items-center justify-center gap-3 rounded-xl py-4 text-base font-bold text-white transition ${
-                      hasJourneyState
+                      hasJourneyState && !isProcessing
                         ? "bg-blue-600 hover:bg-blue-700"
                         : "cursor-not-allowed bg-slate-300"
                     }`}
                   >
-                    Xác nhận thanh toán
+                    {isProcessing ? "Đang xử lý..." : "Xác nhận thanh toán"}
                     <ArrowRight className="h-4 w-4" />
                   </button>
 

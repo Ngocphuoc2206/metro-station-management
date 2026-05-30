@@ -5,6 +5,7 @@ import { useSelector } from "react-redux";
 import { useRouter } from "next/router";
 import type { RootState } from "@stores/index";
 import SignupForm from "@components/organisms/SignupForm/SignupForm";
+import { ROLE_PATHS } from "@/const/Role";
 
 const SignupPage: NextPage = () => {
   const router = useRouter();
@@ -12,7 +13,7 @@ const SignupPage: NextPage = () => {
 
   useEffect(() => {
     if (isLoggedIn && role) {
-      router.replace(`/dashboard/${role}`);
+      router.replace(ROLE_PATHS[role] || "/auth/login");
     }
   }, [isLoggedIn, role, router]);
 
@@ -50,7 +51,7 @@ const SignupPage: NextPage = () => {
                   <path d="M15 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" />
                 </svg>
               </div>
-              <span className="text-white font-bold text-xl tracking-tight">MetroNext</span>
+              <span className="text-white font-bold text-xl tracking-tight">Metro</span>
             </div>
 
             {/* Main copy */}
@@ -59,7 +60,7 @@ const SignupPage: NextPage = () => {
                 Bắt đầu hành trình<br />của bạn ngay hôm nay
               </h2>
               <p className="text-blue-100/90 mt-4 text-sm leading-relaxed max-w-xs">
-                Gia nhập MetroNext — trải nghiệm mua vé tàu điện ngầm thông minh, nhanh chóng và tiện lợi nhất.
+                Gia nhập Metro, trải nghiệm mua vé tàu điện ngầm thông minh, nhanh chóng và tiện lợi.
               </p>
 
               {/* Feature list */}
@@ -93,7 +94,7 @@ const SignupPage: NextPage = () => {
                   <path d="M8 5c0-1.1.9-2 2-2h4c1.1 0 2 .9 2 2v2h1a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h1V5z" />
                 </svg>
               </div>
-              <span className="text-2xl font-bold text-blue-600">MetroNext</span>
+              <span className="text-2xl font-bold text-blue-600">Metro</span>
             </div>
 
             {/* Heading */}
