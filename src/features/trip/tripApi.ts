@@ -51,7 +51,7 @@ const normalizeTrip = (raw: unknown): TripDto | null => {
   const ticket = object(item.ticket);
   const checkInAt = firstText(
     item.checkInAt,
-    item.checkInTime,
+    item.checkIn,
     item.entryTime,
     item.enteredAt,
     item.startedAt,
@@ -61,7 +61,7 @@ const normalizeTrip = (raw: unknown): TripDto | null => {
   );
   const checkOutAt = firstText(
     item.checkOutAt,
-    item.checkOutTime,
+    item.checkOut,
     item.exitTime,
     item.exitedAt,
     item.completedAt,
@@ -84,6 +84,7 @@ const normalizeTrip = (raw: unknown): TripDto | null => {
       item.entryStationName,
       item.checkInStationName,
       item.fromStationName,
+      item.originStation,
       item.originName,
       item.from,
       originStation.name,
@@ -94,6 +95,7 @@ const normalizeTrip = (raw: unknown): TripDto | null => {
       item.exitStationName,
       item.checkOutStationName,
       item.toStationName,
+      item.destinationStation,
       item.destinationName,
       item.to,
       destinationStation.name,
