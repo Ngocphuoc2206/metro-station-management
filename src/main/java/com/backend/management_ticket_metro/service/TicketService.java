@@ -37,7 +37,6 @@ public class TicketService {
     private final QRCodeService qrCodeService;
     private final OrderRepository orderRepository;
     private final OrderMapper orderMapper;
-    private final StationRepository stationRepository;
     private final GateScanLogRepository gateScanLogRepository;
 
     // Issuing Tickets
@@ -230,35 +229,38 @@ public class TicketService {
         User user = getCurrentUser();
         LocalDateTime now = LocalDateTime.now();
 
-        //Calculate the number of active tickets (ready or active and not yet expired).
+        // Calculate the number of active tickets.
         List<TicketStatus> activeStatuses = List.of(TicketStatus.READY, TicketStatus.ACTIVE);
-        long activeTickets = ticketRepository.countByUserAndStatusInAndExpiredAtAfter(user, activeStatuses, now);
+        long activeTickets = ticketRepository.countByUserAndStatusInAndExpiredAtAfter(
+                user,
+                activeStatuses,
+                now
+        );
 
-        //Calculate the total number of successful trips.
-        long totalTrips = ticketUsageRepository.countByTicketUserAndSuccessTrue(user);
+        // Calculate completed trips from gate_scan_logs.
+        // A completed trip is counted when user has successful TAP_OUT.
+        long totalTrips = gateScanLogRepository.countCompletedTripsByUser(
+                user,
+                ScanResult.ALLOW,
+                GateAction.TAP_OUT
+        );
 
-        //Take the 3 most recent tickets.
+        // Take the 3 most recent tickets.
         Pageable topThree = PageRequest.of(0, 3);
         List<TicketResponse> recentTickets = ticketRepository.findByUserOrderByIssuedAtDesc(user, topThree)
                 .stream()
                 .map(this::toTicketResponse)
                 .toList();
 
-        //Take the last 5 trips (card swipes)
+        // Take the 5 most recent gate scan logs.
         Pageable topFive = PageRequest.of(0, 5);
-        List<TicketUsageResponse> recentTrips = ticketUsageRepository.findByTicketUserOrderByScannedAtDesc(user, topFive)
+        List<TicketUsageResponse> recentTrips = gateScanLogRepository.findRecentScanLogsByUser(user,
+                        (java.awt.print.Pageable) topFive)
                 .stream()
-                .map(usage -> TicketUsageResponse.builder()
-                        .id(usage.getId())
-                        .stationId(usage.getStationId())
-                        .gateId(usage.getGateId())
-                        .success(usage.getSuccess())
-                        .message(usage.getMessage())
-                        .scannedAt(usage.getScannedAt())
-                        .build())
+                .map(this::toTicketUsageResponse)
                 .toList();
 
-        //Get the latest order.
+        // Get the latest order.
         OrderResponse latestOrder = null;
         List<Order> orders = orderRepository.findByUserOrderByCreatedAtDesc(user, PageRequest.of(0, 1));
         if (!orders.isEmpty()) {
@@ -272,6 +274,28 @@ public class TicketService {
                 .recentTrips(recentTrips)
                 .latestOrder(latestOrder)
                 .build();
+    }
+
+    private TicketUsageResponse toTicketUsageResponse(GateScanLog log) {
+        return TicketUsageResponse.builder()
+                .id(log.getId())
+                .stationId(log.getStation() != null ? log.getStation().getStationId() : null)
+                .gateId(log.getGate() != null ? log.getGate().getGateId() : null)
+                .success(log.getResult() == ScanResult.ALLOW)
+                .message(buildGateScanMessage(log))
+                .scannedAt(log.getScannedAt())
+                .build();
+    }
+
+    private String buildGateScanMessage(GateScanLog log) {
+        String action = log.getAction() != null ? log.getAction().name() : "UNKNOWN";
+        String message = log.getMessage();
+
+        if (message == null || message.isBlank()) {
+            return action;
+        }
+
+        return action + " - " + message;
     }
 
     @Transactional(readOnly = true)
