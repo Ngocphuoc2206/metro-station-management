@@ -1,5 +1,6 @@
 import { apiClient } from "@features/httpClient/ApiClient";
 import { API_ENDPOINTS, ApiResponse, withPathParam } from "@features/httpClient/apiEndpoints";
+import { unwrapApiResponse } from "@features/httpClient/unwrap";
 
 // ── Types (Device) ────────────────────────────────────────────────────────────
 export interface Device {
@@ -33,10 +34,10 @@ interface BackendDevice {
 
 function mapToUI(b: BackendDevice): Device {
   const rawStatus = b.status?.toLowerCase() ?? "inactive";
-  const status = rawStatus.includes("active")
-    ? "active"
-    : rawStatus.includes("maint")
+  const status = rawStatus.includes("maint")
     ? "maintenance"
+    : rawStatus === "active" || rawStatus === "online"
+    ? "active"
     : "inactive";
 
   return {
@@ -55,10 +56,11 @@ function mapToUI(b: BackendDevice): Device {
 export const deviceApi = {
   // ── GET /staff/devices (FE-34) ────────────────────────────────────────────
   getDevices: async (): Promise<Device[]> => {
-    const res = await apiClient.get<ApiResponse<BackendDevice[]>>(
+    const res = await apiClient.get<ApiResponse<BackendDevice[]> | BackendDevice[]>(
       API_ENDPOINTS.devices.staff
     );
-    return (res.data.results ?? []).map(mapToUI);
+    const devices = unwrapApiResponse<BackendDevice[]>(res.data);
+    return Array.isArray(devices) ? devices.map(mapToUI) : [];
   },
 
   // ── GET /staff/devices/{id} (FE-34) ───────────────────────────────────────

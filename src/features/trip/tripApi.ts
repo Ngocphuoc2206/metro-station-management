@@ -17,6 +17,20 @@ const optionalNumber = (value: unknown) => {
 const object = (value: unknown): Record<string, unknown> =>
   value && typeof value === "object" ? (value as Record<string, unknown>) : {};
 
+const list = (value: unknown): unknown[] => {
+  if (Array.isArray(value)) return value;
+
+  const container = object(value);
+  const nested =
+    container.content ??
+    container.items ??
+    container.data ??
+    container.results ??
+    container.trips ??
+    container.records;
+  return Array.isArray(nested) ? nested : [];
+};
+
 const firstText = (...values: unknown[]) => {
   for (const value of values) {
     const resolved = text(value);
@@ -28,12 +42,18 @@ const firstText = (...values: unknown[]) => {
 const normalizeTrip = (raw: unknown): TripDto | null => {
   if (!raw || typeof raw !== "object") return null;
   const item = raw as Record<string, unknown>;
-  const originStation = object(item.originStation ?? item.fromStation ?? item.checkInStation);
-  const destinationStation = object(item.destinationStation ?? item.toStation ?? item.checkOutStation);
+  const originStation = object(
+    item.originStation ?? item.fromStation ?? item.checkInStation ?? item.entryStation,
+  );
+  const destinationStation = object(
+    item.destinationStation ?? item.toStation ?? item.checkOutStation ?? item.exitStation,
+  );
   const ticket = object(item.ticket);
   const checkInAt = firstText(
     item.checkInAt,
+    item.checkInTime,
     item.entryTime,
+    item.enteredAt,
     item.startedAt,
     item.checkinTime,
     item.tapInAt,
@@ -41,7 +61,9 @@ const normalizeTrip = (raw: unknown): TripDto | null => {
   );
   const checkOutAt = firstText(
     item.checkOutAt,
+    item.checkOutTime,
     item.exitTime,
+    item.exitedAt,
     item.completedAt,
     item.checkoutTime,
     item.tapOutAt,
@@ -59,6 +81,8 @@ const normalizeTrip = (raw: unknown): TripDto | null => {
     ticketCode,
     originStationName: firstText(
       item.originStationName,
+      item.entryStationName,
+      item.checkInStationName,
       item.fromStationName,
       item.originName,
       item.from,
@@ -67,6 +91,8 @@ const normalizeTrip = (raw: unknown): TripDto | null => {
     ),
     destinationStationName: firstText(
       item.destinationStationName,
+      item.exitStationName,
+      item.checkOutStationName,
       item.toStationName,
       item.destinationName,
       item.to,
@@ -76,9 +102,9 @@ const normalizeTrip = (raw: unknown): TripDto | null => {
     checkInAt: checkInAt || undefined,
     checkOutAt: checkOutAt || undefined,
     status: firstText(item.status, item.tripStatus, item.result),
-    fare: optionalNumber(item.fare ?? item.price ?? item.amount),
-    entryGate: firstText(item.entryGate, item.entryGateCode, item.gateInCode) || undefined,
-    exitGate: firstText(item.exitGate, item.exitGateCode, item.gateOutCode) || undefined,
+    fare: optionalNumber(item.fare ?? item.price ?? item.amount ?? item.totalFare),
+    entryGate: firstText(item.entryGate, item.entryGateCode, item.gateInCode, item.checkInGateCode) || undefined,
+    exitGate: firstText(item.exitGate, item.exitGateCode, item.gateOutCode, item.checkOutGateCode) || undefined,
   };
 };
 
@@ -105,23 +131,15 @@ export const tripApi = {
     const container = raw && typeof raw === "object" && !Array.isArray(raw)
       ? raw as Record<string, unknown>
       : {};
-    const rawItems = Array.isArray(raw)
-      ? raw
-      : Array.isArray(container.content)
-        ? container.content
-        : Array.isArray(container.items)
-          ? container.items
-          : Array.isArray(container.data)
-            ? container.data
-            : Array.isArray(container.results)
-              ? container.results
-              : [];
+    const rawItems = list(raw);
     const items = rawItems.map(normalizeTrip).filter(Boolean) as TripDto[];
-    const total = optionalNumber(container.totalElements ?? container.total ?? container.totalItems) ?? items.length;
-    const limit = optionalNumber(container.size ?? container.limit) ?? query.limit;
-    const responsePage = optionalNumber(container.number ?? container.page);
-    const page =
-      responsePage === undefined ? query.page : Math.max(0, responsePage - 1);
+    const total = optionalNumber(
+      container.totalElements ?? container.total ?? container.totalItems ?? container.totalRecords,
+    ) ?? items.length;
+    const limit = optionalNumber(container.size ?? container.limit ?? container.pageSize) ?? query.limit;
+    const springPage = optionalNumber(container.number);
+    const apiPage = optionalNumber(container.page ?? container.currentPage);
+    const page = springPage ?? (apiPage === undefined ? query.page : Math.max(0, apiPage - 1));
     return {
       items,
       page,
