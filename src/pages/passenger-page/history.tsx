@@ -9,8 +9,10 @@ import type { TripDto, TripPage } from "@features/trip/tripTypes";
 
 const LIMIT = 10;
 
-const toStartDateTime = (value: string) => value ? `${value}T00:00:00` : undefined;
-const toEndDateTime = (value: string) => value ? `${value}T23:59:59` : undefined;
+const toStartDateTime = (value: string) =>
+  value ? new Date(`${value}T00:00:00`).toISOString() : undefined;
+const toEndDateTime = (value: string) =>
+  value ? new Date(`${value}T23:59:59.999`).toISOString() : undefined;
 
 const formatDate = (value?: string) => {
   if (!value) return "--";
