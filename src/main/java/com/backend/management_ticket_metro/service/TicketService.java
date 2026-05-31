@@ -3,6 +3,8 @@ package com.backend.management_ticket_metro.service;
 import com.backend.management_ticket_metro.common.ErrorCode;
 import com.backend.management_ticket_metro.dto.response.*;
 import com.backend.management_ticket_metro.entity.*;
+import com.backend.management_ticket_metro.enums.GateAction;
+import com.backend.management_ticket_metro.enums.ScanResult;
 import com.backend.management_ticket_metro.enums.TicketStatus;
 import com.backend.management_ticket_metro.exception.AppException;
 import com.backend.management_ticket_metro.mapper.OrderMapper;
@@ -35,7 +37,7 @@ public class TicketService {
     private final QRCodeService qrCodeService;
     private final OrderRepository orderRepository;
     private final OrderMapper orderMapper;
-    private final StationRepository stationRepository;
+    private final GateScanLogRepository gateScanLogRepository;
 
     // Issuing Tickets
     @Transactional
@@ -227,35 +229,38 @@ public class TicketService {
         User user = getCurrentUser();
         LocalDateTime now = LocalDateTime.now();
 
-        //Calculate the number of active tickets (ready or active and not yet expired).
+        // Calculate the number of active tickets.
         List<TicketStatus> activeStatuses = List.of(TicketStatus.READY, TicketStatus.ACTIVE);
-        long activeTickets = ticketRepository.countByUserAndStatusInAndExpiredAtAfter(user, activeStatuses, now);
+        long activeTickets = ticketRepository.countByUserAndStatusInAndExpiredAtAfter(
+                user,
+                activeStatuses,
+                now
+        );
 
-        //Calculate the total number of successful trips.
-        long totalTrips = ticketUsageRepository.countByTicketUserAndSuccessTrue(user);
+        // Calculate completed trips from gate_scan_logs.
+        // A completed trip is counted when user has successful TAP_OUT.
+        long totalTrips = gateScanLogRepository.countCompletedTripsByUser(
+                user,
+                ScanResult.ALLOW,
+                GateAction.TAP_OUT
+        );
 
-        //Take the 3 most recent tickets.
+        // Take the 3 most recent tickets.
         Pageable topThree = PageRequest.of(0, 3);
         List<TicketResponse> recentTickets = ticketRepository.findByUserOrderByIssuedAtDesc(user, topThree)
                 .stream()
                 .map(this::toTicketResponse)
                 .toList();
 
-        //Take the last 5 trips (card swipes)
+        // Take the 5 most recent gate scan logs.
         Pageable topFive = PageRequest.of(0, 5);
-        List<TicketUsageResponse> recentTrips = ticketUsageRepository.findByTicketUserOrderByScannedAtDesc(user, topFive)
+        List<TicketUsageResponse> recentTrips = gateScanLogRepository.findRecentScanLogsByUser(user,
+                        (java.awt.print.Pageable) topFive)
                 .stream()
-                .map(usage -> TicketUsageResponse.builder()
-                        .id(usage.getId())
-                        .stationId(usage.getStationId())
-                        .gateId(usage.getGateId())
-                        .success(usage.getSuccess())
-                        .message(usage.getMessage())
-                        .scannedAt(usage.getScannedAt())
-                        .build())
+                .map(this::toTicketUsageResponse)
                 .toList();
 
-        //Get the latest order.
+        // Get the latest order.
         OrderResponse latestOrder = null;
         List<Order> orders = orderRepository.findByUserOrderByCreatedAtDesc(user, PageRequest.of(0, 1));
         if (!orders.isEmpty()) {
@@ -271,122 +276,178 @@ public class TicketService {
                 .build();
     }
 
+    private TicketUsageResponse toTicketUsageResponse(GateScanLog log) {
+        return TicketUsageResponse.builder()
+                .id(log.getId())
+                .stationId(log.getStation() != null ? log.getStation().getStationId() : null)
+                .gateId(log.getGate() != null ? log.getGate().getGateId() : null)
+                .success(log.getResult() == ScanResult.ALLOW)
+                .message(buildGateScanMessage(log))
+                .scannedAt(log.getScannedAt())
+                .build();
+    }
+
+    private String buildGateScanMessage(GateScanLog log) {
+        String action = log.getAction() != null ? log.getAction().name() : "UNKNOWN";
+        String message = log.getMessage();
+
+        if (message == null || message.isBlank()) {
+            return action;
+        }
+
+        return action + " - " + message;
+    }
+
     @Transactional(readOnly = true)
     public PageResponse<TripResponse> getMyTripHistory(
             int page, int limit, LocalDateTime from, LocalDateTime to, String stationId) {
+
+        int safePage = Math.max(page, 1);
+        int safeLimit = Math.max(limit, 1);
+        stationId = normalizeStationId(stationId);
 
         log.info("Get my trips history stationId: {}", stationId);
 
         User user = getCurrentUser();
 
-        // 1. Lấy tất cả các vé của user
-        List<Ticket> tickets = ticketRepository.findByUser(user);
-
-        if (tickets.isEmpty()) {
-            log.warn("User has no tickets");
-            return PageResponse.<TripResponse>builder().items(new ArrayList<>()).page(page).limit(limit).total(0).build();
-        }
-
-        Set<String> ticketIds = tickets.stream()
-                .map(Ticket::getId)
-                .collect(Collectors.toSet());
-
-        List<TicketUsage> rawLogs = ticketUsageRepository.findTripHistoryRaw(user, ticketIds, stationId, from, to);
+        List<GateScanLog> rawLogs = gateScanLogRepository.findMyTripLogs(
+                user,
+                ScanResult.ALLOW,
+                stationId,
+                from,
+                to
+        );
 
         if (rawLogs.isEmpty()) {
-            log.warn("Rawlogs is empty");
-            return PageResponse.<TripResponse>builder().items(new ArrayList<>()).page(page).limit(limit).total(0).build();
+            log.warn("Gate scan logs is empty");
+            return PageResponse.<TripResponse>builder()
+                    .items(new ArrayList<>())
+                    .page(safePage)
+                    .limit(safeLimit)
+                    .total(0)
+                    .build();
         }
 
-        // Chỉ lấy các Station ID có trong log
-        Set<String> stationIdsInLogs = rawLogs.stream()
-                .map(TicketUsage::getStationId)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-
-        Map<String, String> stationNameMap = stationRepository.findByStationIdIn(stationIdsInLogs).stream()
-                .collect(Collectors.toMap(Station::getStationId, Station::getName, (oldVal, newVal) -> oldVal));
-
-        // Nhóm theo Ticket ID
-        Map<String, List<TicketUsage>> logsByTicket = rawLogs.stream()
-                .collect(Collectors.groupingBy(tu -> tu.getTicket().getId()));
+        Map<String, List<GateScanLog>> logsByTicket = rawLogs.stream()
+                .filter(log -> log.getTicket() != null)
+                .collect(Collectors.groupingBy(log -> log.getTicket().getId()));
 
         List<TripResponse> allTrips = new ArrayList<>();
 
-        // Thuật toán ghép cặp (Đi từ CŨ nhất đến MỚI nhất)
-        for (Map.Entry<String, List<TicketUsage>> entry : logsByTicket.entrySet()) {
-            String tId = entry.getKey();
-            List<TicketUsage> ticketLogs = entry.getValue();
+        for (Map.Entry<String, List<GateScanLog>> entry : logsByTicket.entrySet()) {
+            String ticketId = entry.getKey();
+            List<GateScanLog> ticketLogs = entry.getValue();
 
-            // Đảm bảo log được xếp từ cũ đến mới để thuật toán chạy đúng
-            ticketLogs.sort(Comparator.comparing(TicketUsage::getScannedAt));
+            ticketLogs.sort(Comparator.comparing(GateScanLog::getScannedAt));
 
-            TicketUsage tempTapIn = null;
+            GateScanLog tempTapIn = null;
 
-            for (TicketUsage log : ticketLogs) {
-                String currentStationName = stationNameMap.getOrDefault(log.getStationId(), "Unknown Station");
-                boolean isTapOut = log.getGateId() != null && log.getGateId().contains("OUT");
-
-                if (!isTapOut) {
-                    // Nếu gặp TAP_IN mới
+            for (GateScanLog log : ticketLogs) {
+                if (log.getAction() == GateAction.TAP_IN) {
                     if (tempTapIn != null) {
-                        // Chuyến trước đó bị quên TAP_OUT -> Đóng chuyến trước đó dạng IN_COMPLETE hoặc IN_PROGRESS
-                        allTrips.add(buildTrip(tempTapIn, null, tId, stationNameMap));
+                        allTrips.add(buildTrip(tempTapIn, null, ticketId));
                     }
-                    tempTapIn = log; // Giữ lại TAP_IN hiện tại
-                } else {
-                    // Nếu gặp TAP_OUT
+
+                    tempTapIn = log;
+                }
+
+                if (log.getAction() == GateAction.TAP_OUT) {
                     if (tempTapIn != null) {
-                        // Có cặp hoàn chỉnh
-                        allTrips.add(buildTrip(tempTapIn, log, tId, stationNameMap));
-                        tempTapIn = null; // Reset
+                        allTrips.add(buildTrip(tempTapIn, log, ticketId));
+                        tempTapIn = null;
                     } else {
-                        // Xuất hiện TAP_OUT không có TAP_IN (Lỗi quẹt thẻ đầu vào)
-                        allTrips.add(buildTrip(null, log, tId, stationNameMap));
+                        allTrips.add(buildTrip(null, log, ticketId));
                     }
                 }
             }
 
-            // Xử lý log cuối cùng nếu nó là một TAP_IN chưa có TAP_OUT (Chuyến đi đang diễn ra)
             if (tempTapIn != null) {
-                allTrips.add(buildTrip(tempTapIn, null, tId, stationNameMap));
+                allTrips.add(buildTrip(tempTapIn, null, ticketId));
             }
         }
 
-        //Sắp xếp lại danh sách trip cuối cùng: MỚI NHẤT lên đầu để hiển thị
-        allTrips.sort((t1, t2) -> t2.getCheckIn().compareTo(t1.getCheckIn()));
+        allTrips.sort(
+                Comparator.comparing(
+                        this::getTripSortTime,
+                        Comparator.nullsLast(Comparator.naturalOrder())
+                ).reversed()
+        );
 
-        // 5. Phân trang thủ công (Hạn chế lỗi Index Out Of Bound)
         int totalItems = allTrips.size();
-        int fromIndex = Math.min((page - 1) * limit, totalItems);
-        int toIndex = Math.min(fromIndex + limit, totalItems);
+        int fromIndex = Math.min((safePage - 1) * safeLimit, totalItems);
+        int toIndex = Math.min(fromIndex + safeLimit, totalItems);
 
-        List<TripResponse> pagedTrips = (fromIndex < totalItems) ? allTrips.subList(fromIndex, toIndex) : new ArrayList<>();
+        List<TripResponse> pagedTrips = fromIndex < totalItems
+                ? allTrips.subList(fromIndex, toIndex)
+                : new ArrayList<>();
 
         return PageResponse.<TripResponse>builder()
                 .items(pagedTrips)
-                .page(page)
-                .limit(limit)
+                .page(safePage)
+                .limit(safeLimit)
                 .total(totalItems)
                 .build();
     }
 
-    // Hàm bổ trợ build Trip gọn gàng và an toàn hơn
-    private TripResponse buildTrip(TicketUsage tapIn, TicketUsage tapOut, String ticketId, Map<String, String> stationNameMap) {
-        String idSource = tapIn != null ? tapIn.getId() : (tapOut != null ? tapOut.getId() : UUID.randomUUID().toString());
+    private String normalizeStationId(String stationId) {
+        if (stationId == null || stationId.isBlank() || stationId.equalsIgnoreCase("all")) {
+            return null;
+        }
+
+        return stationId;
+    }
+
+    private TripResponse buildTrip(GateScanLog tapIn, GateScanLog tapOut, String ticketId) {
+        String idSource = tapIn != null
+                ? tapIn.getId()
+                : tapOut != null ? tapOut.getId() : UUID.randomUUID().toString();
+
         String tripId = "TRIP-" + (idSource.length() > 8 ? idSource.substring(0, 8) : idSource);
 
-        String origin = tapIn != null ? stationNameMap.getOrDefault(tapIn.getStationId(), "Unknown Station") : "No Check-in";
-        String dest = tapOut != null ? stationNameMap.getOrDefault(tapOut.getStationId(), "Unknown Station") : "In Transit";
+        String originStation = tapIn != null
+                ? getStationName(tapIn, "Unknown Station")
+                : "No Check-in";
+
+        String destinationStation = tapOut != null
+                ? getStationName(tapOut, "Unknown Station")
+                : "In Transit";
 
         return TripResponse.builder()
                 .id(tripId)
                 .ticketId(ticketId)
-                .originStation(origin)
-                .destinationStation(dest)
+                .originStation(originStation)
+                .destinationStation(destinationStation)
                 .checkIn(tapIn != null ? tapIn.getScannedAt() : null)
                 .checkOut(tapOut != null ? tapOut.getScannedAt() : null)
-                .status(tapIn != null && tapOut != null ? "COMPLETED" : (tapIn != null ? "IN_PROGRESS" : "INCOMPLETE_DATA"))
+                .status(resolveTripStatus(tapIn, tapOut))
                 .build();
+    }
+
+    private String getStationName(GateScanLog log, String fallback) {
+        if (log == null || log.getStation() == null) {
+            return fallback;
+        }
+
+        return log.getStation().getName();
+    }
+
+    private String resolveTripStatus(GateScanLog tapIn, GateScanLog tapOut) {
+        if (tapIn != null && tapOut != null) {
+            return "COMPLETED";
+        }
+
+        if (tapIn != null) {
+            return "IN_PROGRESS";
+        }
+
+        return "INCOMPLETE_DATA";
+    }
+
+    private LocalDateTime getTripSortTime(TripResponse trip) {
+        if (trip.getCheckOut() != null) {
+            return trip.getCheckOut();
+        }
+
+        return trip.getCheckIn();
     }
 }

@@ -2,10 +2,14 @@ package com.backend.management_ticket_metro.repository;
 
 import com.backend.management_ticket_metro.entity.GateScanLog;
 import com.backend.management_ticket_metro.entity.Ticket;
+import com.backend.management_ticket_metro.entity.User;
+import com.backend.management_ticket_metro.enums.GateAction;
 import com.backend.management_ticket_metro.enums.ScanResult;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.awt.print.Pageable;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -27,5 +31,50 @@ public interface GateScanLogRepository extends JpaRepository<GateScanLog, String
             String gateId,
             LocalDateTime from,
             LocalDateTime to
+    );
+
+    @Query("""
+            SELECT l FROM GateScanLog l
+            JOIN FETCH l.ticket t
+            LEFT JOIN FETCH l.station s
+            LEFT JOIN FETCH l.gate g
+            WHERE t.user = :user
+              AND l.result = :result
+              AND (:stationId IS NULL OR s.stationId = :stationId)
+              AND (:from IS NULL OR l.scannedAt >= :from)
+              AND (:to IS NULL OR l.scannedAt <= :to)
+            ORDER BY l.scannedAt DESC
+            """)
+    List<GateScanLog> findMyTripLogs(
+            @Param("user") User user,
+            @Param("result") ScanResult result,
+            @Param("stationId") String stationId,
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to
+    );
+
+    @Query("""
+        SELECT COUNT(l) FROM GateScanLog l
+        WHERE l.ticket.user = :user
+          AND l.result = :result
+          AND l.action = :action
+        """)
+    long countCompletedTripsByUser(
+            @Param("user") User user,
+            @Param("result") ScanResult result,
+            @Param("action") GateAction action
+    );
+
+    @Query("""
+        SELECT l FROM GateScanLog l
+        JOIN FETCH l.ticket t
+        LEFT JOIN FETCH l.station s
+        LEFT JOIN FETCH l.gate g
+        WHERE t.user = :user
+        ORDER BY l.scannedAt DESC
+        """)
+    List<GateScanLog> findRecentScanLogsByUser(
+            @Param("user") User user,
+            Pageable pageable
     );
 }
