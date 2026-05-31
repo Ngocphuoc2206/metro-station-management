@@ -2,15 +2,12 @@ import { useCallback, useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { apiClient } from "@features/httpClient/ApiClient";
 import { API_ENDPOINTS } from "@features/httpClient/apiEndpoints";
+import { deviceApi, type Device } from "@features/device/deviceApi";
+import { gateLogApi, type GateLog } from "@features/gateLog/gateLogApi";
+import { liveApi } from "@features/live/liveApi";
+import type { LiveStationStatusDto } from "@features/live/liveTypes";
 
 // ── Types ──────────────────────────────────────────────────────────────────
-interface ApiDevice {
-  id?: string; deviceId?: string; gateId?: string;
-  code?: string; gateCode?: string; deviceCode?: string;
-  name?: string; type?: string; deviceType?: string; typeName?: string;
-  status?: string; stationName?: string;
-  [k: string]: unknown;
-}
 interface ApiStation {
   stationId: string;
   name: string;
@@ -18,26 +15,6 @@ interface ApiStation {
   latitude?: number;
   longitude?: number;
   status?: string;
-}
-interface ApiLiveStationStatus {
-  stationId: string;
-  status?: string;
-  congestionLevel?: number;
-  message?: string;
-  updatedAt?: string;
-}
-interface ApiGateLog {
-  id: string;
-  gateId?: string;
-  gateCode?: string;
-  stationId?: string;
-  stationName?: string;
-  ticketId?: string;
-  ticketCode?: string;
-  action?: string;
-  result?: string;
-  message?: string;
-  scannedAt?: string;
 }
 interface ApiGate {
   gateId: string;
@@ -62,9 +39,6 @@ interface ApiIncident {
 
 const CHART_HOURS = Array.from({ length: 12 }, (_, index) => index * 2);
 
-function getCode(d: ApiDevice) {
-  return d.code ?? d.gateCode ?? d.deviceCode ?? d.name ?? (d.id ?? "").slice(0,8).toUpperCase() ?? "—";
-}
 function getGateStatus(gate: ApiGate) {
   const status = (gate.status ?? "").toUpperCase();
   if (status === "ACTIVE" || status === "ONLINE") return "ONLINE";
@@ -112,15 +86,6 @@ function getList<T>(data: { results?: T[] } | T[]): T[] {
   return Array.isArray(data.results) ? data.results : [];
 }
 
-function toLocalDateTime(date: Date) {
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
-}
-
-function localDateTimeHoursAgo(hours: number) {
-  return toLocalDateTime(new Date(Date.now() - hours * 60 * 60 * 1000));
-}
-
 function isOperationalStatus(status?: string) {
   const value = (status ?? "").toUpperCase();
   return (
@@ -131,29 +96,44 @@ function isOperationalStatus(status?: string) {
   );
 }
 
-function groupLogsByHour(logs: ApiGateLog[]) {
+function isOperationalDevice(device: Device) {
+  return device.status.toUpperCase() === "ACTIVE";
+}
+
+function isOpenIncident(incident: ApiIncident) {
+  const status = (incident.status ?? "").toUpperCase().replace(/[_\s-]/g, "");
+  return status !== "RESOLVED" && status !== "CLOSED";
+}
+
+function filterLogsByHours(logs: GateLog[], hours: number) {
+  const cutoff = Date.now() - hours * 60 * 60 * 1000;
+  return logs.filter((log) => {
+    const scannedAt = new Date(log.timestamp).getTime();
+    return Number.isNaN(scannedAt) || scannedAt >= cutoff;
+  });
+}
+
+function groupLogsByHour(logs: GateLog[]) {
   return CHART_HOURS.map((startHour) => {
     const bucket = logs.filter((log) => {
-      if (!log.scannedAt) return false;
-      const hour = new Date(log.scannedAt).getHours();
+      if (!log.timestamp) return false;
+      const hour = new Date(log.timestamp).getHours();
       return hour >= startHour && hour < startHour + 2;
     });
     return {
       label: `${String(startHour).padStart(2, "0")}:00`,
-      inbound: bucket.filter((log) => log.action?.toUpperCase() === "IN").length,
-      outbound: bucket.filter((log) => log.action?.toUpperCase() === "OUT").length,
+      inbound: bucket.filter((log) => log.action === "TAP_IN").length,
+      outbound: bucket.filter((log) => log.action === "TAP_OUT").length,
     };
   });
 }
 
 export default function StaffDashboard() {
   const [stations, setStations] = useState<ApiStation[]>([]);
-  const [devices, setDevices] = useState<ApiDevice[]>([]);
+  const [devices, setDevices] = useState<Device[]>([]);
   const [incidents, setIncidents] = useState<ApiIncident[]>([]);
-  const [pendingIncidentCount, setPendingIncidentCount] = useState(0);
-  const [liveStationStatuses, setLiveStationStatuses] = useState<ApiLiveStationStatus[]>([]);
-  const [gateLogs, setGateLogs] = useState<ApiGateLog[]>([]);
-  const [chartGateLogs, setChartGateLogs] = useState<ApiGateLog[]>([]);
+  const [liveStationStatuses, setLiveStationStatuses] = useState<LiveStationStatusDto[]>([]);
+  const [gateLogs, setGateLogs] = useState<GateLog[]>([]);
   const [gates, setGates] = useState<ApiGate[]>([]);
   const [selectedStationId, setSelectedStationId] = useState("");
   const [selectedDeviceId, setSelectedDeviceId] = useState("");
@@ -174,73 +154,36 @@ export default function StaffDashboard() {
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
-    const hours = timeWindow === "1h" ? 1 : timeWindow === "24h" ? 24 : 24 * 7;
-    const chartHours = chartRange === "24h" ? 24 : 24 * 7;
-    const commonParams = {
-      stationId: selectedStationId || undefined,
-    };
     try {
-      const [stationRes, devRes, incRes, pendingIncRes, liveRes, logsRes, chartLogsRes, gatesRes] = await Promise.allSettled([
+      const [stationRes, devRes, incRes, liveRes, logsRes, gatesRes] = await Promise.allSettled([
         apiClient.get<{ results?: ApiStation[] } | ApiStation[]>(API_ENDPOINTS.stations.base),
-        apiClient.get<{ results?: ApiDevice[] } | ApiDevice[]>(API_ENDPOINTS.devices.staff),
-        apiClient.get<{ results?: ApiIncident[] } | ApiIncident[]>(API_ENDPOINTS.incidents.staff, {
-          params: {
-            ...commonParams,
-            status: incidentStatus || undefined,
-            priority: incidentPriority || undefined,
-          },
-        }),
-        apiClient.get<{ results?: ApiIncident[] } | ApiIncident[]>(API_ENDPOINTS.incidents.staff, {
-          params: { ...commonParams, status: "PENDING" },
-        }),
-        apiClient.get<{ results?: ApiLiveStationStatus[] } | ApiLiveStationStatus[]>(
-          API_ENDPOINTS.live.stationStatus,
-        ),
-        apiClient.get<{ results?: ApiGateLog[] } | ApiGateLog[]>(API_ENDPOINTS.gates.logs, {
-          params: {
-            ...commonParams,
-            gateId: selectedDeviceId || undefined,
-            from: localDateTimeHoursAgo(hours),
-            to: toLocalDateTime(new Date()),
-          },
-        }),
-        apiClient.get<{ results?: ApiGateLog[] } | ApiGateLog[]>(API_ENDPOINTS.gates.logs, {
-          params: {
-            ...commonParams,
-            gateId: selectedDeviceId || undefined,
-            from: localDateTimeHoursAgo(chartHours),
-            to: toLocalDateTime(new Date()),
-          },
-        }),
+        deviceApi.getDevices(),
+        apiClient.get<{ results?: ApiIncident[] } | ApiIncident[]>(API_ENDPOINTS.incidents.staff),
+        liveApi.getStationStatuses(),
+        gateLogApi.getLogs(),
         apiClient.get<{ results?: ApiGate[] } | ApiGate[]>(API_ENDPOINTS.gates.staff),
       ]);
       if (stationRes.status === "fulfilled") {
         setStations(getList(stationRes.value.data));
       }
       if (devRes.status === "fulfilled") {
-        setDevices(getList(devRes.value.data));
+        setDevices(devRes.value);
       }
       if (incRes.status === "fulfilled") {
         setIncidents(getList(incRes.value.data));
       }
-      if (pendingIncRes.status === "fulfilled") {
-        setPendingIncidentCount(getList(pendingIncRes.value.data).length);
-      }
       if (liveRes.status === "fulfilled") {
-        setLiveStationStatuses(getList(liveRes.value.data));
+        setLiveStationStatuses(liveRes.value);
       }
       if (logsRes.status === "fulfilled") {
-        setGateLogs(getList(logsRes.value.data));
-      }
-      if (chartLogsRes.status === "fulfilled") {
-        setChartGateLogs(getList(chartLogsRes.value.data));
+        setGateLogs(logsRes.value);
       }
       if (gatesRes.status === "fulfilled") {
         setGates(getList(gatesRes.value.data));
       }
     } catch { /* ignore */ }
     finally { setLoading(false); }
-  }, [chartRange, incidentPriority, incidentStatus, selectedDeviceId, selectedStationId, timeWindow]);
+  }, []);
 
   useEffect(() => {
     fetchAll();
@@ -267,6 +210,11 @@ export default function StaffDashboard() {
   const displayedLiveStatuses = liveStationStatuses.filter(
     (station) => !selectedStationId || station.stationId === selectedStationId,
   );
+  const displayedDevices = devices.filter(
+    (device) =>
+      (!selectedStationId || device.stationId === selectedStationId) &&
+      (!selectedDeviceId || device.id === selectedDeviceId),
+  );
   const congestionLevel = displayedLiveStatuses.reduce(
     (maximum, station) => Math.max(maximum, station.congestionLevel ?? 0),
     0,
@@ -274,8 +222,33 @@ export default function StaffDashboard() {
   const stableStationCount = displayedLiveStatuses.filter((station) =>
     isOperationalStatus(station.status),
   ).length;
-  const acceptedScans = gateLogs.filter((log) => ["ALLOW", "ACCEPTED", "SUCCESS"].includes(log.result?.toUpperCase() ?? "")).length;
-  const rejectedScans = gateLogs.filter((log) => ["DENY", "REJECTED", "FAILED"].includes(log.result?.toUpperCase() ?? "")).length;
+  const stableDeviceCount = displayedDevices.filter(isOperationalDevice).length;
+  const stableAssetCount = stableStationCount + stableDeviceCount;
+  const displayedAssetCount = displayedLiveStatuses.length + displayedDevices.length;
+  const selectedLogs = gateLogs.filter(
+    (log) =>
+      (!selectedStationId || log.stationId === selectedStationId) &&
+      (!selectedDeviceId || log.gateId === selectedDeviceId),
+  );
+  const displayedLogs = filterLogsByHours(selectedLogs, timeWindow === "1h" ? 1 : timeWindow === "24h" ? 24 : 24 * 7);
+  const acceptedLogs = displayedLogs.filter((log) => log.result === "ALLOW");
+  const currentTraffic = Math.max(
+    0,
+    acceptedLogs.filter((log) => log.action === "TAP_IN").length -
+      acceptedLogs.filter((log) => log.action === "TAP_OUT").length,
+  );
+  const displayedIncidents = incidents.filter(
+    (incident) =>
+      (!selectedStationId || incident.stationId === selectedStationId) &&
+      (!incidentStatus || incident.status?.toUpperCase() === incidentStatus) &&
+      (!incidentPriority || getSev(incident) === incidentPriority),
+  );
+  const systemAlertCount =
+    displayedIncidents.filter(isOpenIncident).length +
+    displayedDevices.filter((device) => !isOperationalDevice(device)).length;
+  const chartGateLogs = filterLogsByHours(selectedLogs, chartRange === "24h" ? 24 : 24 * 7)
+    .filter((log) => log.result === "ALLOW");
+  const acceptedScans = acceptedLogs.length;
   const congestionLabel =
     congestionLevel >= 80 ? "Mức rất đông" : congestionLevel >= 50 ? "Mức đông" : "Mức ổn định";
   const chartPoints = groupLogsByHour(chartGateLogs);
@@ -288,8 +261,8 @@ export default function StaffDashboard() {
       point.inbound + point.outbound > peak.inbound + peak.outbound ? point : peak,
     chartPoints[0],
   );
-  const recentTransactions = [...gateLogs]
-    .sort((left, right) => (right.scannedAt ?? "").localeCompare(left.scannedAt ?? ""))
+  const recentTransactions = [...selectedLogs]
+    .sort((left, right) => (right.timestamp ?? "").localeCompare(left.timestamp ?? ""))
     .slice(0, 5);
 
   return (
@@ -319,7 +292,20 @@ export default function StaffDashboard() {
         </button>
         <select
           value={selectedStationId}
-          onChange={(event) => setSelectedStationId(event.target.value)}
+          onChange={(event) => {
+            const stationId = event.target.value;
+            setSelectedStationId(stationId);
+            if (
+              selectedDeviceId &&
+              !devices.some(
+                (device) =>
+                  device.id === selectedDeviceId &&
+                  (!stationId || device.stationId === stationId),
+              )
+            ) {
+              setSelectedDeviceId("");
+            }
+          }}
           aria-label="Lọc theo ga"
           className="text-xs border border-gray-200 rounded-lg px-3 py-1.5 bg-gray-50 text-gray-700 focus:outline-none"
         >
@@ -337,15 +323,13 @@ export default function StaffDashboard() {
           className="text-xs border border-gray-200 rounded-lg px-3 py-1.5 bg-gray-50 text-gray-700 focus:outline-none"
         >
           <option value="">Tất cả thiết bị</option>
-          {devices.map((device) => {
-            const id = device.id ?? device.deviceId ?? device.gateId;
-            if (!id) return null;
-            return (
-              <option key={id} value={id}>
-                {device.name ?? device.deviceCode ?? getCode(device)}
+          {devices
+            .filter((device) => !selectedStationId || device.stationId === selectedStationId)
+            .map((device) => (
+              <option key={device.id} value={device.id}>
+                {device.name}
               </option>
-            );
-          })}
+            ))}
         </select>
         <select
           value={timeWindow}
@@ -383,10 +367,10 @@ export default function StaffDashboard() {
       {/* ── 4 Stat Cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: "Lưu lượng hiện tại", badge: "LIVE", badgeColor: "bg-green-500", value: loading ? "—" : String(congestionLevel), sub: congestionLabel, subColor: congestionLevel >= 50 ? "text-orange-500" : "text-gray-500" },
-          { label: "Vé đã quét", badge: "LIVE", badgeColor: "bg-green-500", value: loading ? "—" : String(gateLogs.length), sub: `${acceptedScans} chấp nhận / ${rejectedScans} từ chối`, subColor: "text-gray-500" },
-          { label: "Cảnh báo hệ thống", badge: "LIVE", badgeColor: "bg-green-500", value: loading ? "—" : String(pendingIncidentCount).padStart(2,"0"), sub: pendingIncidentCount > 0 ? "Cần xử lý" : "Bình thường", subColor: pendingIncidentCount > 0 ? "text-red-500" : "text-gray-500" },
-          { label: "Trạng thái thiết bị/ga", badge: "LIVE", badgeColor: "bg-green-500", value: loading ? "—" : `${stableStationCount}/${displayedLiveStatuses.length}`, sub: stableStationCount === displayedLiveStatuses.length ? "Bình thường" : "Cần kiểm tra", subColor: stableStationCount === displayedLiveStatuses.length ? "text-gray-500" : "text-red-500" },
+          { label: "Lưu lượng hiện tại", badge: "LIVE", badgeColor: "bg-green-500", value: loading ? "—" : String(currentTraffic), sub: congestionLabel, subColor: congestionLevel >= 50 ? "text-orange-500" : "text-gray-500" },
+          { label: "Vé đã quét", badge: "LIVE", badgeColor: "bg-green-500", value: loading ? "—" : String(acceptedScans), sub: "Lượt quét thành công", subColor: "text-gray-500" },
+          { label: "Cảnh báo hệ thống", badge: "LIVE", badgeColor: "bg-green-500", value: loading ? "—" : String(systemAlertCount).padStart(2,"0"), sub: systemAlertCount > 0 ? "Cần xử lý" : "Bình thường", subColor: systemAlertCount > 0 ? "text-red-500" : "text-gray-500" },
+          { label: "Trạng thái thiết bị/ga", badge: "LIVE", badgeColor: "bg-green-500", value: loading ? "—" : `${stableAssetCount}/${displayedAssetCount}`, sub: stableAssetCount === displayedAssetCount ? "Bình thường" : "Cần kiểm tra", subColor: stableAssetCount === displayedAssetCount ? "text-gray-500" : "text-red-500" },
         ].map((c, i) => (
           <div key={i} className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
             <div className="flex items-center justify-between mb-3">
@@ -498,7 +482,7 @@ export default function StaffDashboard() {
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-50">
           <div>
             <h2 className="text-sm font-bold text-gray-900">Giao dịch gần đây</h2>
-              <p className="text-[11px] text-gray-400">Khoảng thời gian: {timeWindow}</p>
+              <p className="text-[11px] text-gray-400">5 giao dịch mới nhất</p>
           </div>
           <Link href="/staff/transaction-logs" className="text-xs font-semibold text-blue-600 hover:text-blue-700">Xem chi tiết</Link>
         </div>
@@ -520,17 +504,14 @@ export default function StaffDashboard() {
               const accepted = ["ALLOW", "ACCEPTED", "SUCCESS"].includes(row.result?.toUpperCase() ?? "");
               return (
                 <tr key={row.id} className="hover:bg-gray-50/50 transition-colors">
-                  <td className="px-6 py-3.5 font-mono text-blue-500 font-medium">{fmtTime(row.scannedAt)}</td>
+                  <td className="px-6 py-3.5 font-mono text-blue-500 font-medium">{fmtTime(row.timestamp)}</td>
                   <td className="px-6 py-3.5 text-gray-700 font-medium">{row.stationName ?? "—"}</td>
                   <td className="px-6 py-3.5 text-gray-600">{row.gateCode ?? row.gateId ?? "—"}</td>
                   <td className="px-6 py-3.5 font-mono text-blue-500">{row.ticketCode ?? row.ticketId ?? "—"}</td>
                   <td className="px-6 py-3.5">
-                    <div>
-                      <span className={`text-[10px] font-black px-2 py-0.5 rounded ${accepted ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-                        {row.result ?? "—"}
-                      </span>
-                      {row.message && <p className="text-[10px] text-gray-400 mt-0.5">{row.message}</p>}
-                    </div>
+                    <span className={`text-[10px] font-black px-2 py-0.5 rounded ${accepted ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                      {accepted ? "Thành công" : "Từ chối"}
+                    </span>
                   </td>
                 </tr>
               );
@@ -588,10 +569,10 @@ export default function StaffDashboard() {
           <tbody className="divide-y divide-gray-50">
             {loading ? (
               <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-400">Đang tải...</td></tr>
-            ) : incidents.length === 0 ? (
+            ) : displayedIncidents.length === 0 ? (
               <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-400">Không có sự cố</td></tr>
             ) : (
-              incidents.slice(0,5).map((inc) => (
+              displayedIncidents.slice(0,5).map((inc) => (
                 <tr key={inc.id ?? inc.incidentId} className="hover:bg-gray-50/50 transition-colors">
                   <td className="px-6 py-3.5 font-mono text-blue-500 font-medium">{fmtTime(inc.createdAt)}</td>
                   <td className="px-6 py-3.5 text-gray-700 font-medium">{inc.stationName ?? inc.gateCode ?? inc.stationId ?? "—"}</td>
