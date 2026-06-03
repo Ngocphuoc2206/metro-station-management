@@ -8,4 +8,5 @@ import java.util.Optional;
 
 public interface TicketTypeRepository extends JpaRepository<TicketType, String> {
     Optional<TicketType> findByName(String name);
+    Optional<TicketType> findById(String id);
 }
