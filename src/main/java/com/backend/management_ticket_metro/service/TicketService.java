@@ -208,11 +208,15 @@ public class TicketService {
 
     private TicketResponse toTicketResponse(Ticket ticket) {
         OrderItem item = ticket.getOrderItem();
+        // get ticketType Name
+        TicketType ticketType = ticketTypeRepository.findById(ticket.getOrderItem().getTicketTypeId())
+                .orElseThrow(() -> new AppException(ErrorCode.TICKET_TYPE_INVALID));
 
         return TicketResponse.builder()
                 .id(ticket.getId())
                 .ticketCode(ticket.getTicketCode())
                 .status(ticket.getStatus().name())
+                .ticketTypeName(ticketType.getName())
                 .issuedAt(ticket.getIssuedAt())
                 .activatedAt(ticket.getActivatedAt())
                 .usedAt(ticket.getUsedAt())

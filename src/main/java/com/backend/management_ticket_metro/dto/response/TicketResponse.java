@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 public class TicketResponse {
     private String id;
     private String ticketCode;
+    private String ticketTypeName;
     private String status;
     private LocalDateTime issuedAt;
     private LocalDateTime activatedAt;
