@@ -208,8 +208,9 @@ public class TicketService {
 
     private TicketResponse toTicketResponse(Ticket ticket) {
         OrderItem item = ticket.getOrderItem();
+        String ticketTypeId = ticket.getOrderItem().getTicketTypeId();
         // get ticketType Name
-        TicketType ticketType = ticketTypeRepository.findById(ticket.getOrderItem().getTicketTypeId())
+        TicketType ticketType = ticketTypeRepository.findById(ticketTypeId)
                 .orElseThrow(() -> new AppException(ErrorCode.TICKET_TYPE_INVALID));
 
         return TicketResponse.builder()
