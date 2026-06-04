@@ -7,6 +7,7 @@ import { orderApi } from "@features/order/orderApi";
 import type { OrderPreviewResult, OrderRequest } from "@features/order/orderTypes";
 import { publicApi } from "@features/public/publicApi";
 import type { StationDto, TicketTypeDto } from "@features/public/publicTypes";
+import { calculateDistanceKm } from "@utils/geo";
 import {
   ArrowRight,
   Check,
@@ -24,6 +25,7 @@ type JourneyState = {
   travelDate: string;
   passengerCount: string;
   isRoundTrip: boolean;
+  distance?: number;
 };
 
 type TicketTypeCard = {
@@ -41,6 +43,8 @@ const STEP2_STORAGE_KEY = "metro-buy-ticket-step2";
 const TICKET_TYPE_LABELS: Record<string, string> = {
   single: "Vé lượt",
   daily: "Vé ngày",
+  day: "Vé ngày",
+  month: "Vé tháng",
   monthly: "Vé tháng",
 };
 
@@ -52,6 +56,7 @@ const emptyState: JourneyState = {
   travelDate: "",
   passengerCount: "",
   isRoundTrip: false,
+  distance: undefined,
 };
 
 const parsePassengerCount = (value: string) => {
@@ -69,6 +74,7 @@ const buildOrderRequest = (
     quantity,
     fromStationId: journeyState.originStationId,
     toStationId: journeyState.destinationStationId,
+    distance: journeyState.distance,
   };
 
   return {
@@ -80,6 +86,7 @@ const buildOrderRequest = (
             quantity,
             fromStationId: journeyState.destinationStationId,
             toStationId: journeyState.originStationId,
+            distance: journeyState.distance,
           },
         ]
       : [outbound],
@@ -101,7 +108,7 @@ const toTicketCard = (t: TicketTypeDto): TicketTypeCard => {
       ...(validityText ? [validityText] : []),
     ],
     price: t.price,
-    highlighted: typeName === "single",
+    highlighted: typeName === "daily" || typeName === "day",
   };
 };
 
@@ -137,6 +144,10 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
           ? router.query.passengers
           : "",
       isRoundTrip: router.query.roundTrip === "1",
+      distance:
+        typeof router.query.distance === "string" && Number.isFinite(Number(router.query.distance))
+          ? Number(router.query.distance)
+          : undefined,
     };
 
     const hasAllFromQuery =
@@ -279,6 +290,21 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
     () => new Map(stations.map((station) => [station.id, station.name])),
     [stations],
   );
+  const stationsById = useMemo(
+    () => new Map(stations.map((station) => [station.id, station])),
+    [stations],
+  );
+  const calculatedDistance = useMemo(() => {
+    return calculateDistanceKm(
+      stationsById.get(journeyState.originStationId),
+      stationsById.get(journeyState.destinationStationId),
+    );
+  }, [journeyState.destinationStationId, journeyState.originStationId, stationsById]);
+  const journeyDistance = journeyState.distance ?? calculatedDistance;
+  const journeyWithDistance = useMemo(
+    () => ({ ...journeyState, distance: journeyDistance }),
+    [journeyDistance, journeyState],
+  );
   const originStationName =
     journeyState.originStationName ||
     stationNamesById.get(journeyState.originStationId) ||
@@ -296,6 +322,13 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
       return;
     }
 
+    if (journeyDistance === undefined) {
+      setOrderPreview(null);
+      setPreviewError("Không có khoảng cách hợp lệ giữa ga đi và ga đến để tính giá");
+      setIsLoadingPreview(false);
+      return;
+    }
+
     let cancelled = false;
 
     const loadPricing = async () => {
@@ -305,7 +338,7 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
 
       try {
         const preview = await orderApi.preview(
-          buildOrderRequest(journeyState, selectedTicket.id),
+          buildOrderRequest(journeyWithDistance, selectedTicket.id),
         );
         const total = Number(preview.total);
 
@@ -336,14 +369,14 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [hasJourneyState, journeyState, selectedTicket]);
+  }, [hasJourneyState, journeyDistance, journeyWithDistance, selectedTicket]);
 
   const subtotal = orderPreview?.subtotal;
   const serviceFee = orderPreview ? (orderPreview.serviceFee ?? 0) : undefined;
   const totalPrice = orderPreview?.total;
 
   const handleContinue = async () => {
-    if (!hasJourneyState || !selectedTicket || totalPrice === undefined) {
+    if (!hasJourneyState || !selectedTicket || totalPrice === undefined || journeyDistance === undefined) {
       return;
     }
 
@@ -352,7 +385,7 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
 
     try {
       const order = await orderApi.create(
-        buildOrderRequest(journeyState, selectedTicket.id),
+        buildOrderRequest(journeyWithDistance, selectedTicket.id),
       );
 
       if (!order.id) {
@@ -543,6 +576,11 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
                         <p className="text-sm font-medium leading-5 text-neutral-900">
                           {originStationName} - {destinationStationName}
                         </p>
+                        {journeyDistance !== undefined ? (
+                          <p className="pt-1 text-xs font-semibold text-slate-500">
+                            {journeyDistance.toLocaleString("vi-VN")} km
+                          </p>
+                        ) : null}
                       </div>
                     </div>
 
@@ -600,6 +638,7 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
                       !hasJourneyState ||
                       !selectedTicket ||
                       totalPrice === undefined ||
+                      journeyDistance === undefined ||
                       isLoadingPreview ||
                       isCreatingOrder
                     }
@@ -607,6 +646,7 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
                       hasJourneyState &&
                       selectedTicket &&
                       totalPrice !== undefined &&
+                      journeyDistance !== undefined &&
                       !isLoadingPreview &&
                       !isCreatingOrder
                         ? "bg-blue-600 hover:bg-blue-700"

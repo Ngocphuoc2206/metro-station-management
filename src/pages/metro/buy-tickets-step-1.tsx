@@ -5,6 +5,7 @@ import PassengerShell from "@components/templates/PassengerShell";
 import { fareCalcApi } from "@features/fare/fareCalcApi";
 import { publicApi } from "@features/public/publicApi";
 import type { StationDto, TicketTypeDto } from "@features/public/publicTypes";
+import { calculateDistanceKm } from "@utils/geo";
 import {
   ArrowRight,
   ChevronDown,
@@ -32,9 +33,9 @@ const normalizedTicketTypeName = (value: string) =>
 
 const ticketTypePriority = (ticket: TicketTypeDto) => {
   const name = normalizedTicketTypeName(ticket.name);
-  if (name.includes("single") || name.includes("ve luot")) return 0;
-  if (name.includes("daily") || name.includes("ve ngay")) return 1;
-  if (name.includes("monthly") || name.includes("ve thang")) return 2;
+  if (name.includes("daily") || name.includes("day") || name.includes("ve ngay")) return 0;
+  if (name.includes("month") || name.includes("ve thang")) return 1;
+  if (name.includes("single") || name.includes("ve luot")) return 2;
   return 3;
 };
 
@@ -77,6 +78,13 @@ const MetroBuyTicketsStep1Page: NextPage = () => {
       .filter((ticket) => ticket.isActive !== false)
       .sort((left, right) => ticketTypePriority(left) - ticketTypePriority(right))[0];
   }, [ticketTypes]);
+
+  const routeDistanceKm = useMemo(() => {
+    return calculateDistanceKm(
+      stationsById.get(originStationId),
+      stationsById.get(destinationStationId),
+    );
+  }, [destinationStationId, originStationId, stationsById]);
 
   useEffect(() => {
     let cancelled = false;
@@ -161,6 +169,13 @@ const MetroBuyTicketsStep1Page: NextPage = () => {
       return;
     }
 
+    if (routeDistanceKm === undefined) {
+      setEstimatedFare(null);
+      setIsLoadingFare(false);
+      setFareError("Không có tọa độ hợp lệ của ga đi hoặc ga đến để tính khoảng cách");
+      return;
+    }
+
     let cancelled = false;
 
     const loadEstimatedFare = async () => {
@@ -173,6 +188,7 @@ const MetroBuyTicketsStep1Page: NextPage = () => {
           originId: originStationId,
           destinationId: destinationStationId,
           ticketTypeName: estimatedTicketType.name,
+          distance: routeDistanceKm,
         });
 
         if (!Number.isFinite(total)) {
@@ -209,6 +225,7 @@ const MetroBuyTicketsStep1Page: NextPage = () => {
     estimatedTicketType,
     isLoadingTicketTypes,
     originStationId,
+    routeDistanceKm,
     ticketTypesError,
   ]);
 
@@ -216,6 +233,7 @@ const MetroBuyTicketsStep1Page: NextPage = () => {
     originStationId.length > 0 &&
     destinationStationId.length > 0 &&
     originStationId !== destinationStationId &&
+    routeDistanceKm !== undefined &&
     travelDate.length > 0 &&
     passengerCount.length > 0;
 
@@ -244,6 +262,7 @@ const MetroBuyTicketsStep1Page: NextPage = () => {
       destinationStationId,
       destinationStationName:
         stationsById.get(destinationStationId)?.name ?? destinationStationId,
+      distance: routeDistanceKm,
       travelDate,
       passengerCount,
       isRoundTrip,
@@ -261,6 +280,7 @@ const MetroBuyTicketsStep1Page: NextPage = () => {
         date: travelDate,
         passengers: passengerCount,
         roundTrip: isRoundTrip ? "1" : "0",
+        distance: routeDistanceKm?.toString() ?? "",
       },
     });
   };
@@ -442,6 +462,30 @@ const MetroBuyTicketsStep1Page: NextPage = () => {
                       </p>
                     </div>
                   </div>
+                  <div className="flex items-start gap-3">
+                    <CalendarDays className="mt-0.5 h-4 w-4 text-blue-600" />
+                    <div>
+                      <p className="text-xs font-bold tracking-wide text-slate-500 uppercase">
+                        Ngày đi
+                      </p>
+                      <p className="text-sm font-medium text-neutral-900">
+                        {formatDate(travelDate)}
+                      </p>
+                    </div>
+                  </div>
+                  {originStationId && destinationStationId && routeDistanceKm !== undefined ? (
+                    <div className="flex items-start gap-3">
+                      <MapPin className="mt-0.5 h-4 w-4 text-blue-600" />
+                      <div>
+                        <p className="text-xs font-bold tracking-wide text-slate-500 uppercase">
+                          Khoảng cách
+                        </p>
+                        <p className="text-sm font-medium text-neutral-900">
+                          {routeDistanceKm.toLocaleString("vi-VN")} km
+                        </p>
+                      </div>
+                    </div>
+                  ) : null}
                   <div className="flex items-start gap-3">
                     <User className="mt-0.5 h-4 w-4 text-blue-600" />
                     <div>
