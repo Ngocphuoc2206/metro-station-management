@@ -1,5 +1,6 @@
 package com.backend.management_ticket_metro.entity;
 
+import com.backend.management_ticket_metro.enums.TicketName;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -17,7 +18,8 @@ public class TicketType {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String Id;
 
-    private String name;    // single, daily, monthly
+    @Enumerated(value = EnumType.STRING)
+    private TicketName name;    // single, daily, monthly
     private String description;
     private Double price; // used for daily or monthly
     private Integer validityDays;

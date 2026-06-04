@@ -5,12 +5,14 @@ import com.backend.management_ticket_metro.dto.request.FareMatrixRequest;
 import com.backend.management_ticket_metro.dto.request.TicketTypeRequest;
 import com.backend.management_ticket_metro.entity.FareMatrix;
 import com.backend.management_ticket_metro.entity.TicketType;
+import com.backend.management_ticket_metro.enums.TicketName;
 import com.backend.management_ticket_metro.exception.AppException;
 import com.backend.management_ticket_metro.repository.FareMatrixRepository;
 import com.backend.management_ticket_metro.repository.TicketTypeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Service
@@ -21,20 +23,28 @@ public class FareService {
     @Autowired
     private FareMatrixRepository fareMatrixRepository;
 
-    public Double calculateFare(String originId, String destinationId, String ticketTypeName){
-        TicketType ticketType = ticketTypeRepository.findByName(ticketTypeName)
+    private static final double SINGLE_BASE_FARE = 7000.0;
+    private static final double SINGLE_PRICE_PER_KM = 1000.0;
+    private static final double SINGLE_MAX_FARE = 20000.0;
+
+    public Double calculateFare(String originId, String destinationId, String ticketTypeName, Double distance){
+        TicketName ticketName = parseTicketName(ticketTypeName);
+
+        TicketType ticketType = ticketTypeRepository.findByName(TicketName.valueOf(ticketTypeName))
                 .orElseThrow(() -> new AppException(ErrorCode.TICKET_TYPE_INVALID));
 
-        // Case 1: daily/monthly -> fixed price
-        if (!ticketTypeName.equalsIgnoreCase("single")){
+        // Case 1: Monthly -> lấy giá cố định trong bảng ticket_type
+        if (ticketName != TicketName.Daily) {
             return ticketType.getPrice();
         }
 
-        // CASE 2: single → calculate fare matrix
-        FareMatrix fare = fareMatrixRepository
-                .findByOriginStationIdAndDestinationStationId(originId, destinationId)
-                .orElseThrow(() -> new AppException(ErrorCode.FARE_INVALID));
-        return fare.getPrice();
+        // CASE 2: Daily → calculate fare matrix
+        validateSingleFareInput(originId, destinationId, distance);
+
+        double rawPrice = SINGLE_BASE_FARE + distance * SINGLE_PRICE_PER_KM;
+        double roundedPrice = roundUpToNearestThousand(rawPrice);
+
+        return Math.min(roundedPrice, SINGLE_MAX_FARE);
     }
 
     public List<TicketType> getTicketTypes() {
@@ -43,7 +53,7 @@ public class FareService {
 
     public TicketType createTicketType(TicketTypeRequest request) {
         TicketType ticketType = TicketType.builder()
-                .name(request.getName().toLowerCase())
+                .name(TicketName.valueOf(request.getName()))
                 .description(request.getDescription())
                 .price(request.getPrice())
                 .validityDays(request.getValidityDays())
@@ -57,7 +67,7 @@ public class FareService {
         TicketType ticketType = ticketTypeRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.TICKET_TYPE_INVALID));
 
-        ticketType.setName(request.getName().toLowerCase());
+        ticketType.setName(TicketName.valueOf(request.getName()));
         ticketType.setDescription(request.getDescription());
         ticketType.setPrice(request.getPrice());
         ticketType.setValidityDays(request.getValidityDays());
@@ -85,5 +95,32 @@ public class FareService {
         fare.setPrice(request.getPrice());
 
         return fareMatrixRepository.save(fare);
+    }
+
+    private TicketName parseTicketName(String ticketName){
+        if (ticketName == null || ticketName.isBlank()){
+            throw new AppException(ErrorCode.TICKET_TYPE_INVALID);
+        }
+
+        for (TicketName name: TicketName.values()){
+            if (name.name().equalsIgnoreCase(ticketName)){
+                return name;
+            }
+        }
+
+        throw new AppException(ErrorCode.TICKET_TYPE_INVALID);
+    }
+
+    private void validateSingleFareInput(String originId, String destinationId, Double distance) {
+        if (originId == null || originId.isBlank()
+                || destinationId == null || destinationId.isBlank()
+                || originId.equals(destinationId)
+                || distance == null || distance <= 0) {
+            throw new AppException(ErrorCode.FARE_INVALID);
+        }
+    }
+
+    private double roundUpToNearestThousand(double price) {
+        return Math.ceil(price / 1000.0) * 1000.0;
     }
 }

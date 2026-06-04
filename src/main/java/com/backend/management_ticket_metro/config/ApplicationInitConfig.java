@@ -3,10 +3,13 @@ package com.backend.management_ticket_metro.config;
 import com.backend.management_ticket_metro.constant.PredefinedAccount;
 import com.backend.management_ticket_metro.constant.PredefinedRole;
 import com.backend.management_ticket_metro.entity.Role;
+import com.backend.management_ticket_metro.entity.TicketType;
 import com.backend.management_ticket_metro.entity.User;
+import com.backend.management_ticket_metro.enums.TicketName;
 import com.backend.management_ticket_metro.enums.UserStatus;
 import com.backend.management_ticket_metro.repository.PermissionRepository;
 import com.backend.management_ticket_metro.repository.RoleRepository;
+import com.backend.management_ticket_metro.repository.TicketTypeRepository;
 import com.backend.management_ticket_metro.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,7 +31,7 @@ public class ApplicationInitConfig {
     private final PasswordEncoder passwordEncoder;
     private final RoleRepository roleRepository;
     private final PermissionRepository permissionRepository;
-
+    private final TicketTypeRepository ticketTypeRepository;
 
 
     @Bean
@@ -52,6 +55,29 @@ public class ApplicationInitConfig {
                         .name("VIEW_STATION").description("Cho phép xem trạm").build());
             }
             permissionRepository.findAll();
+
+            // Init Ticket-Types
+            if (ticketTypeRepository.count() == 0){
+                ticketTypeRepository.save(
+                        TicketType.builder()
+                                .name(TicketName.Daily)
+                                .isActive(true)
+                                .price(1000.0)
+                                .description("Vé lượt dùng để quét 1 lần trong ngày")
+                                .validityDays(1)
+                                .build()
+                );
+
+                ticketTypeRepository.save(
+                        TicketType.builder()
+                                .name(TicketName.Month)
+                                .isActive(true)
+                                .price(100000.0)
+                                .description("Vé lượt dùng để quét trong cả tháng")
+                                .validityDays(30)
+                                .build()
+                );
+            }
 
 
                 Role passengerRole = roleRepository.findByRoleName(PredefinedRole.USER_ROLE)

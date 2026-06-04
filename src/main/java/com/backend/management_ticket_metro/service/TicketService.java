@@ -217,7 +217,7 @@ public class TicketService {
                 .id(ticket.getId())
                 .ticketCode(ticket.getTicketCode())
                 .status(ticket.getStatus().name())
-                .ticketTypeName(ticketType.getName())
+                .ticketTypeName(String.valueOf(ticketType.getName()))
                 .issuedAt(ticket.getIssuedAt())
                 .activatedAt(ticket.getActivatedAt())
                 .usedAt(ticket.getUsedAt())

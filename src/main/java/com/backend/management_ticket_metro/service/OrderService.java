@@ -7,6 +7,7 @@ import com.backend.management_ticket_metro.dto.response.OrderItemResponse;
 import com.backend.management_ticket_metro.dto.response.OrderResponse;
 import com.backend.management_ticket_metro.entity.*;
 import com.backend.management_ticket_metro.enums.OrderStatus;
+import com.backend.management_ticket_metro.enums.TicketName;
 import com.backend.management_ticket_metro.exception.AppException;
 import com.backend.management_ticket_metro.mapper.OrderMapper;
 import com.backend.management_ticket_metro.mapper.StationMapper;
@@ -54,7 +55,8 @@ public class OrderService {
             Double dynamicPrice = fareService.calculateFare(
                     fromStation.getStationId(),
                     toStation.getStationId(),
-                    ticketType.getName()
+                    String.valueOf(ticketType.getName()),
+                    orderItemRequest.getDistance()
             );
 
             return OrderItemResponse.builder()
@@ -104,7 +106,8 @@ public class OrderService {
             Double dynamicPrice = fareService.calculateFare(
                     fromStation.getStationId(),
                     toStation.getStationId(),
-                    ticketType.getName()
+                    String.valueOf(ticketType.getName()),
+                    itemReq.getDistance()
             );
 
 

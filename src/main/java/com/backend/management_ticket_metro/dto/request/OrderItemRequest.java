@@ -13,4 +13,5 @@ public class OrderItemRequest {
     private Integer quantity;
     private  String fromStationId;
     private String toStationId;
+    private Double distance;
 }
