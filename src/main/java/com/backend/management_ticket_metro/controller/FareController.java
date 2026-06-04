@@ -3,6 +3,7 @@ package com.backend.management_ticket_metro.controller;
 import com.backend.management_ticket_metro.common.ApiResponse;
 import com.backend.management_ticket_metro.dto.request.FareMatrixRequest;
 import com.backend.management_ticket_metro.dto.request.TicketTypeRequest;
+import com.backend.management_ticket_metro.enums.TicketName;
 import com.backend.management_ticket_metro.service.FareService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -17,9 +18,10 @@ public class FareController {
     public ApiResponse<?> calculateFare(
             @RequestParam String originId,
             @RequestParam String destinationId,
-            @RequestParam String ticketType
+            @RequestParam String ticketType,
+            @RequestParam Double distance
     ) {
-        Double price = fareService.calculateFare(originId, destinationId, ticketType);
+        Double price = fareService.calculateFare(originId, destinationId, ticketType, distance);
         return ApiResponse.builder()
                 .results(price)
                 .build();

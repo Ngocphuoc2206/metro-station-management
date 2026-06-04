@@ -14,4 +14,7 @@ public class FareMatrixRequest {
 
     @NotNull
     private Double price;
+
+    // distance both of two stations
+    private Double distanceOfTwoStations;
 }

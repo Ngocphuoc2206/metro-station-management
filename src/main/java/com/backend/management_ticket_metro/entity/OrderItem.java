@@ -33,4 +33,6 @@ public class OrderItem {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "to_station_id")
     private Station toStation;
+
+    private Double distance;
 }
