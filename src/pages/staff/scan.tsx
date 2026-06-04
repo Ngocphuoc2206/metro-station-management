@@ -51,8 +51,12 @@ const STAFF_SCAN_STORAGE_KEYS = {
 
 const DUPLICATE_SCAN_COOLDOWN_MS = 3000;
 
+function gateDirection(gate: GateResponse) {
+  return gate.directionMode || gate.action;
+}
+
 function matchesMode(action: string | undefined, mode: TapMode) {
-  if (!action) return true;
+  if (!action) return false;
   const normalized = action.toUpperCase().replace(/[_\s]/g, "-");
   if (
     normalized === "BI" ||
@@ -86,10 +90,11 @@ function pickGateForMode(
 ) {
   return (
     gates.find(
-      (item) => item.stationId === stationId && matchesMode(item.action, mode),
+      (item) =>
+        item.stationId === stationId && matchesMode(gateDirection(item), mode),
     ) ??
     gates.find((item) => item.stationId === stationId) ??
-    gates.find((item) => matchesMode(item.action, mode)) ??
+    gates.find((item) => matchesMode(gateDirection(item), mode)) ??
     gates[0]
   );
 }
@@ -410,7 +415,7 @@ function StaffScanPage() {
     const byStationAndMode = gates.filter(
       (item) =>
         (!station || item.stationId === station) &&
-        matchesMode(item.action, mode),
+        matchesMode(gateDirection(item), mode),
     );
     if (byStationAndMode.length > 0) return byStationAndMode;
 
@@ -419,7 +424,9 @@ function StaffScanPage() {
     );
     if (byStation.length > 0) return byStation;
 
-    const byMode = gates.filter((item) => matchesMode(item.action, mode));
+    const byMode = gates.filter((item) =>
+      matchesMode(gateDirection(item), mode),
+    );
     return byMode.length > 0 ? byMode : gates;
   }, [gates, mode, station]);
   const resultStationLabel =
@@ -621,7 +628,7 @@ function StaffScanPage() {
           if (
             currentGate &&
             (!selectedStation || currentGate.stationId === selectedStation) &&
-            matchesMode(currentGate.action, "TAP-IN")
+            matchesMode(gateDirection(currentGate), "TAP-IN")
           ) {
             return current;
           }
@@ -737,6 +744,7 @@ function StaffScanPage() {
         deviceId: selectedGate?.deviceId || selectedGate?.deviceCode || gate,
         stationId: station,
         gateId: gate,
+        action: mode === "TAP-IN" ? "TAP_IN" : "TAP_OUT",
       });
 
       lastScanSignatureRef.current = { value: scanSignature, timestamp: now };
