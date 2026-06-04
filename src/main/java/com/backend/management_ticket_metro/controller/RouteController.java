@@ -47,4 +47,13 @@ public class RouteController {
                 .results(routeService.updateRoute(id, request))
                 .build();
     }
+
+    @DeleteMapping("/admin/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<Void> deleteRouteByID(@PathVariable String id){
+        routeService.deleteRouteById(id);
+        return ApiResponse.<Void>builder()
+                .message("Delete Successfully")
+                .build();
+    }
 }
