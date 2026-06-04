@@ -4,6 +4,13 @@ export type MyTicketDto = {
   status: string;
   ticketTypeId?: string;
   ticketTypeName: string;
+  fromStationId?: string;  // Thêm mới
+  toStationId?: string;    // Thêm mới
+  orderId?: string;        // Thêm mới
+  issuedAt?: string;       // Thêm mới (LocalDateTime dạng chuỗi ISO)
+  activatedAt?: string;    // Thêm mới
+  usedAt?: string;         // Thêm mới
+  expiredAt?: string;      // Thêm mới
   originStationName?: string;
   destinationStationName?: string;
   routeName?: string;

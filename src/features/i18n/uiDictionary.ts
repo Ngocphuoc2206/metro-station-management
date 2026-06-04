@@ -123,8 +123,8 @@ function replaceWithDictionary(input: string, entries: Array<[string, string]>) 
   let output = input;
   const sorted = [...entries].sort((a, b) => b[0].length - a[0].length);
   for (const [from, to] of sorted) {
-    const pattern = new RegExp(escapeRegex(from), "gi");
-    output = output.replace(pattern, to);
+    const pattern = new RegExp(`(^|[^\\p{L}\\p{N}])(${escapeRegex(from)})(?=$|[^\\p{L}\\p{N}])`, "giu");
+    output = output.replace(pattern, (_match, prefix) => `${prefix}${to}`);
   }
   return output;
 }
