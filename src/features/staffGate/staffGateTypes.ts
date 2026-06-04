@@ -53,4 +53,5 @@ export type GateResponse = {
   deviceCode?: string;
   type?: string;
   deviceType?: string;
+  directionMode?: string;
 };

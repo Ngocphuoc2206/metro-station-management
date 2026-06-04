@@ -36,6 +36,11 @@ export default function TicketTypeManagement() {
   const handleCreateOrUpdate = async (formData: any) => {
     try {
       if (editingType) {
+        if (!editingType.id) {
+          alert("Không tìm thấy ID loại vé để cập nhật. Vui lòng tải lại danh sách và thử lại.");
+          return;
+        }
+
         const updated = await ticketTypeApi.updateTicketType(
           editingType.id,
           formData,

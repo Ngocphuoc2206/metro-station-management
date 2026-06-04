@@ -6,7 +6,16 @@ import { TicketType } from "./ticketTypeTypes";
 interface BackendTicketType {
   // ID — backend có thể trả về 'ticketTypeId' hoặc 'id'
   ticketTypeId?: string;
+  ticketTypeID?: string;
+  ticket_type_id?: string;
+  ticket_typeId?: string;
+  typeId?: string;
+  ticketId?: string;
+  uuid?: string;
+  _id?: string;
   id?: string;
+  Id?: string;
+  ID?: string;
   code?: string;
   name: string;
   // BE dùng 'description' (không phải 'conditions')
@@ -27,10 +36,30 @@ interface BackendTicketType {
   [key: string]: unknown;
 }
 
+function text(value: unknown) {
+  return value === undefined || value === null ? "" : String(value).trim();
+}
+
+function getTicketTypeId(b: BackendTicketType) {
+  return text(
+    b.ticketTypeId ??
+      b.ticketTypeID ??
+      b.ticket_type_id ??
+      b.ticket_typeId ??
+      b.typeId ??
+      b.ticketId ??
+      b.uuid ??
+      b._id ??
+      b.id ??
+      b.Id ??
+      b.ID,
+  );
+}
+
 // ── Map Backend → UI ──────────────────────────────────────────────────────────
 function mapToUI(b: BackendTicketType): TicketType {
   // Lấy ID an toàn — thử nhiều field
-  const rawId = b.ticketTypeId ?? b.id ?? "";
+  const rawId = getTicketTypeId(b);
 
   // Tính validity: ưu tiên validityDays (BE spec), fallback về các field cũ
   const days = b.validityDays ?? b.validityDuration ?? b.duration ?? 0;
@@ -45,7 +74,7 @@ function mapToUI(b: BackendTicketType): TicketType {
 
   return {
     id: rawId,
-    code: b.code ?? (rawId ? rawId.slice(0, 10).toUpperCase() : "UNKNOWN"),
+    code: text(b.code) || (rawId ? rawId.slice(0, 10).toUpperCase() : "UNKNOWN"),
     name: b.name ?? "(Không tên)",
     validityDuration: days,
     // Nếu validityDays > 0 → tính theo ngày, còn lại theo giờ
@@ -68,15 +97,25 @@ function mapToBackend(data: Partial<TicketType>): Record<string, unknown> {
 }
 
 export const ticketTypeApi = {
-  // ── GET /ticket-types ─────────────────────────────────────────────────────
+  // ── GET /admin/ticket-types ────────────────────────────────────────────────
   getTicketTypes: async (): Promise<TicketType[]> => {
-    const res = await apiClient.get<ApiResponse<BackendTicketType[]>>(
-      API_ENDPOINTS.ticketTypes.base
-    );
-    // Đảm bảo results là array trước khi map
-    const raw = res.data.results;
+    let raw: unknown;
+
+    try {
+      const res = await apiClient.get<ApiResponse<BackendTicketType[]>>(
+        API_ENDPOINTS.ticketTypes.admin
+      );
+      raw = res.data.results;
+    } catch (error) {
+      const res = await apiClient.get<ApiResponse<BackendTicketType[]>>(
+        API_ENDPOINTS.ticketTypes.base
+      );
+      raw = res.data.results;
+      console.warn("Không lấy được danh sách loại vé từ admin endpoint, dùng public endpoint thay thế.", error);
+    }
+
     if (!Array.isArray(raw)) return [];
-    return raw.map(mapToUI);
+    return raw.map((item) => mapToUI(item as BackendTicketType));
   },
 
   // ── POST /admin/ticket-types ───────────────────────────────────────────────
