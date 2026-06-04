@@ -7,6 +7,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 
 public interface OrderRepository extends JpaRepository<Order,String> {
@@ -18,4 +19,6 @@ public interface OrderRepository extends JpaRepository<Order,String> {
     List<Order> findByUserOrderByCreatedAtDesc(User user, Pageable pageable);
     // Find orders for a specific user created after 'dateTime'
     List<Order> findByUserAndCreatedAtAfter(User user, LocalDateTime dateTime);
+
+    Collection<Order> findByUserAndStatusAndCreatedAtAfter(User user, OrderStatus status, LocalDateTime createdAtAfter);
 }
