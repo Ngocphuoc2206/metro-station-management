@@ -154,10 +154,10 @@ public class OrderService {
     }
 
     private Order findDuplicatePendingOrder(User user, OrderRequest request) {
-        LocalDateTime fiveMinutesAgo = LocalDateTime.now().minusMinutes(5);
+        LocalDateTime twoMinutesAgo = LocalDateTime.now().minusMinutes(2);
 
         return orderRepository
-                .findByUserAndStatusAndCreatedAtAfter(user, OrderStatus.PENDING, fiveMinutesAgo)
+                .findByUserAndStatusAndCreatedAtAfter(user, OrderStatus.PENDING, twoMinutesAgo)
                 .stream()
                 .filter(order -> isSameOrderItems(order.getOrderItems(), request.getItems()))
                 .findFirst()
