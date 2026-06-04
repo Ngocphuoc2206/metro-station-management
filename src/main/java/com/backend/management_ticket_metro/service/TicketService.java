@@ -5,6 +5,7 @@ import com.backend.management_ticket_metro.dto.response.*;
 import com.backend.management_ticket_metro.entity.*;
 import com.backend.management_ticket_metro.enums.GateAction;
 import com.backend.management_ticket_metro.enums.ScanResult;
+import com.backend.management_ticket_metro.enums.TicketName;
 import com.backend.management_ticket_metro.enums.TicketStatus;
 import com.backend.management_ticket_metro.exception.AppException;
 import com.backend.management_ticket_metro.mapper.OrderMapper;
@@ -201,9 +202,24 @@ public class TicketService {
                 && ticket.getExpiredAt().isBefore(now)
                 && ticket.getStatus() != TicketStatus.USED
                 && ticket.getStatus() != TicketStatus.CANCELLED) {
-            ticket.setStatus(TicketStatus.EXPIRED);
+            if (isMonthTicket(ticket)) {
+                ticket.setStatus(TicketStatus.USED);
+
+                if (ticket.getUsedAt() == null) {
+                    ticket.setUsedAt(now);
+                }
+            } else {
+                ticket.setStatus(TicketStatus.EXPIRED);
+            }
             ticketRepository.save(ticket);
         }
+    }
+
+    private boolean isMonthTicket(Ticket ticket) {
+        return ticket != null
+                && ticket.getOrderItem() != null
+                && ticket.getOrderItem().getTicketType() != null
+                && ticket.getOrderItem().getTicketType().getName() == TicketName.Month;
     }
 
     private TicketResponse toTicketResponse(Ticket ticket) {
