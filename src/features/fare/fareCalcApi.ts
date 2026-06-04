@@ -1,11 +1,13 @@
 import { apiClient } from "@features/httpClient/ApiClient";
 import { API_ENDPOINTS } from "@features/httpClient/apiEndpoints";
 import { unwrapApiResponse } from "@features/httpClient/unwrap";
+import { normalizeTicketNameForBackend } from "@utils/ticketTypeName";
 
 export type FareCalculateRequest = {
   originId: string;
   destinationId: string;
   ticketTypeName: string;
+  distance: number;
 };
 
 export const fareCalcApi = {
@@ -13,8 +15,8 @@ export const fareCalcApi = {
     const params = {
       originId: payload.originId,
       destinationId: payload.destinationId,
-      // FareService resolves this query value against TicketType.name.
-      ticketType: payload.ticketTypeName,
+      ticketType: normalizeTicketNameForBackend(payload.ticketTypeName),
+      distance: payload.distance,
     };
 
     const res = await apiClient.get(API_ENDPOINTS.fares.calculate, { params });

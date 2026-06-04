@@ -1,5 +1,6 @@
 import { apiClient } from "@features/httpClient/ApiClient";
 import { API_ENDPOINTS, ApiResponse, withPathParam } from "@features/httpClient/apiEndpoints";
+import { normalizeTicketNameForBackend } from "@utils/ticketTypeName";
 import { TicketType } from "./ticketTypeTypes";
 
 // ── Backend response shape (theo BE spec thực tế) ─────────────────────────────
@@ -88,7 +89,7 @@ function mapToUI(b: BackendTicketType): TicketType {
 // ── Map UI → Backend payload (theo BE spec) ────────────────────────────────────
 function mapToBackend(data: Partial<TicketType>): Record<string, unknown> {
   return {
-    name: data.name,
+    name: data.name ? normalizeTicketNameForBackend(data.name) : undefined,
     description: data.conditions ?? "",
     price: data.price,
     validityDays: data.validityDuration,
