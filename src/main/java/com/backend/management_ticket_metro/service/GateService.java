@@ -13,6 +13,7 @@ import com.backend.management_ticket_metro.entity.TicketQrToken;
 import com.backend.management_ticket_metro.enums.GateAction;
 import com.backend.management_ticket_metro.enums.GateStatus;
 import com.backend.management_ticket_metro.enums.ScanResult;
+import com.backend.management_ticket_metro.enums.TicketName;
 import com.backend.management_ticket_metro.enums.TicketStatus;
 import com.backend.management_ticket_metro.exception.AppException;
 import com.backend.management_ticket_metro.repository.GateRepository;
@@ -84,7 +85,7 @@ public class GateService {
         }
 
         if (ticket.getExpiredAt() != null && ticket.getExpiredAt().isBefore(now)){
-            ticket.setStatus(TicketStatus.EXPIRED);
+            updateExpiredTicketStatus(ticket, now);
             ticketRepository.save(ticket);
             return denyAndLog(gate, ticket, qrToken, ErrorCode.TICKET_EXPIRED.getMessage(), now);
         }
@@ -116,17 +117,22 @@ public class GateService {
         qrToken.setUsedAt(now);
         ticketQrTokenRepository.save(qrToken);
 
-        if (gate.getAction() == GateAction.TAP_IN){
+        if (isDailyTicket(ticket)) {
+            ticket.setStatus(TicketStatus.USED);
+            ticket.setUsedAt(now);
+
+            if (ticket.getActivatedAt() == null){
+                ticket.setActivatedAt(now);
+            }
+        } else if (gate.getAction() == GateAction.TAP_IN){
+            // Month
             ticket.setStatus(TicketStatus.ACTIVE);
 
             if (ticket.getActivatedAt() == null){
                 ticket.setActivatedAt(now);
             }
-        }
-
-        if (gate.getAction() == GateAction.TAP_OUT){
-            ticket.setStatus(TicketStatus.USED);
-            ticket.setUsedAt(now);
+        } else if (gate.getAction() == GateAction.TAP_OUT){
+            ticket.setStatus(TicketStatus.ACTIVE);
         }
 
         ticketRepository.save(ticket);
@@ -204,6 +210,38 @@ public class GateService {
             return GateAction.TAP_OUT;
         }
         return GateAction.TAP_IN;
+    }
+
+    private void updateExpiredTicketStatus(Ticket ticket, LocalDateTime now) {
+       // If ticket type is month
+        if (isMonthTicket(ticket)) {
+            ticket.setStatus(TicketStatus.USED);
+
+            if (ticket.getUsedAt() == null) {
+                ticket.setUsedAt(now);
+            }
+            return;
+        }
+        // ticket type is daily
+        ticket.setStatus(TicketStatus.EXPIRED);
+    }
+
+    private boolean isDailyTicket(Ticket ticket) {
+        return getTicketName(ticket) == TicketName.Daily;
+    }
+
+    private boolean isMonthTicket(Ticket ticket) {
+        return getTicketName(ticket) == TicketName.Month;
+    }
+
+    private TicketName getTicketName(Ticket ticket) {
+        if (ticket == null
+                || ticket.getOrderItem() == null
+                || ticket.getOrderItem().getTicketType() == null) {
+            return null;
+        }
+
+        return ticket.getOrderItem().getTicketType().getName();
     }
 
 
