@@ -8,6 +8,7 @@ import type { StationDto, TicketTypeDto } from "@features/public/publicTypes";
 import { calculateDistanceKm } from "@utils/geo";
 import {
   ArrowRight,
+  CalendarDays,
   ChevronDown,
   CreditCard,
   MapPin,
@@ -33,7 +34,12 @@ const normalizedTicketTypeName = (value: string) =>
 
 const ticketTypePriority = (ticket: TicketTypeDto) => {
   const name = normalizedTicketTypeName(ticket.name);
-  if (name.includes("daily") || name.includes("day") || name.includes("ve ngay")) return 0;
+  if (
+    name.includes("daily") ||
+    name.includes("day") ||
+    name.includes("ve ngay")
+  )
+    return 0;
   if (name.includes("month") || name.includes("ve thang")) return 1;
   if (name.includes("single") || name.includes("ve luot")) return 2;
   return 3;
@@ -45,6 +51,16 @@ const getTodayInputDate = () => {
   const month = String(today.getMonth() + 1).padStart(2, "0");
   const day = String(today.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+};
+
+const formatDate = (value: string) => {
+  const [year, month, day] = value.split("-");
+
+  if (!year || !month || !day) {
+    return value;
+  }
+
+  return `${day}/${month}/${year}`;
 };
 
 const formatCurrency = (amount: number) => {
@@ -76,7 +92,9 @@ const MetroBuyTicketsStep1Page: NextPage = () => {
   const estimatedTicketType = useMemo(() => {
     return ticketTypes
       .filter((ticket) => ticket.isActive !== false)
-      .sort((left, right) => ticketTypePriority(left) - ticketTypePriority(right))[0];
+      .sort(
+        (left, right) => ticketTypePriority(left) - ticketTypePriority(right),
+      )[0];
   }, [ticketTypes]);
 
   const routeDistanceKm = useMemo(() => {
@@ -96,7 +114,8 @@ const MetroBuyTicketsStep1Page: NextPage = () => {
         const data = await publicApi.getStations();
         if (!cancelled) setStations(data);
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Không thể tải danh sách ga";
+        const message =
+          err instanceof Error ? err.message : "Không thể tải danh sách ga";
         if (!cancelled) setStationsError(message);
       } finally {
         if (!cancelled) setIsLoadingStations(false);
@@ -121,7 +140,9 @@ const MetroBuyTicketsStep1Page: NextPage = () => {
         if (!cancelled) setTicketTypes(data);
       } catch (err) {
         const message =
-          err instanceof Error ? err.message : "Không thể tải loại vé để tính giá";
+          err instanceof Error
+            ? err.message
+            : "Không thể tải loại vé để tính giá";
         if (!cancelled) setTicketTypesError(message);
       } finally {
         if (!cancelled) setIsLoadingTicketTypes(false);
@@ -165,14 +186,18 @@ const MetroBuyTicketsStep1Page: NextPage = () => {
     if (!estimatedTicketType) {
       setEstimatedFare(null);
       setIsLoadingFare(false);
-      setFareError(ticketTypesError ?? "Không có loại vé hoạt động để tính giá dự kiến");
+      setFareError(
+        ticketTypesError ?? "Không có loại vé hoạt động để tính giá dự kiến",
+      );
       return;
     }
 
     if (routeDistanceKm === undefined) {
       setEstimatedFare(null);
       setIsLoadingFare(false);
-      setFareError("Không có tọa độ hợp lệ của ga đi hoặc ga đến để tính khoảng cách");
+      setFareError(
+        "Không có tọa độ hợp lệ của ga đi hoặc ga đến để tính khoảng cách",
+      );
       return;
     }
 
@@ -201,12 +226,14 @@ const MetroBuyTicketsStep1Page: NextPage = () => {
       } catch (err) {
         if (!cancelled) {
           // Ưu tiên đọc message từ Backend trả về
-    if (axios.isAxiosError(err) && err.response?.data?.message) {
-      setFareError(err.response.data.message);
-    } else {
-      // Fallback nếu không phải lỗi Axios
-      setFareError(err instanceof Error ? err.message : "Không thể tính giá dự kiến");
-    }
+          if (axios.isAxiosError(err) && err.response?.data?.message) {
+            setFareError(err.response.data.message);
+          } else {
+            // Fallback nếu không phải lỗi Axios
+            setFareError(
+              err instanceof Error ? err.message : "Không thể tính giá dự kiến",
+            );
+          }
         }
       } finally {
         if (!cancelled) {
@@ -258,7 +285,8 @@ const MetroBuyTicketsStep1Page: NextPage = () => {
 
     const payload = {
       originStationId,
-      originStationName: stationsById.get(originStationId)?.name ?? originStationId,
+      originStationName:
+        stationsById.get(originStationId)?.name ?? originStationId,
       destinationStationId,
       destinationStationName:
         stationsById.get(destinationStationId)?.name ?? destinationStationId,
@@ -455,9 +483,9 @@ const MetroBuyTicketsStep1Page: NextPage = () => {
                       <p className="text-xs font-bold tracking-wide text-slate-500 uppercase">
                         Ga đi - Ga đến
                       </p>
-                        <p className="text-sm font-medium text-neutral-900">
-                          {originStationId && destinationStationId
-                            ? `${stationsById.get(originStationId)?.name ?? originStationId} - ${stationsById.get(destinationStationId)?.name ?? destinationStationId}`
+                      <p className="text-sm font-medium text-neutral-900">
+                        {originStationId && destinationStationId
+                          ? `${stationsById.get(originStationId)?.name ?? originStationId} - ${stationsById.get(destinationStationId)?.name ?? destinationStationId}`
                           : "Chưa chọn"}
                       </p>
                     </div>
@@ -473,7 +501,9 @@ const MetroBuyTicketsStep1Page: NextPage = () => {
                       </p>
                     </div>
                   </div>
-                  {originStationId && destinationStationId && routeDistanceKm !== undefined ? (
+                  {originStationId &&
+                  destinationStationId &&
+                  routeDistanceKm !== undefined ? (
                     <div className="flex items-start gap-3">
                       <MapPin className="mt-0.5 h-4 w-4 text-blue-600" />
                       <div>
@@ -503,7 +533,10 @@ const MetroBuyTicketsStep1Page: NextPage = () => {
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-slate-500">
                       Giá dự kiến
-                      {estimatedTicketType ? ` (${estimatedTicketType.name})` : ""}:
+                      {estimatedTicketType
+                        ? ` (${estimatedTicketType.name})`
+                        : ""}
+                      :
                     </span>
                     <span className="text-xl leading-7 font-black text-blue-600">
                       {isLoadingFare
