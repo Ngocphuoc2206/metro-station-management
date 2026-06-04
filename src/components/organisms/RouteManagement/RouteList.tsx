@@ -5,9 +5,10 @@ interface Props {
   selectedId: string | null;
   onSelect: (id: string) => void;
   onEditClick: (id: string) => void;
+  onDeleteClick: (id: string) => void;
 }
 
-export default function RouteList({ routes, selectedId, onSelect, onEditClick }: Props) {
+export default function RouteList({ routes, selectedId, onSelect, onEditClick, onDeleteClick }: Props) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between px-1">
@@ -56,19 +57,36 @@ export default function RouteList({ routes, selectedId, onSelect, onEditClick }:
                     </span>
                   </div>
                 </div>
-                <button
-                  className={`p-2 rounded-full transition-colors ${
-                    isSelected ? "text-blue-600 hover:bg-blue-50" : "text-gray-400 hover:bg-gray-50 hover:text-gray-600"
-                  }`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onEditClick(route.id);
-                  }}
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                  </svg>
-                </button>
+                <div className="flex shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    title="Chỉnh sửa tuyến"
+                    className={`p-2 rounded-full transition-colors ${
+                      isSelected ? "text-blue-600 hover:bg-blue-50" : "text-gray-400 hover:bg-gray-50 hover:text-gray-600"
+                    }`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEditClick(route.id);
+                    }}
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    title="Xóa tuyến"
+                    className="p-2 rounded-full text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteClick(route.id);
+                    }}
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m2 0H7m3 0V5a2 2 0 012-2h0a2 2 0 012 2v2" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             </div>
           );
