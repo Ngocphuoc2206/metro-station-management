@@ -65,6 +65,11 @@ public class RouteService {
                 .build();
     }
 
+    public void deleteRouteById(String id){
+        Route route = routeRepository.findById(id).orElseThrow(() -> new AppException(ErrorCode.ROUTE_NOT_FOUND));
+        routeRepository.delete(route);
+    }
+
     @Transactional
     @PreAuthorize("hasRole('ADMIN')")
     public RouteResponse createRoute(RouteRequest request) {
