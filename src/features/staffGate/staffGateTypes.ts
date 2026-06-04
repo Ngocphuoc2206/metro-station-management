@@ -7,6 +7,7 @@ export type ScanTicketRequest = {
   deviceId: string;
   stationId: string;
   gateId: string;
+  action: GateAction;
 };
 
 export type UpdateGateStatusRequest = {

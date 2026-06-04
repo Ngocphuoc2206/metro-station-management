@@ -33,7 +33,7 @@ function mapGate(item: BackendGate): GateResponse {
     name: item.name ?? item.deviceName ?? gateCode,
     stationId: item.stationId ?? "",
     stationName: item.stationName ?? "",
-    action: item.action ?? item.directionMode ?? item.direction ?? "",
+    action: item.directionMode ?? item.action ?? item.direction ?? "",
     status: item.status ?? "",
     deviceId: item.deviceId,
     deviceCode: item.deviceCode,
