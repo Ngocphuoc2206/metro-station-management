@@ -27,37 +27,24 @@ const list = (raw: unknown): unknown[] => {
 const normalizeTicket = (raw: unknown): MyTicketDto | null => {
   if (!raw || typeof raw !== "object") return null;
   const item = raw as Record<string, unknown>;
-  const id = text(item.id ?? item.ticketId);
-  if (!id) return null;
-  const type = item.ticketType && typeof item.ticketType === "object"
-    ? item.ticketType as Record<string, unknown>
-    : {};
-  const order = item.order && typeof item.order === "object"
-    ? item.order as Record<string, unknown>
-    : {};
+  
   return {
-    id,
-    code: text(item.code ?? item.ticketCode ?? id),
+    id: text(item.id),
+    code: text(item.ticketCode ?? item.code),
     status: text(item.status),
-    ticketTypeId: text(item.ticketTypeId ?? type.id) || undefined,
-    ticketTypeName: text(item.ticketTypeName ?? type.name ?? item.ticketTypeCode ?? type.code),
-    originStationName: text(item.originStationName ?? item.fromStationName) || undefined,
-    destinationStationName: text(item.destinationStationName ?? item.toStationName) || undefined,
-    routeName: text(item.routeName) || undefined,
-    validFrom: text(item.validFrom ?? item.startDate ?? item.activatedAt) || undefined,
-    validTo: text(item.validTo ?? item.endDate ?? item.expiredAt) || undefined,
-    price: optionalNumber(
-      item.price ??
-        item.amount ??
-        item.fare ??
-        item.total ??
-        item.totalAmount ??
-        item.paidAmount ??
-        type.price ??
-        type.amount ??
-        order.total ??
-        order.totalAmount,
-    ),
+    ticketTypeName: text(item.ticketTypeName),
+    fromStationId: text(item.fromStationId) || undefined,
+    toStationId: text(item.toStationId) || undefined,
+    orderId: text(item.orderId) || undefined,
+    
+    // Giữ nguyên các trường chuẩn từ TicketResponse của Backend
+    issuedAt: text(item.issuedAt) || undefined,
+    activatedAt: text(item.activatedAt) || undefined,
+    usedAt: text(item.usedAt) || undefined,
+    expiredAt: text(item.expiredAt) || undefined, // Lấy đúng trường này, không fallback sang trường hạn chót mua
+    
+    // Nếu BE trả về hạn chót kích hoạt trong các trường mở rộng, lưu riêng:
+    validTo: text(item.validTo ?? item.endDate) || undefined 
   };
 };
 

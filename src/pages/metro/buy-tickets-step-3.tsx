@@ -79,19 +79,6 @@ const TICKET_DEFAULT_BY_ID: Record<string, TicketInfo> = {
   },
 };
 
-const formatDate = (date: string) => {
-  if (!date) {
-    return "-- / -- / ----";
-  }
-
-  const [year, month, day] = date.split("-");
-  if (!year || !month || !day) {
-    return "-- / -- / ----";
-  }
-
-  return `${day}/${month}/${year}`;
-};
-
 const formatCurrency = (amount: number) => {
   return `${new Intl.NumberFormat("vi-VN").format(amount)}đ`;
 };
@@ -556,12 +543,6 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
                       </div>
                     </div>
 
-                    <div className="rounded-lg border border-slate-200 p-3 text-xs text-slate-600">
-                      Ngày đi:{" "}
-                      <span className="font-semibold text-neutral-900">
-                        {formatDate(journeyState.travelDate)}
-                      </span>
-                    </div>
                   </div>
                 ) : (
                   <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">

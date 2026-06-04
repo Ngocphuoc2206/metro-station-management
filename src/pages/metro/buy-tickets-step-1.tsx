@@ -8,7 +8,6 @@ import type { StationDto, TicketTypeDto } from "@features/public/publicTypes";
 import { calculateDistanceKm } from "@utils/geo";
 import {
   ArrowRight,
-  CalendarDays,
   ChevronDown,
   CreditCard,
   MapPin,
@@ -40,17 +39,12 @@ const ticketTypePriority = (ticket: TicketTypeDto) => {
   return 3;
 };
 
-const formatDate = (date: string) => {
-  if (!date) {
-    return "-- / -- / ----";
-  }
-
-  const [year, month, day] = date.split("-");
-  if (!year || !month || !day) {
-    return "-- / -- / ----";
-  }
-
-  return `${day}/${month}/${year}`;
+const getTodayInputDate = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 };
 
 const formatCurrency = (amount: number) => {
@@ -68,7 +62,7 @@ const MetroBuyTicketsStep1Page: NextPage = () => {
 
   const [originStationId, setOriginStationId] = useState("");
   const [destinationStationId, setDestinationStationId] = useState("");
-  const [travelDate, setTravelDate] = useState("");
+  const [travelDate] = useState(getTodayInputDate);
   const [passengerCount, setPassengerCount] = useState(PASSENGER_OPTIONS[0]);
   const [isRoundTrip, setIsRoundTrip] = useState(false);
   const [estimatedFare, setEstimatedFare] = useState<number | null>(null);
@@ -381,21 +375,6 @@ const MetroBuyTicketsStep1Page: NextPage = () => {
                       {stationsError}
                     </div>
                   ) : null}
-
-                  <label className="flex flex-col gap-2">
-                    <span className="text-sm font-semibold text-neutral-900">
-                      Ngày đi
-                    </span>
-                    <div className="relative">
-                      <input
-                        type="date"
-                        value={travelDate}
-                        onChange={(event) => setTravelDate(event.target.value)}
-                        className="h-12 w-full rounded-xl border border-slate-300 bg-white px-4 pr-10 text-base text-neutral-900 outline-none focus:border-blue-600"
-                      />
-                      <CalendarDays className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
-                    </div>
-                  </label>
 
                   <label className="flex flex-col gap-2">
                     <span className="text-sm font-semibold text-neutral-900">
