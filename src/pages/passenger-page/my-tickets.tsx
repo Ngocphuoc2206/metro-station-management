@@ -4,20 +4,37 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { CircleAlert, Loader2, QrCode, X } from "lucide-react";
 import PassengerShell from "@components/templates/PassengerShell";
 import { myTicketApi, myTicketErrorMessage } from "@features/myTicket/myTicketApi";
+import { publicApi } from "@features/public/publicApi";
+import type { StationDto } from "@features/public/publicTypes";
 import type { MyTicketDto, QrTokenResult, TicketHistoryRow } from "@features/myTicket/myTicketTypes";
 
 const QR_TTL_FALLBACK_SECONDS = 600;
+const VIETNAM_TIME_ZONE = "Asia/Ho_Chi_Minh";
+const EXPLICIT_TIME_ZONE_PATTERN = /(?:Z|[+-]\d{2}:?\d{2})$/i;
 
-const formatDate = (value?: string) => {
-  if (!value) return "--";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString("vi-VN");
+const parseApiDate = (value: string) => {
+  const trimmed = value.trim();
+  const normalized =
+    /\d{2}:\d{2}/.test(trimmed) && !EXPLICIT_TIME_ZONE_PATTERN.test(trimmed)
+      ? `${trimmed.replace(" ", "T")}Z`
+      : trimmed;
+  return new Date(normalized);
 };
 
 const formatTime = (value?: string) => {
   if (!value) return "--";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString("vi-VN");
+  const date = parseApiDate(value);
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleString("vi-VN", { timeZone: VIETNAM_TIME_ZONE });
+};
+
+const formatDateTime = (value?: string) => {
+  if (!value) return "--";
+  const date = parseApiDate(value);
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleString("vi-VN", { timeZone: VIETNAM_TIME_ZONE });
 };
 
 const ticketStatus = (value: string) => {
@@ -29,17 +46,15 @@ const ticketStatus = (value: string) => {
 };
 
 const typeName = (ticket: MyTicketDto) => {
-  const type = `${ticket.ticketTypeName} ${ticket.ticketTypeId ?? ""}`.toLowerCase();
-  if (type.includes("month")) return "Vé tháng";
-  if (type.includes("daily") || type.includes("day")) return "Vé ngày";
-  if (type.includes("single")) return "Vé lượt";
+  // Chuyển toàn bộ chuỗi tên loại vé về chữ thường, bỏ dấu để so sánh chính xác
+  const type = `${ticket.ticketTypeName || ""}`.toLowerCase();
+  
+  if (type.includes("tháng") || type.includes("month")) return "Vé tháng";
+  if (type.includes("ngày") || type.includes("daily") || type.includes("day")) return "Vé ngày";
+  if (type.includes("lượt") || type.includes("single")) return "Vé lượt";
+  
   return ticket.ticketTypeName || "Vé lượt";
 };
-
-const routeName = (ticket: MyTicketDto) =>
-  ticket.routeName ||
-  [ticket.originStationName, ticket.destinationStationName].filter(Boolean).join(" - ") ||
-  "Không giới hạn chặng";
 
 const parseQrDate = (value?: string) => {
   if (!value) return Number.NaN;
@@ -72,6 +87,7 @@ const resolveQrSeconds = (qrResult: QrTokenResult) => {
 
 export default function MyTicketsPage() {
   const [tickets, setTickets] = useState<MyTicketDto[]>([]);
+  const [stations, setStations] = useState<StationDto[]>([]);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
@@ -90,9 +106,17 @@ export default function MyTicketsPage() {
 
   useEffect(() => {
     let active = true;
-    myTicketApi.list()
-      .then((data) => {
-        if (active) setTickets(data);
+    setLoading(true);
+
+    Promise.all([
+      myTicketApi.list(),
+      publicApi.getStations().catch(() => [])
+    ])
+      .then(([ticketData, stationData]) => {
+        if (active) {
+          setTickets(ticketData);
+          setStations(stationData);
+        }
       })
       .catch((requestError) => {
         if (active) setError(myTicketErrorMessage(requestError, "Không thể tải danh sách vé"));
@@ -105,16 +129,33 @@ export default function MyTicketsPage() {
     };
   }, []);
 
+  const getStationName = useCallback((stationId?: string) => {
+    if (!stationId) return "";
+    const target = stations.find((s) => s.id === stationId);
+    return target ? target.name : `Ga ${stationId}`;
+  }, [stations]);
+
+  const resolveRouteName = useCallback((ticket: MyTicketDto) => {
+    if (ticket.routeName) return ticket.routeName;
+    const fromName = getStationName(ticket.fromStationId || ticket.originStationName);
+    const toName = getStationName(ticket.toStationId || ticket.destinationStationName);
+    if (fromName || toName) {
+      return [fromName, toName].filter(Boolean).join(" → ");
+    }
+    return "Không giới hạn chặng";
+  }, [getStationName]);
+
   const visibleTickets = useMemo(() => {
     const keyword = query.trim().toLowerCase();
     return tickets.filter((ticket) => {
       const status = ticketStatus(ticket.status);
       const type = typeName(ticket);
+      const currentRouteName = resolveRouteName(ticket);
       const matchesQuery = !keyword ||
-        `${ticket.code} ${routeName(ticket)} ${type}`.toLowerCase().includes(keyword);
+        `${ticket.code} ${currentRouteName} ${type}`.toLowerCase().includes(keyword);
       return matchesQuery && (!statusFilter || status === statusFilter) && (!typeFilter || type === typeFilter);
     });
-  }, [query, statusFilter, tickets, typeFilter]);
+  }, [query, statusFilter, tickets, typeFilter, resolveRouteName]);
 
   const stats = useMemo(() => ({
     total: tickets.length,
@@ -222,23 +263,56 @@ export default function MyTicketsPage() {
           {loading ? <p className="flex items-center justify-center gap-2 rounded-2xl bg-white p-10 text-slate-500"><Loader2 className="h-5 w-5 animate-spin" />Đang tải vé</p> : (
             <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
               {visibleTickets.map((ticket) => {
-                const status = ticketStatus(ticket.status);
-                const active = status === "Sẵn sàng sử dụng";
-                const used = status === "Đã dùng";
+                const currentStatus = ticketStatus(ticket.status);
+                const isReady = ticket.status.toUpperCase() === "READY";
+                const isActive = ticket.status.toUpperCase() === "ACTIVE";
+                const isUsed = currentStatus === "Đã dùng";
+                
                 return (
                   <article key={ticket.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                    <div className={`h-1.5 ${active ? "bg-green-500" : status === "Hết hạn" ? "bg-red-500" : status === "Đã dùng" ? "bg-slate-400" : "bg-amber-500"}`} />
+                    <div className={`h-1.5 ${isActive ? "bg-green-500" : currentStatus === "Hết hạn" ? "bg-red-500" : isUsed ? "bg-slate-400" : "bg-amber-500"}`} />
                     <div className="space-y-4 p-5">
                       <div className="flex justify-between gap-2">
                         <span className="text-xs font-bold text-slate-400">#{ticket.code}</span>
-                        <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold">{status}</span>
+                        <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${isActive ? "bg-green-50 text-green-700" : isReady ? "bg-blue-50 text-blue-700" : "bg-slate-100"}`}>
+                          {isReady ? "Chưa sử dụng" : currentStatus}
+                        </span>
                       </div>
-                      <div><p className="font-bold text-slate-900">{typeName(ticket)}</p><p className="mt-1 text-sm text-slate-600">{routeName(ticket)}</p></div>
-                      <p className="border-t border-slate-100 pt-3 text-sm text-slate-600">Hiệu lực: {formatDate(ticket.validFrom)} - {formatDate(ticket.validTo)}</p>
+                      
+                      <div>
+                        <p className="font-bold text-slate-900">{typeName(ticket)}</p>
+                        <p className="mt-1 text-sm text-slate-600">{resolveRouteName(ticket)}</p>
+                      </div>
+                      
+                      {/* ── ĐÃ SỬA ĐỔI TOÀN BỘ KHU VỰC THỜI GIAN HIỂN THỊ Ở ĐÂY ── */}
+                      <div className="border-t border-slate-100 pt-3 space-y-1 text-xs text-slate-500">
+                        <p>Ngày mua: {formatDateTime(ticket.issuedAt)}</p>
+                        
+                        {isActive ? (
+                          <>
+                            <p className="text-green-600 font-medium">Giờ vào ga: {formatDateTime(ticket.activatedAt)}</p>
+                            <p className="text-red-500 font-medium">Hạn rời ga: {formatDateTime(ticket.expiredAt)}</p>
+                          </>
+                        ) : isUsed ? (
+                          <>
+                            <p>Giờ vào ga: {formatDateTime(ticket.activatedAt)}</p>
+                            <p className="text-slate-400 italic">Đã hoàn thành hành trình</p>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-blue-600 font-medium">Trạng thái: Sẵn sàng sử dụng</p>
+                            {ticket.expiredAt && (
+                              <p className="text-amber-600 font-medium">
+                                Hạn sử dụng: Đến {formatDateTime(ticket.expiredAt)}
+                              </p>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </div>
                     <div className="flex gap-2 bg-slate-50 p-4">
-                      {!used ? (
-                        <button type="button" onClick={() => openQr(ticket)} disabled={!active} className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-blue-600 py-2 text-xs font-bold text-white disabled:bg-slate-300"><QrCode className="h-4 w-4" />QR</button>
+                      {!isUsed && currentStatus !== "Hết hạn" ? (
+                        <button type="button" onClick={() => openQr(ticket)} className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-blue-600 py-2 text-xs font-bold text-white"><QrCode className="h-4 w-4" />QR vào cổng</button>
                       ) : null}
                       <button type="button" onClick={() => openDetail(ticket.id)} className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700">Chi tiết</button>
                     </div>
@@ -260,10 +334,19 @@ export default function MyTicketsPage() {
             {selectedTicket ? <div className="mt-6 space-y-4 text-sm">
               <p><span className="text-slate-500">Mã vé:</span> <strong>{selectedTicket.code}</strong></p>
               <p><span className="text-slate-500">Loại vé:</span> {typeName(selectedTicket)}</p>
-              <p><span className="text-slate-500">Chặng:</span> {routeName(selectedTicket)}</p>
-              <p><span className="text-slate-500">Trạng thái:</span> {ticketStatus(selectedTicket.status)}</p>
+              <p><span className="text-slate-500">Chặng:</span> {resolveRouteName(selectedTicket)}</p>
+              {selectedTicket.orderId && <p><span className="text-slate-500">Mã đơn hàng:</span> {selectedTicket.orderId}</p>}
+              <p><span className="text-slate-500">Trạng thái:</span> {selectedTicket.status.toUpperCase() === 'READY' ? 'Chưa sử dụng' : ticketStatus(selectedTicket.status)}</p>
+              
+              <div className="border-t border-slate-200 pt-3 space-y-2 text-xs text-slate-600">
+                <p><span className="text-slate-500 font-normal">Thời gian mua:</span> {formatDateTime(selectedTicket.issuedAt)}</p>
+                {selectedTicket.activatedAt && <p><span className="text-slate-500 font-normal">Thời gian vào ga:</span> {formatDateTime(selectedTicket.activatedAt)}</p>}
+                {selectedTicket.usedAt && <p><span className="text-slate-500 font-normal">Thời gian ra ga:</span> {formatDateTime(selectedTicket.usedAt)}</p>}
+                <p><span className="text-slate-500 font-normal">Thời gian hết hạn:</span> {formatDateTime(selectedTicket.expiredAt)}</p>
+              </div>
+
               <h3 className="border-t border-slate-100 pt-5 font-bold">Lịch sử sử dụng vé</h3>
-              {history.map((row) => <div key={row.id} className="rounded-xl bg-slate-50 p-3"><p className="font-semibold">{row.action || row.result || "Sử dụng vé"}</p><p className="text-slate-500">{formatTime(row.time)} - {row.stationName || row.stationId || "--"} - {row.gateCode || "--"}</p></div>)}
+              {history.map((row) => <div key={row.id} className="rounded-xl bg-slate-50 p-3"><p className="font-semibold">{row.action || row.result || "Sử dụng vé"}</p><p className="text-slate-500">{formatTime(row.time)} - {row.stationName || getStationName(row.stationId) || "--"} - {row.gateCode || "--"}</p></div>)}
               {!history.length ? <p className="text-slate-500">Chưa có lịch sử sử dụng.</p> : null}
             </div> : null}
           </aside>

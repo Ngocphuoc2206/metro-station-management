@@ -2,6 +2,8 @@ export type StationDto = {
   id: string;
   name: string;
   code?: string;
+  latitude?: number;
+  longitude?: number;
 };
 
 export type RouteDto = {
