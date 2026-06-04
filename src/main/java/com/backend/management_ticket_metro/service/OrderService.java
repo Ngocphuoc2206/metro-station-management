@@ -84,7 +84,13 @@ public class OrderService {
         String email = Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getName();
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-        validateDuplicateOrder(user, request);
+
+        // Check duplicate order
+        Order duplicateOrder = findDuplicatePendingOrder(user, request);
+        if (duplicateOrder != null) {
+            return orderMapper.toOrderResponse(duplicateOrder);
+        }
+
         Order order = Order.builder()
                 .user(user)
                 .status(OrderStatus.PENDING)
@@ -147,17 +153,15 @@ public class OrderService {
                 .collect(Collectors.toList());
     }
 
-    private void validateDuplicateOrder(User user, OrderRequest request) {
+    private Order findDuplicatePendingOrder(User user, OrderRequest request) {
         LocalDateTime fiveMinutesAgo = LocalDateTime.now().minusMinutes(5);
 
-        List<Order> recentOrders = orderRepository.findByUserAndCreatedAtAfter(user, fiveMinutesAgo);
-
-        for(Order existingOrder : recentOrders){
-            if(isSameOrderItems(existingOrder.getOrderItems(), request.getItems())){
-                throw new AppException(ErrorCode.DUPLICATE_ORDER);
-            }
-        }
-
+        return orderRepository
+                .findByUserAndStatusAndCreatedAtAfter(user, OrderStatus.PENDING, fiveMinutesAgo)
+                .stream()
+                .filter(order -> isSameOrderItems(order.getOrderItems(), request.getItems()))
+                .findFirst()
+                .orElseThrow(() -> new AppException(ErrorCode.DUPLICATE_ORDER));
     }
 
     private boolean isSameOrderItems(List<OrderItem> dbItems, List<OrderItemRequest> regItems) {
