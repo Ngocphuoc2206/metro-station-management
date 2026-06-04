@@ -119,11 +119,22 @@ function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function dictionaryPattern(value: string) {
+  const escaped = escapeRegex(value);
+  const shouldMatchWholeToken = /^[\p{L}\p{N}\s]+$/u.test(value);
+
+  if (!shouldMatchWholeToken) {
+    return new RegExp(escaped, "giu");
+  }
+
+  return new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, "giu");
+}
+
 function replaceWithDictionary(input: string, entries: Array<[string, string]>) {
   let output = input;
   const sorted = [...entries].sort((a, b) => b[0].length - a[0].length);
   for (const [from, to] of sorted) {
-    const pattern = new RegExp(escapeRegex(from), "gi");
+    const pattern = dictionaryPattern(from);
     output = output.replace(pattern, to);
   }
   return output;

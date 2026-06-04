@@ -3,6 +3,7 @@ export type OrderItemRequest = {
   quantity: number;
   fromStationId: string;
   toStationId: string;
+  distance?: number;
 };
 
 export type OrderRequest = {

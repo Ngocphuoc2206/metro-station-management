@@ -10,6 +10,13 @@ const coerceList = <T>(value: unknown): T[] => {
   return [];
 };
 
+const optionalNumber = (value: unknown) => {
+  const parsed = Number(value);
+  return value !== undefined && value !== null && Number.isFinite(parsed)
+    ? parsed
+    : undefined;
+};
+
 const normalizeStations = (raw: unknown): StationDto[] => {
   const list = coerceList<unknown>(raw);
   return list
@@ -23,7 +30,13 @@ const normalizeStations = (raw: unknown): StationDto[] => {
         const id = String(anyItem.id ?? anyItem.stationId ?? anyItem.code ?? "");
         const name = String(anyItem.name ?? anyItem.stationName ?? anyItem.title ?? id);
         if (!id) return null;
-        return { id, name, code: anyItem.code ? String(anyItem.code) : undefined };
+        return {
+          id,
+          name,
+          code: anyItem.code ? String(anyItem.code) : undefined,
+          latitude: optionalNumber(anyItem.latitude ?? anyItem.lat ?? anyItem.la_titude),
+          longitude: optionalNumber(anyItem.longitude ?? anyItem.lng ?? anyItem.lon ?? anyItem.long_titude),
+        };
       }
 
       return null;
