@@ -54,15 +54,28 @@ const DUPLICATE_SCAN_COOLDOWN_MS = 3000;
 function matchesMode(action: string | undefined, mode: TapMode) {
   if (!action) return true;
   const normalized = action.toUpperCase().replace(/[_\s]/g, "-");
+  if (
+    normalized === "BI" ||
+    normalized === "BOTH" ||
+    normalized === "BIDIRECTIONAL" ||
+    normalized === "BI-DIRECTIONAL"
+  ) {
+    return true;
+  }
+
   return mode === "TAP-IN"
     ? normalized === "IN" ||
         normalized === "TAP-IN" ||
+        normalized === "CHECK-IN" ||
         normalized === "ENTRY" ||
+        normalized === "ENTRY-ONLY" ||
         normalized === "ENTRANCE" ||
         normalized === "ENTER"
     : normalized === "OUT" ||
         normalized === "TAP-OUT" ||
+        normalized === "CHECK-OUT" ||
         normalized === "EXIT" ||
+        normalized === "EXIT-ONLY" ||
         normalized === "LEAVE";
 }
 

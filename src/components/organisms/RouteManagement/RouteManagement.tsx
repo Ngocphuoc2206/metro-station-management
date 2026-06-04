@@ -96,6 +96,30 @@ export default function RouteManagement() {
     }
   };
 
+  const handleDeleteRoute = async (routeId: string) => {
+    const route = routes.find((item) => item.id === routeId);
+    if (!route) return;
+
+    const confirmed = window.confirm(`Bạn có chắc muốn xóa tuyến "${route.name}"?`);
+    if (!confirmed) return;
+
+    try {
+      await routeApi.deleteRoute(routeId);
+
+      const nextRoutes = routes.filter((item) => item.id !== routeId);
+      setRoutes(nextRoutes);
+
+      if (selectedRouteId === routeId) {
+        const nextSelectedRoute = nextRoutes[0] ?? null;
+        setSelectedRouteId(nextSelectedRoute?.id ?? null);
+        setSelectedRouteDetail(null);
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Lỗi khi xóa tuyến");
+    }
+  };
+
   const handleUpdateSequence = async (newStations: any[]) => {
     if (!selectedRouteId) return;
     try {
@@ -187,6 +211,7 @@ export default function RouteManagement() {
                 setIsModalOpen(true);
               }
             }}
+            onDeleteClick={handleDeleteRoute}
           />
         </div>
 

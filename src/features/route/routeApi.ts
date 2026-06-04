@@ -1,5 +1,9 @@
 import { apiClient } from "@features/httpClient/ApiClient";
-import { API_ENDPOINTS, ApiResponse, withPathParam } from "@features/httpClient/apiEndpoints";
+import {
+  API_ENDPOINTS,
+  ApiResponse,
+  withPathParam,
+} from "@features/httpClient/apiEndpoints";
 import { Route, RouteStation } from "./routeTypes";
 
 // ── Backend response shapes ───────────────────────────────────────────────────
@@ -67,8 +71,9 @@ function normalizeStatus(s?: string): "active" | "inactive" | "maintenance" {
   return "inactive";
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapToBackend(data: Partial<Route> & { routeCode?: string }): Record<string, unknown> {
+function mapToBackend(
+  data: Partial<Route> & { routeCode?: string },
+): Record<string, unknown> {
   const payload: Record<string, unknown> = {
     // Backend spec: routeName, routeCode (không phải 'name')
     routeName: data.name,
@@ -94,7 +99,7 @@ export const routeApi = {
   // ── GET /routes (FE-22) ───────────────────────────────────────────────────
   getRoutes: async (): Promise<Route[]> => {
     const res = await apiClient.get<ApiResponse<BackendRoute[]>>(
-      API_ENDPOINTS.routes.base
+      API_ENDPOINTS.routes.base,
     );
     return (res.data.results ?? []).map(mapToUI);
   },
@@ -102,26 +107,33 @@ export const routeApi = {
   // ── GET /routes/{id} (FE-22) ──────────────────────────────────────────────
   getRouteById: async (id: string): Promise<Route> => {
     const res = await apiClient.get<ApiResponse<BackendRoute>>(
-      withPathParam(API_ENDPOINTS.routes.base, id)
+      withPathParam(API_ENDPOINTS.routes.base, id),
     );
     return mapToUI(res.data.results);
   },
 
   // ── POST /routes/admin (FE-22) ────────────────────────────────────────────
-  createRoute: async (data: Omit<Route, "id" | "stationsCount">): Promise<Route> => {
+  createRoute: async (
+    data: Omit<Route, "id" | "stationsCount">,
+  ): Promise<Route> => {
     const res = await apiClient.post<ApiResponse<BackendRoute>>(
       API_ENDPOINTS.routes.admin,
-      mapToBackend(data)
+      mapToBackend(data),
     );
     return mapToUI(res.data.results);
   },
 
-  // ── PUT /routes/admin/{id} (FE-22) ────────────────────────────────────────
+  // ── PUT /routes/admin/{id}   ────────────────────────────────────────
   updateRoute: async (id: string, updates: Partial<Route>): Promise<Route> => {
     const res = await apiClient.put<ApiResponse<BackendRoute>>(
       withPathParam(API_ENDPOINTS.routes.admin, id),
-      mapToBackend(updates)
+      mapToBackend(updates),
     );
     return mapToUI(res.data.results);
+  },
+
+  // ── DELETE /routes/admin/{id} ─────────────────────────────────────
+  deleteRoute: async (id: string): Promise<void> => {
+    await apiClient.delete(withPathParam(API_ENDPOINTS.routes.admin, id));
   },
 };

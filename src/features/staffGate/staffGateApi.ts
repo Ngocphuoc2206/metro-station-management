@@ -15,6 +15,7 @@ type BackendGate = Partial<GateResponse> & {
   id?: string;
   code?: string;
   deviceName?: string;
+  direction?: string;
 };
 
 function isGateDevice(item: BackendGate) {
@@ -32,12 +33,13 @@ function mapGate(item: BackendGate): GateResponse {
     name: item.name ?? item.deviceName ?? gateCode,
     stationId: item.stationId ?? "",
     stationName: item.stationName ?? "",
-    action: item.action ?? "",
+    action: item.action ?? item.directionMode ?? item.direction ?? "",
     status: item.status ?? "",
     deviceId: item.deviceId,
     deviceCode: item.deviceCode,
     type: item.type,
     deviceType: item.deviceType,
+    directionMode: item.directionMode ?? item.direction,
   };
 }
 
