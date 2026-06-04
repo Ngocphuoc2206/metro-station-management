@@ -104,6 +104,16 @@ public class GateService {
 
         GateAction expectedAction = getExpectedAction(ticket);
 
+        if (request.getAction() != null && request.getAction() != expectedAction) {
+            return denyAndLog(
+                    gate,
+                    ticket,
+                    qrToken,
+                    "Wrong scan action. Expected " + expectedAction,
+                    now
+            );
+        }
+
         if (gate.getAction() != expectedAction){
             return denyAndLog(
                     gate,
@@ -117,22 +127,19 @@ public class GateService {
         qrToken.setUsedAt(now);
         ticketQrTokenRepository.save(qrToken);
 
-        if (isDailyTicket(ticket)) {
-            ticket.setStatus(TicketStatus.USED);
-            ticket.setUsedAt(now);
-
-            if (ticket.getActivatedAt() == null){
-                ticket.setActivatedAt(now);
-            }
-        } else if (gate.getAction() == GateAction.TAP_IN){
-            // Month
+        if (gate.getAction() == GateAction.TAP_IN){
             ticket.setStatus(TicketStatus.ACTIVE);
 
             if (ticket.getActivatedAt() == null){
                 ticket.setActivatedAt(now);
             }
         } else if (gate.getAction() == GateAction.TAP_OUT){
-            ticket.setStatus(TicketStatus.ACTIVE);
+            if (isDailyTicket(ticket)) {
+                ticket.setStatus(TicketStatus.USED);
+                ticket.setUsedAt(now);
+            } else {
+                ticket.setStatus(TicketStatus.ACTIVE);
+            }
         }
 
         ticketRepository.save(ticket);
