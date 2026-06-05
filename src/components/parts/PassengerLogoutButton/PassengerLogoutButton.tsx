@@ -1,19 +1,8 @@
 import { LogOut } from "lucide-react";
-import { useRouter } from "next/router";
-import { useDispatch } from "react-redux";
-import type { AppDispatch } from "@stores/index";
-import { logout } from "@stores/slices/userSlice";
+import { useLogout } from "@features/auth/useLogout";
 
 export default function PassengerLogoutButton() {
-  const router = useRouter();
-  const dispatch = useDispatch<AppDispatch>();
-
-  const handleLogout = () => {
-    localStorage.removeItem("authToken");
-    sessionStorage.removeItem("persist:root");
-    dispatch(logout());
-    router.push("/auth/login");
-  };
+  const handleLogout = useLogout();
 
   return (
     <button

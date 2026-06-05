@@ -1,10 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useRouter } from "next/router";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
+import { useLogout } from "@features/auth/useLogout";
 import type { RootState } from "@stores/index";
-import type { AppDispatch } from "@stores/index";
-import { logout } from "@stores/slices/userSlice";
 import Link from "next/link";
+import router from "next/router";
 
 const STAFF_NAV = [
   { label: "Tổng quan", href: "/staff", icon: DashboardIcon },
@@ -12,7 +11,11 @@ const STAFF_NAV = [
   { label: "Sự cố", href: "/staff/incidents", icon: IncidentIcon },
   { label: "Quét vé", href: "/staff/scan", icon: ScanIcon },
   { label: "Nhật ký soát vé", href: "/staff/ticket-log", icon: TicketLogIcon },
-  { label: "Nhật ký giao dịch", href: "/staff/transaction-logs", icon: TransactionIcon },
+  {
+    label: "Nhật ký giao dịch",
+    href: "/staff/transaction-logs",
+    icon: TransactionIcon,
+  },
   {
     label: "Hồ sơ ca trực",
     href: "/staff/shift-profile",
@@ -21,15 +24,8 @@ const STAFF_NAV = [
 ];
 
 export default function StaffSidebar() {
-  const router = useRouter();
-  const dispatch = useDispatch<AppDispatch>();
   const { name, email } = useSelector((s: RootState) => s.userReducer);
-
-  const handleLogout = () => {
-    localStorage.removeItem("authToken");
-    dispatch(logout());
-    router.push("/auth/login");
-  };
+  const handleLogout = useLogout();
 
   return (
     <aside className="flex min-h-screen w-20 flex-col justify-between border-r border-gray-100 bg-white sm:w-64">
@@ -45,7 +41,9 @@ export default function StaffSidebar() {
               <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
             </svg>
           </div>
-          <span className="hidden text-lg font-bold text-gray-900 sm:inline">Metro</span>
+          <span className="hidden text-lg font-bold text-gray-900 sm:inline">
+            Metro
+          </span>
         </div>
 
         {/* Menu Nav */}

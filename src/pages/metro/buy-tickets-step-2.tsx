@@ -1,7 +1,8 @@
 import type { NextPage } from "next";
+import axios from "axios";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import PassengerShell from "@components/templates/PassengerShell";
 import { orderApi } from "@features/order/orderApi";
 import type { OrderPreviewResult, OrderRequest } from "@features/order/orderTypes";
@@ -50,6 +51,7 @@ type Step2StorageState = {
 
 const STEP1_STORAGE_KEY = "metro-buy-ticket-step1";
 const STEP2_STORAGE_KEY = "metro-buy-ticket-step2";
+const ORDER_CACHE_KEY = "metro-buy-ticket-orders";
 const TICKET_TYPE_LABELS: Record<string, string> = {
   single: "Vé lượt",
   daily: "Vé ngày",
@@ -115,6 +117,63 @@ const buildOrderRequestKey = (request: OrderRequest) => {
   });
 };
 
+const readOrderCache = (): Record<string, Step2StorageState> => {
+  if (typeof window === "undefined") return {};
+
+  const raw = window.sessionStorage.getItem(ORDER_CACHE_KEY);
+  if (!raw) return {};
+
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object"
+      ? (parsed as Record<string, Step2StorageState>)
+      : {};
+  } catch {
+    return {};
+  }
+};
+
+const writeOrderCacheEntry = (
+  orderRequestKey: string,
+  orderState: Step2StorageState,
+) => {
+  if (typeof window === "undefined" || !orderState.orderId) return;
+
+  const cache = readOrderCache();
+  window.sessionStorage.setItem(
+    ORDER_CACHE_KEY,
+    JSON.stringify({
+      ...cache,
+      [orderRequestKey]: orderState,
+    }),
+  );
+};
+
+const readCachedOrder = (
+  orderRequestKey: string,
+  ticketTypeId: string,
+): Step2StorageState | null => {
+  const cached = readOrderCache()[orderRequestKey];
+  if (
+    cached?.orderId &&
+    cached.selectedTicketId === ticketTypeId &&
+    cached.orderRequestKey === orderRequestKey
+  ) {
+    return cached;
+  }
+
+  return null;
+};
+
+const isDuplicateOrderError = (error: unknown) => {
+  if (!axios.isAxiosError(error)) return false;
+
+  const data = error.response?.data as Record<string, unknown> | undefined;
+  const code = Number(data?.code);
+  const message = typeof data?.message === "string" ? data.message : "";
+  return code === 1071 || message.toLowerCase().includes("duplicate order");
+};
+
 const toTicketCard = (t: TicketTypeDto): TicketTypeCard => {
   const typeName = t.name.toLowerCase();
   const validityText =
@@ -152,6 +211,7 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const [createOrderError, setCreateOrderError] = useState<string | null>(null);
+  const isCreatingOrderRef = useRef(false);
 
   useEffect(() => {
     const fromQuery = {
@@ -286,6 +346,9 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
     if (typeof window === "undefined") {
       return;
     }
+    if (!selectedTicketId) {
+      return;
+    }
 
     let existingStep2Data: Step2StorageState = {};
     const rawStep2Data = window.sessionStorage.getItem(STEP2_STORAGE_KEY);
@@ -413,7 +476,11 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
     if (!hasJourneyState || !selectedTicket || totalPrice === undefined || journeyDistance === undefined) {
       return;
     }
+    if (isCreatingOrderRef.current) {
+      return;
+    }
 
+    isCreatingOrderRef.current = true;
     setIsCreatingOrder(true);
     setCreateOrderError(null);
 
@@ -434,17 +501,27 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
         }
       }
 
-      if (
+      const reusableOrder =
         storedStep2?.orderId &&
         storedStep2.selectedTicketId === selectedTicket.id &&
         storedStep2.orderRequestKey === orderRequestKey
-      ) {
+          ? storedStep2
+          : readCachedOrder(orderRequestKey, selectedTicket.id);
+
+      if (reusableOrder?.orderId) {
+        if (typeof window !== "undefined") {
+          window.sessionStorage.setItem(
+            STEP2_STORAGE_KEY,
+            JSON.stringify(reusableOrder),
+          );
+        }
+
         await router.push({
           pathname: "/passenger-page/buy-tickets-step-3",
           query: {
             ...router.query,
             ticketType: selectedTicket.id,
-            orderId: storedStep2.orderId,
+            orderId: reusableOrder.orderId,
           },
         });
         return;
@@ -456,19 +533,22 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
         throw new Error("Phản hồi tạo đơn hàng không có orderId");
       }
 
+      const nextStep2State = {
+        selectedTicketId: selectedTicket.id,
+        selectedTicketName: selectedTicket.name,
+        selectedTicketSubtitle: selectedTicket.subtitle,
+        selectedTicketPrice: selectedTicket.price,
+        selectedOrderTotal: totalPrice,
+        orderId: order.id,
+        orderRequestKey,
+      };
+
       if (typeof window !== "undefined") {
         window.sessionStorage.setItem(
           STEP2_STORAGE_KEY,
-          JSON.stringify({
-            selectedTicketId: selectedTicket.id,
-            selectedTicketName: selectedTicket.name,
-            selectedTicketSubtitle: selectedTicket.subtitle,
-            selectedTicketPrice: selectedTicket.price,
-            selectedOrderTotal: totalPrice,
-            orderId: order.id,
-            orderRequestKey,
-          }),
+          JSON.stringify(nextStep2State),
         );
+        writeOrderCacheEntry(orderRequestKey, nextStep2State);
       }
 
       await router.push({
@@ -480,9 +560,12 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
         },
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Không thể tạo đơn hàng";
+      const message = isDuplicateOrderError(err)
+        ? "Đã có đơn hàng trùng với hành trình này trên hệ thống. Nếu vừa bấm thanh toán trước đó, hãy quay lại bước thanh toán hoặc hủy/xử lý đơn cũ trước khi tạo đơn mới."
+        : err instanceof Error ? err.message : "Không thể tạo đơn hàng";
       setCreateOrderError(message);
     } finally {
+      isCreatingOrderRef.current = false;
       setIsCreatingOrder(false);
     }
   };
