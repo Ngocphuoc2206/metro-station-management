@@ -7,7 +7,6 @@ import com.backend.management_ticket_metro.dto.response.OrderItemResponse;
 import com.backend.management_ticket_metro.dto.response.OrderResponse;
 import com.backend.management_ticket_metro.entity.*;
 import com.backend.management_ticket_metro.enums.OrderStatus;
-import com.backend.management_ticket_metro.enums.TicketName;
 import com.backend.management_ticket_metro.exception.AppException;
 import com.backend.management_ticket_metro.mapper.OrderMapper;
 import com.backend.management_ticket_metro.mapper.StationMapper;
@@ -23,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -86,9 +86,10 @@ public class OrderService {
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         // Check duplicate order
-        Order duplicateOrder = findDuplicatePendingOrder(user, request);
-        if (duplicateOrder != null) {
-            return orderMapper.toOrderResponse(duplicateOrder);
+        Optional<Order> duplicateOrder = findDuplicatePendingOrder(user, request);
+
+        if (duplicateOrder.isPresent()) {
+            return orderMapper.toOrderResponse(duplicateOrder.get());
         }
 
         Order order = Order.builder()
@@ -153,15 +154,14 @@ public class OrderService {
                 .collect(Collectors.toList());
     }
 
-    private Order findDuplicatePendingOrder(User user, OrderRequest request) {
+    private Optional<Order> findDuplicatePendingOrder(User user, OrderRequest request) {
         LocalDateTime twoMinutesAgo = LocalDateTime.now().minusMinutes(2);
 
         return orderRepository
                 .findByUserAndStatusAndCreatedAtAfter(user, OrderStatus.PENDING, twoMinutesAgo)
                 .stream()
                 .filter(order -> isSameOrderItems(order.getOrderItems(), request.getItems()))
-                .findFirst()
-                .orElseThrow(() -> new AppException(ErrorCode.DUPLICATE_ORDER));
+                .findFirst();
     }
 
     private boolean isSameOrderItems(List<OrderItem> dbItems, List<OrderItemRequest> regItems) {
@@ -175,7 +175,7 @@ public class OrderService {
                     dbItem.getFromStation().getStationId().equals(reqItem.getFromStationId()) &&
                             dbItem.getToStation().getStationId().equals(reqItem.getToStationId()) &&
                             dbItem.getTicketType().getId().equals(reqItem.getTicketTypeId()) &&
-                            dbItem.getQuantity() == reqItem.getQuantity()
+                            Objects.equals(dbItem.getQuantity(), reqItem.getQuantity())
             );
 
             if(!matchFound){
