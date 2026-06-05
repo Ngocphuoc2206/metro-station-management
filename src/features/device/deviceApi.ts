@@ -17,7 +17,10 @@ export interface Device {
 
 // ── Backend response shape ────────────────────────────────────────────────────
 interface BackendDevice {
-  deviceId: string;
+  deviceId?: string;
+  id?: string;
+  deviceCode?: string;
+  code?: string;
   name?: string;
   deviceName?: string;
   type?: string;
@@ -34,6 +37,7 @@ interface BackendDevice {
 
 function mapToUI(b: BackendDevice): Device {
   const rawStatus = b.status?.toLowerCase() ?? "inactive";
+  const id = b.deviceId ?? b.id ?? b.deviceCode ?? b.code ?? "";
   const status = rawStatus.includes("maint")
     ? "maintenance"
     : rawStatus === "active" || rawStatus === "online"
@@ -41,8 +45,8 @@ function mapToUI(b: BackendDevice): Device {
     : "inactive";
 
   return {
-    id: b.deviceId,
-    name: b.name ?? b.deviceName ?? b.deviceId,
+    id,
+    name: b.name ?? b.deviceName ?? b.deviceCode ?? id,
     type: b.type ?? b.deviceType ?? "—",
     status,
     stationId: b.stationId,
@@ -60,7 +64,9 @@ export const deviceApi = {
       API_ENDPOINTS.devices.staff
     );
     const devices = unwrapApiResponse<BackendDevice[]>(res.data);
-    return Array.isArray(devices) ? devices.map(mapToUI) : [];
+    return Array.isArray(devices)
+      ? devices.map(mapToUI).filter((device) => device.id)
+      : [];
   },
 
   // ── GET /staff/devices/{id} (FE-34) ───────────────────────────────────────

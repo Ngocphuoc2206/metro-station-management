@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -32,7 +33,6 @@ interface CreateIncidentModalProps {
   onSuccess: () => void;
 }
 
-
 export default function CreateIncidentModal({
   isOpen,
   onClose,
@@ -50,12 +50,22 @@ export default function CreateIncidentModal({
   useEffect(() => {
     if (!isOpen) return;
     // Fetch stations
-    stationApi.getStations({ status: "active" }, 1, 200)
-      .then((res) => setStations(res.data.map((s) => ({ id: s.id, name: s.name }))))
+    stationApi
+      .getStations({ status: "active" }, 1, 200)
+      .then((res) =>
+        setStations(res.data.map((s) => ({ id: s.id, name: s.name }))),
+      )
       .catch(() => setStations([]));
     // Fetch devices
-    deviceApi.getDevices()
-      .then((res) => setDevices(res.map((d) => ({ id: d.id, name: d.name }))))
+    deviceApi
+      .getDevices()
+      .then((res) =>
+        setDevices(
+          res
+            .map((d) => ({ id: d.id, name: d.name || d.id }))
+            .filter((d) => d.id),
+        ),
+      )
       .catch(() => setDevices([]));
   }, [isOpen]);
 
@@ -195,23 +205,30 @@ export default function CreateIncidentModal({
               <select
                 {...register("stationId")}
                 className={`w-full px-4 py-2.5 rounded-xl border appearance-none ${
-                  errors.stationId ? "border-red-500 bg-red-50" : "border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  errors.stationId
+                    ? "border-red-500 bg-red-50"
+                    : "border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 } outline-none transition`}
               >
                 <option value="">-- Chọn ga --</option>
                 {stations.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
                 ))}
               </select>
               {errors.stationId && (
-                <p className="mt-1 text-sm text-red-500 font-medium">{errors.stationId.message}</p>
+                <p className="mt-1 text-sm text-red-500 font-medium">
+                  {errors.stationId.message}
+                </p>
               )}
             </div>
 
             {/* Thiết bị (tuỳ chọn) */}
             <div>
               <label className="block text-sm font-semibold text-gray-900 mb-2">
-                Thiết bị gặp sự cố <span className="text-gray-400 font-normal">(tuỳ chọn)</span>
+                Thiết bị gặp sự cố{" "}
+                <span className="text-gray-400 font-normal">(tuỳ chọn)</span>
               </label>
               <div className="relative">
                 <svg
@@ -233,7 +250,9 @@ export default function CreateIncidentModal({
                 >
                   <option value="">-- Không chọn thiết bị cụ thể --</option>
                   {devices.map((d) => (
-                    <option key={d.id} value={d.id}>{d.name} ({d.id.slice(0, 8)})</option>
+                    <option key={d.id} value={d.id}>
+                      {d.name} ({d.id?.slice(0, 8) ?? ""})
+                    </option>
                   ))}
                 </select>
                 <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none">
