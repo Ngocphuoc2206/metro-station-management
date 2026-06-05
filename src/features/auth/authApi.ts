@@ -1,5 +1,6 @@
 import { apiClient } from "@features/httpClient/ApiClient";
 import { API_ENDPOINTS } from "@features/httpClient/apiEndpoints";
+import { clearClientSession } from "./session";
 import type {
   SignupRequest,
   SignupResponse,
@@ -287,9 +288,5 @@ export async function logoutUser(): Promise<void> {
     }
   }
 
-  localStorage.removeItem("authToken");
-  localStorage.removeItem("refreshToken");
-  localStorage.removeItem("userRole");
-  localStorage.removeItem("userName");
-  sessionStorage.clear();
+  clearClientSession();
 }

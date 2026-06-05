@@ -1,8 +1,7 @@
-import { useRouter } from "next/router";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
+import { useLogout } from "@features/auth/useLogout";
 import type { RootState } from "@stores/index";
-import type { AppDispatch } from "@stores/index";
-import { logout } from "@stores/slices/userSlice";
+import router from "next/router";
 
 const NAV_GROUPS = [
   {
@@ -24,20 +23,18 @@ const NAV_GROUPS = [
       { label: "Phân quyền", href: "/admin/permissions", icon: ShieldIcon },
       { label: "Báo cáo", href: "/admin/reports", icon: ReportIcon },
       { label: "Audit Logs", href: "/admin/audit-logs", icon: LogIcon },
-      { label: "Cài đặt", href: "/dashboard/admin/settings", icon: SettingsIcon },
+      {
+        label: "Cài đặt",
+        href: "/dashboard/admin/settings",
+        icon: SettingsIcon,
+      },
     ],
   },
 ];
 
 export default function AdminSidebar() {
-  const router = useRouter();
-  const dispatch = useDispatch<AppDispatch>();
   const { name, email } = useSelector((s: RootState) => s.userReducer);
-
-  const handleLogout = () => {
-    dispatch(logout());
-    router.push("/auth/login");
-  };
+  const handleLogout = useLogout();
 
   return (
     <aside className="flex min-h-screen w-20 flex-col justify-between border-r border-gray-100 bg-white sm:w-56">
@@ -46,13 +43,21 @@ export default function AdminSidebar() {
         <div className="border-b border-gray-50 px-3 py-5 sm:px-5">
           <div className="flex items-center justify-center gap-2.5 sm:justify-start">
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
-              <svg className="w-4.5 h-4.5 text-white" viewBox="0 0 24 24" fill="currentColor">
+              <svg
+                className="w-4.5 h-4.5 text-white"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
                 <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
               </svg>
             </div>
             <div className="hidden sm:block">
-              <p className="text-sm font-bold text-gray-900 leading-tight">Metro</p>
-              <p className="text-xs text-gray-400 leading-tight">Hệ thống doanh nghiệp</p>
+              <p className="text-sm font-bold text-gray-900 leading-tight">
+                Metro
+              </p>
+              <p className="text-xs text-gray-400 leading-tight">
+                Hệ thống doanh nghiệp
+              </p>
             </div>
           </div>
         </div>
@@ -72,10 +77,11 @@ export default function AdminSidebar() {
                     <li key={item.label}>
                       <a
                         href={item.href}
-                        className={`flex items-center justify-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors sm:justify-start ${active
+                        className={`flex items-center justify-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors sm:justify-start ${
+                          active
                             ? "bg-blue-600 text-white font-medium"
                             : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                          }`}
+                        }`}
                       >
                         <Icon active={active} />
                         <span className="hidden sm:inline">{item.label}</span>
@@ -98,8 +104,12 @@ export default function AdminSidebar() {
             </span>
           </div>
           <div className="hidden min-w-0 sm:block">
-            <p className="text-xs font-semibold text-gray-900 truncate">{name || "Admin User"}</p>
-            <p className="text-xs text-gray-400 truncate">{email || "Super Admin"}</p>
+            <p className="text-xs font-semibold text-gray-900 truncate">
+              {name || "Admin User"}
+            </p>
+            <p className="text-xs text-gray-400 truncate">
+              {email || "Super Admin"}
+            </p>
           </div>
         </div>
         <button
@@ -131,38 +141,98 @@ function NavIcon({ d, active }: { d: string; active: boolean }) {
 }
 
 function DashboardIcon({ active }: { active: boolean }) {
-  return <NavIcon active={active} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />;
+  return (
+    <NavIcon
+      active={active}
+      d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+    />
+  );
 }
 function StationIcon({ active }: { active: boolean }) {
-  return <NavIcon active={active} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z" />;
+  return (
+    <NavIcon
+      active={active}
+      d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+    />
+  );
 }
 function DeviceIcon({ active }: { active: boolean }) {
-  return <NavIcon active={active} d="M9 3h6a2 2 0 012 2v14a2 2 0 01-2 2H9a2 2 0 01-2-2V5a2 2 0 012-2z M11 17h2" />;
+  return (
+    <NavIcon
+      active={active}
+      d="M9 3h6a2 2 0 012 2v14a2 2 0 01-2 2H9a2 2 0 01-2-2V5a2 2 0 012-2z M11 17h2"
+    />
+  );
 }
 function RouteIcon({ active }: { active: boolean }) {
-  return <NavIcon active={active} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />;
+  return (
+    <NavIcon
+      active={active}
+      d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
+    />
+  );
 }
 function ScheduleIcon({ active }: { active: boolean }) {
-  return <NavIcon active={active} d="M8 7V3m8 4V3M4 11h16M6 5h12a2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V7a2 2 0 012-2zm6 9h.01M15 14h.01M9 17h.01M12 17h.01" />;
+  return (
+    <NavIcon
+      active={active}
+      d="M8 7V3m8 4V3M4 11h16M6 5h12a2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V7a2 2 0 012-2zm6 9h.01M15 14h.01M9 17h.01M12 17h.01"
+    />
+  );
 }
 function TicketIcon({ active }: { active: boolean }) {
-  return <NavIcon active={active} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />;
+  return (
+    <NavIcon
+      active={active}
+      d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"
+    />
+  );
 }
 function PriceIcon({ active }: { active: boolean }) {
-  return <NavIcon active={active} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />;
+  return (
+    <NavIcon
+      active={active}
+      d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+    />
+  );
 }
 function UsersIcon({ active }: { active: boolean }) {
-  return <NavIcon active={active} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />;
+  return (
+    <NavIcon
+      active={active}
+      d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+    />
+  );
 }
 function ShieldIcon({ active }: { active: boolean }) {
-  return <NavIcon active={active} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />;
+  return (
+    <NavIcon
+      active={active}
+      d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+    />
+  );
 }
 function ReportIcon({ active }: { active: boolean }) {
-  return <NavIcon active={active} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />;
+  return (
+    <NavIcon
+      active={active}
+      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+    />
+  );
 }
 function LogIcon({ active }: { active: boolean }) {
-  return <NavIcon active={active} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />;
+  return (
+    <NavIcon
+      active={active}
+      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+    />
+  );
 }
 function SettingsIcon({ active }: { active: boolean }) {
-  return <NavIcon active={active} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z" />;
+  return (
+    <NavIcon
+      active={active}
+      d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+    />
+  );
 }
