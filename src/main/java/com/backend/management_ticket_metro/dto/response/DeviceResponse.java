@@ -16,8 +16,10 @@ public class DeviceResponse {
     private String ipAddress;
     private String macAddress;
     private String status;
-    private String stationName;
 
+    private String stationId;
+    private String stationName;
+    private String gateId;
     private String gateName;
 
     private String typeName;
