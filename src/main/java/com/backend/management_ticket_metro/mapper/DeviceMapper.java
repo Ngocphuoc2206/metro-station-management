@@ -8,6 +8,7 @@ import org.mapstruct.*;
 public interface DeviceMapper {
     @Mapping(source = "type.typeName", target = "typeName")
     @Mapping(source = "station.name", target = "stationName")
+    @Mapping(source = "gate.name", target = "gateName")
     @Mapping(target = "additionalDetails", ignore = true)
     DeviceResponse toDeviceResponse(Devices devices);
 

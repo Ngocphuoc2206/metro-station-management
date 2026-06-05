@@ -16,6 +16,7 @@ public class DeviceRequest {
     private String ipAddress;
     private String macAddress;
     private String stationId;
+    private String gateId;
     private String typeId;
     private DeviceStatus status;
     private LocalDateTime lastMaintenance;
