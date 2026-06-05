@@ -1,8 +1,6 @@
-import { useDispatch, useSelector } from "react-redux";
-import { useRouter } from "next/router";
+import { useSelector } from "react-redux";
+import { useLogout } from "@features/auth/useLogout";
 import type { RootState } from "@stores/index";
-import { logout } from "@stores/slices/userSlice";
-import type { AppDispatch } from "@stores/index";
 
 const STATS = [
   { label: "Vé hôm nay", value: "—", icon: "🎫" },
@@ -19,15 +17,8 @@ const PASSENGER_ACTIONS = [
 ];
 
 export default function PassengerDashboard() {
-  const router = useRouter();
-  const dispatch = useDispatch<AppDispatch>();
   const { name, email } = useSelector((state: RootState) => state.userReducer);
-
-  const handleLogout = () => {
-    localStorage.removeItem("authToken");
-    dispatch(logout());
-    router.push("/auth/login");
-  };
+  const handleLogout = useLogout();
 
   return (
     <div className="min-h-screen bg-gray-50">

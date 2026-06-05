@@ -1,26 +1,15 @@
-import { useRouter } from "next/router";
 import type { ReactNode } from "react";
-import { useDispatch } from "react-redux";
 import { Bell, LogOut, Search, Settings } from "lucide-react";
 import PassengerChatbotWidget from "@components/organisms/PassengerChatbot/PassengerChatbotWidget";
 import PassengerSidebar from "./PassengerSidebar";
-import type { AppDispatch } from "@stores/index";
-import { logout } from "@stores/slices/userSlice";
+import { useLogout } from "@features/auth/useLogout";
 
 type PassengerShellProps = {
   children: ReactNode;
 };
 
 export default function PassengerShell({ children }: PassengerShellProps) {
-  const router = useRouter();
-  const dispatch = useDispatch<AppDispatch>();
-
-  const handleLogout = () => {
-    localStorage.removeItem("authToken");
-    sessionStorage.removeItem("persist:root");
-    dispatch(logout());
-    router.push("/auth/login");
-  };
+  const handleLogout = useLogout();
 
   return (
     <div className="min-h-screen w-full bg-[radial-gradient(circle_at_8%_12%,rgba(37,99,235,0.10),transparent_42%),radial-gradient(circle_at_92%_18%,rgba(16,185,129,0.10),transparent_38%),linear-gradient(180deg,#f8fafc_0%,#eef2ff_48%,#f8fafc_100%)]">

@@ -1,10 +1,7 @@
 import { useSelector } from "react-redux";
-import { useDispatch } from "react-redux";
-import { useRouter } from "next/router";
 import { useState } from "react";
+import { useLogout } from "@features/auth/useLogout";
 import type { RootState } from "@stores/index";
-import { logout } from "@stores/slices/userSlice";
-import type { AppDispatch } from "@stores/index";
 
 type ScanStatus = "idle" | "scanning" | "success" | "error";
 
@@ -16,16 +13,9 @@ const RECENT_SCANS = [
 ];
 
 export default function ScannerTool() {
-  const router = useRouter();
-  const dispatch = useDispatch<AppDispatch>();
   const { name } = useSelector((state: RootState) => state.userReducer);
   const [scanStatus, setScanStatus] = useState<ScanStatus>("idle");
-
-  const handleLogout = () => {
-    localStorage.removeItem("authToken");
-    dispatch(logout());
-    router.push("/auth/login");
-  };
+  const handleLogout = useLogout();
 
   // Simulate scan
   const simulateScan = () => {
