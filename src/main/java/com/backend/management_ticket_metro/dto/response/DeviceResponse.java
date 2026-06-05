@@ -17,6 +17,9 @@ public class DeviceResponse {
     private String macAddress;
     private String status;
     private String stationName;
+
+    private String gateName;
+
     private String typeName;
     private LocalDateTime lastMaintenance;
 

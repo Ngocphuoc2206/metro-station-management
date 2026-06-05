@@ -30,6 +30,7 @@ public class DeviceService {
     private final StationRepository stationRepository;
     private final DeviceTypeRepository deviceTypeRepository;
     private final UserRepository userRepository;
+    private  final  GateRepository gateRepository;
 
     @Transactional(readOnly = true)
     public List<DeviceResponse> getAllDevices() {
@@ -55,6 +56,11 @@ public class DeviceService {
         Station station = stationRepository.findById(request.getStationId())
                 .orElseThrow(() -> new AppException(ErrorCode.STATION_NOT_FOUND));
 
+        Gate gate = null;
+        if (request.getGateId() != null && !request.getGateId().isEmpty()) {
+            gate = gateRepository.findById(request.getGateId())
+                    .orElseThrow(() -> new AppException(ErrorCode.GATE_NOT_FOUND));
+        }
         if (devicesRepository.existsByDeviceCode(request.getDeviceCode())) {
             throw new AppException(ErrorCode.DEVICE_CODE_EXISTED);
         }
@@ -73,6 +79,9 @@ public class DeviceService {
                 .status(request.getStatus())
                 .station(station)
                 .type(type)
+                .gate(gate)
+                .lastMaintenance(request.getLastMaintenance())
+                .createdAt(java.time.LocalDateTime.now())
                 .build();
 
         devices = devicesRepository.save(devices);
@@ -96,11 +105,20 @@ public class DeviceService {
         if (!devices.getMacAddress().equals(request.getMacAddress()) && devicesRepository.existsByMacAddress(request.getMacAddress())) {
             throw new AppException(ErrorCode.DEVICE_MACADDRESS_EXISTED);
         }
+        if (request.getGateId() != null && !request.getGateId().isBlank()) {
+            Gate gate = gateRepository.findById(request.getGateId())
+                    .orElseThrow(() -> new AppException(ErrorCode.GATE_NOT_FOUND));
+            devices.setGate(gate);
+        } else {
+            devices.setGate(null);
+        }
 
         devices.setName(request.getName());
         devices.setIpAddress(request.getIpAddress());
         devices.setMacAddress(request.getMacAddress());
         devices.setStatus(request.getStatus());
+        devices.setLastMaintenance(request.getLastMaintenance());
+        devices.setCreatedAt(java.time.LocalDateTime.now());
 
         devices = devicesRepository.save(devices);
         saveDeviceDetails(devices, request);
