@@ -38,6 +38,16 @@ type TicketTypeCard = {
   badge?: string;
 };
 
+type Step2StorageState = {
+  selectedTicketId?: string;
+  selectedTicketName?: string;
+  selectedTicketSubtitle?: string;
+  selectedTicketPrice?: number;
+  selectedOrderTotal?: number;
+  orderId?: string;
+  orderRequestKey?: string;
+};
+
 const STEP1_STORAGE_KEY = "metro-buy-ticket-step1";
 const STEP2_STORAGE_KEY = "metro-buy-ticket-step2";
 const TICKET_TYPE_LABELS: Record<string, string> = {
@@ -91,6 +101,18 @@ const buildOrderRequest = (
         ]
       : [outbound],
   };
+};
+
+const buildOrderRequestKey = (request: OrderRequest) => {
+  return JSON.stringify({
+    items: request.items.map((item) => ({
+      ticketTypeId: item.ticketTypeId,
+      quantity: item.quantity,
+      fromStationId: item.fromStationId,
+      toStationId: item.toStationId,
+      distance: item.distance ?? null,
+    })),
+  });
 };
 
 const toTicketCard = (t: TicketTypeDto): TicketTypeCard => {
@@ -203,9 +225,7 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
     const rawStep2Data = window.sessionStorage.getItem(STEP2_STORAGE_KEY);
     if (rawStep2Data) {
       try {
-        const parsedStep2 = JSON.parse(rawStep2Data) as {
-          selectedTicketId?: string;
-        };
+        const parsedStep2 = JSON.parse(rawStep2Data) as Step2StorageState;
         if (parsedStep2.selectedTicketId) setSelectedTicketId(parsedStep2.selectedTicketId);
       } catch {
         setSelectedTicketId("");
@@ -267,9 +287,23 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
       return;
     }
 
+    let existingStep2Data: Step2StorageState = {};
+    const rawStep2Data = window.sessionStorage.getItem(STEP2_STORAGE_KEY);
+    if (rawStep2Data) {
+      try {
+        existingStep2Data = JSON.parse(rawStep2Data) as Step2StorageState;
+      } catch {
+        existingStep2Data = {};
+      }
+    }
+
     window.sessionStorage.setItem(
       STEP2_STORAGE_KEY,
-      JSON.stringify({ selectedTicketId }),
+      JSON.stringify(
+        existingStep2Data.selectedTicketId === selectedTicketId
+          ? { ...existingStep2Data, selectedTicketId }
+          : { selectedTicketId },
+      ),
     );
   }, [selectedTicketId]);
 
@@ -384,9 +418,39 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
     setCreateOrderError(null);
 
     try {
-      const order = await orderApi.create(
-        buildOrderRequest(journeyWithDistance, selectedTicket.id),
-      );
+      const orderRequest = buildOrderRequest(journeyWithDistance, selectedTicket.id);
+      const orderRequestKey = buildOrderRequestKey(orderRequest);
+      const rawStep2Data =
+        typeof window !== "undefined"
+          ? window.sessionStorage.getItem(STEP2_STORAGE_KEY)
+          : null;
+      let storedStep2: Step2StorageState | null = null;
+
+      if (rawStep2Data) {
+        try {
+          storedStep2 = JSON.parse(rawStep2Data) as Step2StorageState;
+        } catch {
+          storedStep2 = null;
+        }
+      }
+
+      if (
+        storedStep2?.orderId &&
+        storedStep2.selectedTicketId === selectedTicket.id &&
+        storedStep2.orderRequestKey === orderRequestKey
+      ) {
+        await router.push({
+          pathname: "/passenger-page/buy-tickets-step-3",
+          query: {
+            ...router.query,
+            ticketType: selectedTicket.id,
+            orderId: storedStep2.orderId,
+          },
+        });
+        return;
+      }
+
+      const order = await orderApi.create(orderRequest);
 
       if (!order.id) {
         throw new Error("Phản hồi tạo đơn hàng không có orderId");
@@ -402,6 +466,7 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
             selectedTicketPrice: selectedTicket.price,
             selectedOrderTotal: totalPrice,
             orderId: order.id,
+            orderRequestKey,
           }),
         );
       }

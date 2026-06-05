@@ -39,7 +39,19 @@ const formatCountdown = (secondsUntilArrival: number) => {
   return `Còn ${minutes} phút`;
 };
 
-const getNextArrival = (schedule: ScheduleDto, now: Date) => {
+type ScheduleDisplayRow = {
+  schedule: ScheduleDto;
+  lineIndex: number;
+};
+
+const lineKey = (schedule: ScheduleDto) =>
+  `${schedule.routeId}::${schedule.direction || ""}`;
+
+const getNextArrival = (
+  schedule: ScheduleDto,
+  now: Date,
+  lineIndex = 0,
+) => {
   const baseArrivalSeconds = parseTimeToSeconds(schedule.arrivalTime);
   if (baseArrivalSeconds === null) {
     return { time: schedule.arrivalTime || "--", countdown: "" };
@@ -56,13 +68,14 @@ const getNextArrival = (schedule: ScheduleDto, now: Date) => {
       baseArrivalSeconds + Math.ceil(elapsed / frequencySeconds) * frequencySeconds;
   }
 
+  const displayArrivalSeconds = nextArrivalSeconds + lineIndex * frequencySeconds;
   const secondsUntilArrival =
-    nextArrivalSeconds >= nowSeconds
-      ? nextArrivalSeconds - nowSeconds
-      : nextArrivalSeconds + 86400 - nowSeconds;
+    displayArrivalSeconds >= nowSeconds
+      ? displayArrivalSeconds - nowSeconds
+      : displayArrivalSeconds + 86400 - nowSeconds;
 
   return {
-    time: formatSecondsAsTime(nextArrivalSeconds),
+    time: formatSecondsAsTime(displayArrivalSeconds),
     countdown: formatCountdown(secondsUntilArrival),
   };
 };
@@ -203,6 +216,15 @@ export default function PassengerSchedulePage() {
   const activeSchedules = schedules.filter((item) => item.status === "ACTIVE").length;
   const delayedSchedules = schedules.filter((item) => item.status === "DELAYED");
   const routeCount = new Set(schedules.map((item) => item.routeId)).size;
+  const scheduleRows = useMemo<ScheduleDisplayRow[]>(() => {
+    const lineCounts = new Map<string, number>();
+    return schedules.map((schedule) => {
+      const key = lineKey(schedule);
+      const lineIndex = lineCounts.get(key) ?? 0;
+      lineCounts.set(key, lineIndex + 1);
+      return { schedule, lineIndex };
+    });
+  }, [schedules]);
 
   const applyFilters = async () => {
     await loadSchedules();
@@ -373,10 +395,10 @@ export default function PassengerSchedulePage() {
                             <tr><td colSpan={5} className="px-6 py-10 text-center text-sm text-slate-500">Đang tải lịch trình...</td></tr>
                           ) : loadError ? (
                             <tr><td colSpan={5} className="px-6 py-10 text-center text-sm font-medium text-red-600">{loadError}</td></tr>
-                          ) : schedules.length === 0 ? (
+                          ) : scheduleRows.length === 0 ? (
                             <tr><td colSpan={5} className="px-6 py-10 text-center text-sm text-slate-500">Không có lịch trình phù hợp.</td></tr>
-                          ) : schedules.map((row) => {
-                            const nextArrival = getNextArrival(row, currentTime);
+                          ) : scheduleRows.map(({ schedule: row, lineIndex }) => {
+                            const nextArrival = getNextArrival(row, currentTime, lineIndex);
                             return (
                               <tr
                                 key={row.id}
