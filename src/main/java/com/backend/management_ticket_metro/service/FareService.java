@@ -33,12 +33,12 @@ public class FareService {
                 .orElseThrow(() -> new AppException(ErrorCode.TICKET_TYPE_INVALID));
 
         double ticketPrice = ticketType.getPrice();
-        // Case 1: Monthly -> lấy giá cố định trong bảng ticket_type
-        if (ticketName == TicketName.Month) {
+        // Case 1: Monthly / Daily -> lấy giá cố định trong bảng ticket_type
+        if (ticketName == TicketName.Month || ticketName == TicketName.Daily) {
             return ticketPrice;
         }
 
-        // CASE 2: Daily / SINGLE → calculate fare matrix
+        // CASE 2: SINGLE → calculate fare matrix
         validateSingleFareInput(originId, destinationId, distance);
 
         double rawPrice = 0;
@@ -46,7 +46,7 @@ public class FareService {
         if (distance <= 5){
             rawPrice = ticketPrice;
         } else {
-            rawPrice = ticketPrice + distance * SINGLE_PRICE_PER_KM;
+            rawPrice = ticketPrice + (distance - 5) * SINGLE_PRICE_PER_KM;
         }
         double roundedPrice = roundUpToNearestThousand(rawPrice);
 
