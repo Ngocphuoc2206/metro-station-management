@@ -15,7 +15,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/staff/incidents")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('STAFF')")
+@PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
 public class StaffIncidentController {
     private final IncidentService incidentService;
 
@@ -37,6 +37,7 @@ public class StaffIncidentController {
                 .build();
     }
 
+    @PreAuthorize("hasAnyRole('STAFF')")
     @PostMapping
     public ApiResponse<IncidentResponse> create(@Valid @RequestBody IncidentRequest request) {
         return ApiResponse.<IncidentResponse>builder()
@@ -44,6 +45,7 @@ public class StaffIncidentController {
                 .build();
     }
 
+    @PreAuthorize("hasAnyRole('STAFF')")
     @PatchMapping("/{id}/status")
     public ApiResponse<IncidentResponse> updateStatus(@PathVariable String id, @RequestParam String status) {
         return ApiResponse.<IncidentResponse>builder()
@@ -51,6 +53,7 @@ public class StaffIncidentController {
                 .build();
     }
 
+    @PreAuthorize("hasAnyRole('STAFF')")
     @PatchMapping("/{id}/assign")
     public ApiResponse<IncidentResponse> assignStaff(@PathVariable String id, @RequestParam String staffId) {
         return ApiResponse.<IncidentResponse>builder()
@@ -58,6 +61,7 @@ public class StaffIncidentController {
                 .build();
     }
 
+    @PreAuthorize("hasAnyRole('STAFF')")
     @PostMapping("/{id}/comments")
     public ApiResponse<IncidentCommentResponse> addComment(@PathVariable String id, @RequestBody String content) {
         return ApiResponse.<IncidentCommentResponse>builder()
