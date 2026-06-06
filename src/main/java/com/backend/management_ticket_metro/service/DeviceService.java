@@ -3,6 +3,7 @@ package com.backend.management_ticket_metro.service;
 import com.backend.management_ticket_metro.common.ErrorCode;
 import com.backend.management_ticket_metro.dto.request.DeviceRequest;
 import com.backend.management_ticket_metro.dto.response.DeviceResponse;
+import com.backend.management_ticket_metro.dto.response.DeviceTypeResponse;
 import com.backend.management_ticket_metro.entity.*;
 import com.backend.management_ticket_metro.enums.DeviceStatus;
 import com.backend.management_ticket_metro.exception.AppException;
@@ -220,5 +221,17 @@ public class DeviceService {
 
         response.setAdditionalDetails(detailsMap);
         return response;
+    }
+
+    @Transactional(readOnly = true)
+    public List<DeviceTypeResponse> getAllDeviceTypes() {
+        log.info("Lấy danh sách tất cả các loại thiết bị");
+        return deviceTypeRepository.findAll().stream()
+                .map(type -> DeviceTypeResponse.builder()
+                        .id(type.getId())
+                        .typeName(type.getTypeName())
+                        .description(type.getDescription())
+                        .build())
+                .toList();
     }
 }

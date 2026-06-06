@@ -2,6 +2,7 @@ package com.backend.management_ticket_metro.controller;
 
 import com.backend.management_ticket_metro.common.ApiResponse;
 import com.backend.management_ticket_metro.dto.response.DeviceResponse;
+import com.backend.management_ticket_metro.dto.response.DeviceTypeResponse;
 import com.backend.management_ticket_metro.service.DeviceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -31,6 +32,14 @@ public class DeviceStaffController {
     public ApiResponse<DeviceResponse> getDeviceById(@PathVariable String id) {
         DeviceResponse results = deviceService.getDeviceById(id);
         return ApiResponse.<DeviceResponse>builder()
+                .results(results)
+                .build();
+    }
+    @GetMapping("/types")
+    @PreAuthorize("hasAnyRole('ADMIN','STAFF')")
+    public ApiResponse<List<DeviceTypeResponse>> getAllDeviceTypes() {
+        List<DeviceTypeResponse> results = deviceService.getAllDeviceTypes();
+        return ApiResponse.<List<DeviceTypeResponse>>builder()
                 .results(results)
                 .build();
     }
