@@ -38,6 +38,8 @@ type TicketCard = {
   code: string;
   type: string;
   route: string;
+  issuedAt?: string;
+  expiredAt?: string;
   tone: "green" | "amber" | "red";
   disabled?: boolean;
 };
@@ -52,6 +54,8 @@ type TripRow = {
 
 const PURCHASE_SUMMARY_KEY = "metro-passenger-purchase-summary";
 const QR_TTL_FALLBACK_SECONDS = 600;
+const VIETNAM_TIME_ZONE = "Asia/Ho_Chi_Minh";
+const EXPLICIT_TIME_ZONE_PATTERN = /(?:Z|[+-]\d{2}:?\d{2})$/i;
 
 const statIcons = {
   green: Ticket,
@@ -136,17 +140,21 @@ const formatMoneyVnd = (value?: number) => {
   }).format(value);
 };
 
-const formatDateTime = (iso?: string) => {
-  if (!iso) return "--";
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return iso;
-  return new Intl.DateTimeFormat("vi-VN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(date);
+const parseApiDate = (value: string) => {
+  const trimmed = value.trim();
+  const normalized =
+    /\d{2}:\d{2}/.test(trimmed) && !EXPLICIT_TIME_ZONE_PATTERN.test(trimmed)
+      ? `${trimmed.replace(" ", "T")}Z`
+      : trimmed;
+  return new Date(normalized);
+};
+
+const formatDateTime = (value?: string) => {
+  if (!value) return "--";
+  const date = parseApiDate(value);
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleString("vi-VN", { timeZone: VIETNAM_TIME_ZONE });
 };
 
 const statusTone = (status?: string) => {
@@ -321,6 +329,8 @@ export default function PassengerPage() {
         code: t.code ? `#${t.code}` : `#${t.id}`,
         type: t.ticketTypeName || mapTicketTypeLabel(t.ticketTypeId),
         route,
+        issuedAt: t.issuedAt,
+        expiredAt: t.expiredAt || t.validTo,
         tone,
         disabled: status === "Hết hạn",
       };
@@ -548,7 +558,7 @@ export default function PassengerPage() {
                     {derivedRecentTickets.map((ticket) => (
                       <article
                         key={ticket.code}
-                        className={`rounded-3xl border border-white/60 border-t-4 bg-white/85 p-5 shadow-[0px_10px_30px_-18px_rgba(15,23,42,0.35)] backdrop-blur ${
+                        className={`flex flex-col rounded-3xl border border-white/60 border-t-4 bg-white/85 p-5 shadow-[0px_10px_30px_-18px_rgba(15,23,42,0.35)] backdrop-blur ${
                           toneClass[ticket.tone].border
                         } ${ticket.disabled || isUsedTicketStatus(ticket.status) ? "opacity-75" : ""}`}
                       >
@@ -566,16 +576,37 @@ export default function PassengerPage() {
                         <p className="text-xs font-bold uppercase tracking-tight text-slate-500">
                           {ticket.type}
                         </p>
-                        <p className="mb-4 text-base font-bold leading-6 text-slate-900">
+                        <p className="mb-3 text-base font-bold leading-6 text-slate-900">
                           {ticket.route}
                         </p>
+
+                        <div className="mb-4 space-y-2 rounded-2xl border border-slate-100 bg-slate-50/80 px-3 py-2.5 text-xs text-slate-600">
+                          <div className="flex items-start justify-between gap-3">
+                            <span>Ngày mua</span>
+                            <span className="text-right font-semibold text-slate-800">
+                              {formatDateTime(ticket.issuedAt)}
+                            </span>
+                          </div>
+                          <div className="flex items-start justify-between gap-3">
+                            <span>Trạng thái</span>
+                            <span className="text-right font-semibold text-blue-600">
+                              {ticket.status}
+                            </span>
+                          </div>
+                          <div className="flex items-start justify-between gap-3">
+                            <span>Hạn sử dụng</span>
+                            <span className="text-right font-semibold text-amber-600">
+                              Đến {formatDateTime(ticket.expiredAt)}
+                            </span>
+                          </div>
+                        </div>
 
                         <button
                           type="button"
                           onClick={() => {
                             if (!ticket.disabled && !isUsedTicketStatus(ticket.status)) setSelectedTicket(ticket);
                           }}
-                          className={`${isUsedTicketStatus(ticket.status) ? "hidden" : "inline-flex"} w-full items-center justify-center gap-1 rounded-2xl py-2 text-xs font-bold ${
+                          className={`${isUsedTicketStatus(ticket.status) ? "hidden" : "mt-auto inline-flex"} w-full items-center justify-center gap-1 rounded-2xl py-2 text-xs font-bold ${
                             ticket.disabled
                               ? "border border-slate-300 text-slate-500"
                               : "border border-blue-600 text-blue-600"

@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
+import type { GateResponse } from "@features/staffGate/staffGateTypes";
 import type { Station } from "@features/station/stationTypes";
 import type {
   AdminDeviceRequest,
   AdminDeviceResponse,
   AdminDeviceStatus,
+  AdminDeviceTypeOption,
   DeviceDetailKind,
 } from "@features/adminDevice/adminDeviceTypes";
 
@@ -14,8 +16,10 @@ type DeviceForm = {
   ipAddress: string;
   macAddress: string;
   stationId: string;
+  gateId: string;
   typeId: string;
   status: AdminDeviceStatus;
+  lastMaintenance: string;
   detailKind: DeviceDetailKind;
   directionMode: string;
   gateType: string;
@@ -25,6 +29,8 @@ type DeviceForm = {
   acceptedPaymentMethods: string;
   cashBoxFull: boolean;
   printerInkLevel: string;
+  readerFirmwareVersion: string;
+  maxTopupLimit: string;
   batteryLevel: string;
   osVersion: string;
   assignedStaffId: string;
@@ -34,6 +40,8 @@ interface Props {
   isOpen: boolean;
   device: AdminDeviceResponse | null;
   stations: Station[];
+  gates: GateResponse[];
+  typeOptions: AdminDeviceTypeOption[];
   onClose: () => void;
   onSubmit: (payload: AdminDeviceRequest) => Promise<void>;
 }
@@ -44,8 +52,10 @@ const emptyForm: DeviceForm = {
   ipAddress: "",
   macAddress: "",
   stationId: "",
+  gateId: "",
   typeId: "",
   status: "ACTIVE",
+  lastMaintenance: "",
   detailKind: "GATE",
   directionMode: "IN",
   gateType: "",
@@ -55,6 +65,8 @@ const emptyForm: DeviceForm = {
   acceptedPaymentMethods: "",
   cashBoxFull: false,
   printerInkLevel: "",
+  readerFirmwareVersion: "",
+  maxTopupLimit: "",
   batteryLevel: "",
   osVersion: "",
   assignedStaffId: "",
@@ -69,11 +81,20 @@ function boolDetail(device: AdminDeviceResponse, key: string) {
   return device.additionalDetails?.[key] === true;
 }
 
-function inferDetailKind(device: AdminDeviceResponse): DeviceDetailKind {
-  const type = (device.typeName ?? "").toUpperCase();
+function inferDetailKindFromName(typeName?: string): DeviceDetailKind {
+  const type = (typeName ?? "").toUpperCase();
+  if (type.includes("TOPUP") || type.includes("NẠP") || type.includes("NAP")) return "TOPUP_MACHINE";
   if (type.includes("TICKET") || type.includes("TVM")) return "TICKET_MACHINE";
   if (type.includes("SCAN")) return "SCANNER";
   return "GATE";
+}
+
+function inferDetailKind(device: AdminDeviceResponse): DeviceDetailKind {
+  return inferDetailKindFromName(device.typeName);
+}
+
+function formatDateTimeLocal(value?: string) {
+  return value ? value.slice(0, 16) : "";
 }
 
 function optionalNumber(value: string) {
@@ -106,6 +127,8 @@ export default function AdminDeviceFormModal({
   isOpen,
   device,
   stations,
+  gates,
+  typeOptions,
   onClose,
   onSubmit,
 }: Props) {
@@ -127,10 +150,12 @@ export default function AdminDeviceFormModal({
       ipAddress: device.ipAddress ?? "",
       macAddress: device.macAddress ?? "",
       stationId: device.stationId ?? "",
+      gateId: device.gateId ?? "",
       typeId: device.typeId ?? "",
       status: (["ACTIVE", "INACTIVE", "ERROR", "MAINTENANCE"].includes(device.status.toUpperCase())
         ? device.status.toUpperCase()
         : "INACTIVE") as AdminDeviceStatus,
+      lastMaintenance: formatDateTimeLocal(device.lastMaintenance),
       detailKind: inferDetailKind(device),
       directionMode: detailValue(device, "directionMode") || "IN",
       gateType: detailValue(device, "gateType"),
@@ -140,6 +165,8 @@ export default function AdminDeviceFormModal({
       acceptedPaymentMethods: detailValue(device, "acceptedPaymentMethods"),
       cashBoxFull: boolDetail(device, "cashBoxFull"),
       printerInkLevel: detailValue(device, "printerInkLevel"),
+      readerFirmwareVersion: detailValue(device, "readerFirmwareVersion"),
+      maxTopupLimit: detailValue(device, "maxTopupLimit"),
       batteryLevel: detailValue(device, "batteryLevel"),
       osVersion: detailValue(device, "osVersion"),
       assignedStaffId: detailValue(device, "assignedStaffId"),
@@ -152,6 +179,37 @@ export default function AdminDeviceFormModal({
     () => stations.find((station) => station.id === form.stationId)?.name,
     [form.stationId, stations],
   );
+  const formTypeOptions = useMemo(() => {
+    if (!device?.typeId || !device.typeName || typeOptions.some((type) => type.id === device.typeId)) {
+      return typeOptions;
+    }
+    return [...typeOptions, { id: device.typeId, name: device.typeName }];
+  }, [device?.typeId, device?.typeName, typeOptions]);
+  const selectedTypeName = useMemo(
+    () => formTypeOptions.find((type) => type.id === form.typeId)?.name ?? "",
+    [form.typeId, formTypeOptions],
+  );
+  const filteredGates = useMemo(
+    () => {
+      const stationGates = gates.filter((gate) => !form.stationId || !gate.stationId || gate.stationId === form.stationId);
+      if (!device?.gateId || stationGates.some((gate) => gate.gateId === device.gateId)) {
+        return stationGates;
+      }
+      return [
+        ...stationGates,
+        {
+          gateId: device.gateId,
+          gateCode: device.gateName ?? device.gateId,
+          name: device.gateName ?? device.gateId,
+          stationId: device.stationId ?? "",
+          stationName: device.stationName ?? "",
+          action: "",
+          status: "",
+        },
+      ];
+    },
+    [device, form.stationId, gates],
+  );
 
   if (!isOpen) return null;
 
@@ -159,14 +217,27 @@ export default function AdminDeviceFormModal({
     setForm((current) => ({ ...current, [key]: value }));
   };
 
+  const setTypeId = (typeId: string) => {
+    const typeName = formTypeOptions.find((type) => type.id === typeId)?.name;
+    setForm((current) => ({
+      ...current,
+      typeId,
+      detailKind: inferDetailKindFromName(typeName),
+    }));
+  };
+
+  const setStationId = (stationId: string) => {
+    setForm((current) => ({ ...current, stationId, gateId: "" }));
+  };
+
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!form.deviceCode.trim() || !form.name.trim() || !form.stationId || !form.typeId.trim()) {
-      setError("Vui lòng nhập mã, tên, ga và Type ID của thiết bị.");
+      setError("Vui lòng nhập mã, tên, ga và loại thiết bị.");
       return;
     }
     if (!uuidPattern.test(form.stationId) || !uuidPattern.test(form.typeId.trim())) {
-      setError("Ga và Type ID phải là ID UUID hợp lệ theo backend.");
+      setError("Ga và loại thiết bị phải là ID UUID hợp lệ theo backend.");
       return;
     }
     if (form.detailKind === "GATE" && (!form.directionMode || !form.gateType.trim())) {
@@ -185,7 +256,9 @@ export default function AdminDeviceFormModal({
       macAddress: form.macAddress.trim() || undefined,
       status: form.status,
       stationId: form.stationId,
+      gateId: form.gateId || undefined,
       typeId: form.typeId.trim(),
+      lastMaintenance: form.lastMaintenance || undefined,
     };
     if (form.detailKind === "GATE") {
       payload.directionMode = form.directionMode;
@@ -197,6 +270,9 @@ export default function AdminDeviceFormModal({
       payload.acceptedPaymentMethods = form.acceptedPaymentMethods.trim() || undefined;
       payload.cashBoxFull = form.cashBoxFull;
       payload.printerInkLevel = optionalNumber(form.printerInkLevel);
+    } else if (form.detailKind === "TOPUP_MACHINE") {
+      payload.readerFirmwareVersion = form.readerFirmwareVersion.trim() || undefined;
+      payload.maxTopupLimit = optionalNumber(form.maxTopupLimit);
     } else {
       payload.batteryLevel = optionalNumber(form.batteryLevel);
       payload.osVersion = form.osVersion.trim() || undefined;
@@ -241,24 +317,42 @@ export default function AdminDeviceFormModal({
             </label>
             <label className="space-y-1.5">
               <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500">Ga *</span>
-              <select value={form.stationId} onChange={(event) => set("stationId", event.target.value)} className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-blue-400 focus:outline-none">
+              <select value={form.stationId} onChange={(event) => setStationId(event.target.value)} className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-blue-400 focus:outline-none">
                 <option value="">Chọn ga</option>
                 {stations.map((station) => <option key={station.id} value={station.id}>{station.name}</option>)}
               </select>
             </label>
-            <Field label="Type ID *" value={form.typeId} onChange={(value) => set("typeId", value)} placeholder="UUID loại thiết bị" />
+            <label className="space-y-1.5">
+              <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500">Loại thiết bị *</span>
+              <select value={form.typeId} onChange={(event) => setTypeId(event.target.value)} className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-blue-400 focus:outline-none">
+                <option value="">Chọn loại thiết bị</option>
+                {formTypeOptions.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}
+              </select>
+            </label>
+            <label className="space-y-1.5">
+              <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500">Cổng</span>
+              <select value={form.gateId} onChange={(event) => set("gateId", event.target.value)} className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-blue-400 focus:outline-none">
+                <option value="">Không gắn cổng</option>
+                {filteredGates.map((gate) => (
+                  <option key={gate.gateId} value={gate.gateId}>
+                    {gate.name || gate.gateCode || gate.gateId}
+                  </option>
+                ))}
+              </select>
+            </label>
             <Field label="IP Address" value={form.ipAddress} onChange={(value) => set("ipAddress", value)} placeholder="192.168.1.10" />
             <Field label="MAC Address" value={form.macAddress} onChange={(value) => set("macAddress", value)} placeholder="00:1A:2B:3C:4D:5E" />
+            <Field label="Last maintenance" value={form.lastMaintenance} onChange={(value) => set("lastMaintenance", value)} type="datetime-local" />
           </div>
 
           <div className="my-6 border-t border-gray-100" />
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Thông tin chi tiết theo loại</p>
-            <select value={form.detailKind} onChange={(event) => set("detailKind", event.target.value as DeviceDetailKind)} className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm focus:border-blue-400 focus:outline-none">
-              <option value="GATE">Gate</option>
-              <option value="TICKET_MACHINE">Ticket machine</option>
-              <option value="SCANNER">Scanner</option>
-            </select>
+            {selectedTypeName ? (
+              <span className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-700">
+                {selectedTypeName}
+              </span>
+            ) : null}
           </div>
           {form.detailKind === "GATE" ? (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
@@ -280,6 +374,11 @@ export default function AdminDeviceFormModal({
               <Field label="Payment methods" value={form.acceptedPaymentMethods} onChange={(value) => set("acceptedPaymentMethods", value)} placeholder="CASH,CARD,QR" />
               <Field label="Printer ink level" value={form.printerInkLevel} onChange={(value) => set("printerInkLevel", value)} type="number" />
               <Checkbox label="Cash box full" checked={form.cashBoxFull} onChange={(value) => set("cashBoxFull", value)} />
+            </div>
+          ) : form.detailKind === "TOPUP_MACHINE" ? (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <Field label="Reader firmware version" value={form.readerFirmwareVersion} onChange={(value) => set("readerFirmwareVersion", value)} placeholder="FW-1.0.0" />
+              <Field label="Max topup limit" value={form.maxTopupLimit} onChange={(value) => set("maxTopupLimit", value)} type="number" />
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -312,7 +411,7 @@ function Field({
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
-  type?: "text" | "number";
+  type?: "text" | "number" | "datetime-local";
 }) {
   return (
     <label className="space-y-1.5">
