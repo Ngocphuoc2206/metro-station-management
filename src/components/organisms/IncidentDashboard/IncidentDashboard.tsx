@@ -1,19 +1,17 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useEffect } from "react";
-import IncidentFilterBar from "./IncidentFilterBar";
-import IncidentKanbanView from "./IncidentKanbanView";
+/* eslint-disable react-hooks/exhaustive-deps */
+import React, { useState, useEffect, useMemo } from "react";
 import IncidentTableView from "./IncidentTableView";
 import CreateIncidentModal from "./CreateIncidentModal";
+import IncidentDetailModal from "./IncidentDetailModal";
 import { incidentApi } from "@features/incident/incidentApi";
 import type {
   IncidentFilterParams,
   IncidentRecord,
-  IncidentStatus,
 } from "@features/incident/incidentTypes";
 
 export default function IncidentDashboard() {
-  const [viewMode, setViewMode] = useState<"kanban" | "table">("kanban");
-  const [filters, setFilters] = useState<IncidentFilterParams>({
+  const [filters] = useState<IncidentFilterParams>({
     stationId: "all",
     deviceType: "all",
     severity: "all" as any,
@@ -21,15 +19,35 @@ export default function IncidentDashboard() {
 
   const [incidents, setIncidents] = useState<IncidentRecord[]>([]);
   const [loading, setLoading] = useState(true);
-
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [selectedIncident, setSelectedIncident] = useState<IncidentRecord | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  // Lưu ảnh bằng chứng xử lý theo incidentId (base64) — persist qua F5 nhờ localStorage
+  const [evidenceStore, setEvidenceStore] = useState<Record<string, string[]>>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const raw = localStorage.getItem("incident_evidence_v1");
+      return raw ? (JSON.parse(raw) as Record<string, string[]>) : {};
+    } catch {
+      return {};
+    }
+  });
 
   useEffect(() => {
     loadIncidents();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters]); // Re-fetch khi filter thay đổi
+  }, [filters]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Sync evidenceStore → localStorage mỗi khi có thay đổi
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      localStorage.setItem("incident_evidence_v1", JSON.stringify(evidenceStore));
+    } catch {
+      // localStorage đầy (ảnh base64 nặng) — bỏ qua, không crash
+      console.warn("[IncidentDashboard] localStorage full, evidence images not persisted");
+    }
+  }, [evidenceStore]);
+
   async function loadIncidents() {
     setLoading(true);
     try {
@@ -42,60 +60,163 @@ export default function IncidentDashboard() {
     }
   }
 
-  const handleStatusChange = async (
-    incidentId: string,
-    newStatus: IncidentStatus,
-  ) => {
-    // Optimistic UI update
-    setIncidents((prev) =>
-      prev.map((i) => (i.id === incidentId ? { ...i, status: newStatus } : i)),
+  const filteredIncidents = useMemo(() => {
+    if (!searchQuery.trim()) return incidents;
+    const q = searchQuery.toLowerCase();
+    return incidents.filter(
+      (i) =>
+        i.id.toLowerCase().includes(q) ||
+        i.title.toLowerCase().includes(q) ||
+        (i.assigneeName ?? "").toLowerCase().includes(q),
     );
+  }, [incidents, searchQuery]);
 
-    try {
-      await incidentApi.updateIncidentStatus(incidentId, newStatus);
-    } catch (e) {
-      console.error(e);
-      // Revert if failed
-      loadIncidents();
-    }
-  };
+  // Stats computed from incidents
+  const stats = useMemo(() => {
+    const total = incidents.length;
+    const highPriority = incidents.filter(
+      (i) => i.severity === "high" || i.severity === "critical",
+    ).length;
+    const inProgress = incidents.filter(
+      (i) => i.status === "InProgress" || i.status === "Escalated" || i.status === "Assigned",
+    ).length;
+    const resolved = incidents.filter(
+      (i) => i.status === "Resolved" || i.status === "Closed",
+    ).length;
+    return { total, highPriority, inProgress, resolved };
+  }, [incidents]);
 
   return (
-    <div className="max-w-[1400px] h-full flex flex-col space-y-6">
-      {/* Header + Filter ở trên cùng */}
-      <div className="shrink-0">
-        <IncidentFilterBar
-          viewMode={viewMode}
-          onChangeView={setViewMode}
-          filters={filters}
-          onFilterChange={setFilters}
-          onOpenCreate={() => setIsCreateOpen(true)}
-        />
+    <div className="flex flex-col space-y-6 w-full">
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-1.5 text-sm text-gray-500 font-medium">
+        <span>Nhân viên ga</span>
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+        </svg>
+        <span className="text-blue-600 font-semibold">Quản lý sự cố</span>
       </div>
 
-      {/* Main Content Area (Kanban or Table) */}
-      <div className="flex-1 min-h-[500px]">
-        {loading ? (
-          <div className="h-full flex items-center justify-center">
-            <div className="text-gray-400 font-medium animate-pulse text-lg">
-              Đang tải dữ liệu...
-            </div>
+      {/* Page Header */}
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-3xl font-black text-gray-900 tracking-tight">Quản lý sự cố</h1>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsCreateOpen(true)}
+            className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors shadow-sm shadow-blue-200"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            Tạo sự cố mới
+          </button>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white rounded-2xl border border-gray-100 p-5 flex items-center gap-4 shadow-sm">
+          <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
+            <svg className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
           </div>
-        ) : viewMode === "kanban" ? (
-          <IncidentKanbanView
-            incidents={incidents}
-            onStatusChange={handleStatusChange}
-          />
-        ) : (
-          <IncidentTableView incidents={incidents} />
-        )}
+          <div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Tổng số lỗi</div>
+            <div className="text-2xl font-black text-gray-900">{loading ? "—" : stats.total}</div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-gray-100 p-5 flex items-center gap-4 shadow-sm">
+          <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center shrink-0">
+            <svg className="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Ưu tiên cao</div>
+            <div className="text-2xl font-black text-gray-900">{loading ? "—" : stats.highPriority}</div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-gray-100 p-5 flex items-center gap-4 shadow-sm">
+          <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center shrink-0">
+            <svg className="w-5 h-5 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Đang xử lý</div>
+            <div className="text-2xl font-black text-gray-900">{loading ? "—" : stats.inProgress}</div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-gray-100 p-5 flex items-center gap-4 shadow-sm">
+          <div className="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center shrink-0">
+            <svg className="w-5 h-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Hoàn thành</div>
+            <div className="text-2xl font-black text-gray-900">{loading ? "—" : stats.resolved}</div>
+          </div>
+        </div>
       </div>
 
+      {/* Table */}
+      <IncidentTableView
+        incidents={filteredIncidents}
+        loading={loading}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        onViewDetail={setSelectedIncident}
+      />
+
+      {/* Emergency Support Banner */}
+      <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 flex items-start gap-4">
+        <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center shrink-0">
+          <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <div>
+          <div className="font-bold text-blue-900 text-sm mb-0.5">Cần hỗ trợ kỹ thuật khẩn cấp?</div>
+          <div className="text-blue-700 text-sm">
+            Nếu sự cố ảnh hưởng trực tiếp đến an toàn vận hành, vui lòng liên hệ trực tiếp với bộ phận kỹ thuật qua kênh liên lạc ưu tiên cấp 1.
+          </div>
+        </div>
+      </div>
+
+      {/* Modals */}
       <CreateIncidentModal
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
-        onSuccess={loadIncidents}
+        onSuccess={(formData) => {
+          // Optimistic: reload list (BE may return wrong severity, but we refresh promptly)
+          loadIncidents();
+          // If the list still shows wrong severity after refresh, patch it
+          setIncidents((prev) =>
+            prev.map((inc) =>
+              inc.severity !== formData.severity && inc.title === formData.title
+                ? { ...inc, severity: formData.severity as any }
+                : inc,
+            ),
+          );
+        }}
       />
+
+      {selectedIncident && (
+        <IncidentDetailModal
+          incident={selectedIncident}
+          onClose={() => setSelectedIncident(null)}
+          onStatusUpdated={loadIncidents}
+          evidenceImages={evidenceStore[selectedIncident.id] ?? []}
+          onEvidenceSaved={(id, dataUrls) =>
+            setEvidenceStore((prev) => ({ ...prev, [id]: dataUrls }))
+          }
+        />
+      )}
     </div>
   );
 }

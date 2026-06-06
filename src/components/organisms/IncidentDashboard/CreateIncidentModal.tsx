@@ -30,7 +30,8 @@ type FormValues = z.infer<typeof formSchema>;
 interface CreateIncidentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  /** Gọi sau khi tạo thành công — truyền form data để Dashboard có thể optimistic update */
+  onSuccess: (formData: FormValues) => void;
 }
 
 export default function CreateIncidentModal({
@@ -100,7 +101,7 @@ export default function CreateIncidentModal({
       } as IncidentFormData);
       toast.success("Tạo sự cố thành công!");
       handleClose();
-      onSuccess();
+      onSuccess(data);
     } catch (error) {
       console.error(error);
       toast.error("Tạo sự cố thất bại. Vui lòng thử lại!");
