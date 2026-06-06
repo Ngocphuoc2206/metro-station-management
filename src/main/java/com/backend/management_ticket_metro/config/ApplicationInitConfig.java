@@ -92,21 +92,21 @@ public class ApplicationInitConfig {
 
 //            upsertTicketType(
 //                    TicketName.Single,
-//                    8000.0,
+//                    5000.0,
 //                    "Vé lượt dùng cho một chuyến đi trong ngày",
 //                    1
 //            );
 //
 //            upsertTicketType(
 //                    TicketName.Daily,
-//                    40000.0,
+//                    50000.0,
 //                    "Vé ngày dùng để đi nhiều chuyến trong ngày",
 //                    1
 //            );
 //
 //            upsertTicketType(
 //                    TicketName.Month,
-//                    300000.0,
+//                    150000.0,
 //                    "Vé tháng dùng để đi nhiều chuyến trong 30 ngày",
 //                    30
 //            );
