@@ -26,7 +26,6 @@ const STAFF_NAV = [
 export default function StaffSidebar() {
   const { name } = useSelector((s: RootState) => s.userReducer);
   const handleLogout = useLogout();
-  const displayName = name && !name.includes("@") ? name : "Nhân viên";
 
   // Nếu name trống hoặc trùng email → dùng phần trước @ của email làm tên hiển thị
   const isNameEmail = name && name.includes("@");
