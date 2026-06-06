@@ -13,14 +13,7 @@ export default function StaffLayout({ children, wide = false }: Props) {
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Top bar */}
         <header className="sticky top-0 z-10 flex w-full items-center justify-between gap-3 border-b border-gray-100 bg-white px-3 py-3 sm:px-5 lg:px-8">
-          <div className="flex-1 lg:max-w-xl">
-            <div className="relative">
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <input type="text" placeholder="Tìm kiếm dữ liệu, thiết bị..." className="w-full rounded-full border border-gray-100 bg-gray-50 py-2 pl-9 pr-4 text-sm transition focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100" />
-            </div>
-          </div>
+          <div className="flex-1" />
 
           <div className="ml-3 flex items-center gap-3 sm:gap-4">
             <button className="relative text-gray-400 hover:text-gray-700 transition">

@@ -326,9 +326,28 @@ export default function MyTicketsPage() {
       </PassengerShell>
 
       {(selectedTicket || detailLoading || detailError) && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/40">
-          <aside className="h-full w-full max-w-md overflow-y-auto bg-white p-6 shadow-xl">
-            <div className="flex items-center justify-between"><h2 className="text-xl font-bold">Chi tiết vé</h2><button onClick={() => { setSelectedTicket(null); setDetailError(null); }}><X /></button></div>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+          onClick={() => { setSelectedTicket(null); setDetailError(null); }}
+        >
+          <div
+            className="max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ticket-detail-title"
+          >
+            <div className="flex items-center justify-between gap-4">
+              <h2 id="ticket-detail-title" className="text-xl font-bold">Chi tiết vé</h2>
+              <button
+                type="button"
+                onClick={() => { setSelectedTicket(null); setDetailError(null); }}
+                className="flex h-9 w-9 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                aria-label="Đóng chi tiết vé"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
             {detailLoading ? <p className="mt-8 text-sm text-slate-500">Đang tải chi tiết...</p> : null}
             {detailError ? <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{detailError}</p> : null}
             {selectedTicket ? <div className="mt-6 space-y-4 text-sm">
@@ -349,7 +368,7 @@ export default function MyTicketsPage() {
               {history.map((row) => <div key={row.id} className="rounded-xl bg-slate-50 p-3"><p className="font-semibold">{row.action || row.result || "Sử dụng vé"}</p><p className="text-slate-500">{formatTime(row.time)} - {row.stationName || getStationName(row.stationId) || "--"} - {row.gateCode || "--"}</p></div>)}
               {!history.length ? <p className="text-slate-500">Chưa có lịch sử sử dụng.</p> : null}
             </div> : null}
-          </aside>
+          </div>
         </div>
       )}
 

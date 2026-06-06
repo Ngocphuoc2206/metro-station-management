@@ -531,17 +531,6 @@ export default function PassengerChatbotWidget() {
         </section>
       ) : null}
 
-      {!isOpen ? (
-        <button
-          type="button"
-          onClick={() => setIsOpen(true)}
-          className="metro-chat-panel max-w-[260px] rounded-2xl rounded-br-md border border-blue-100 bg-white/95 px-4 py-3 text-left text-sm font-semibold leading-5 text-slate-700 shadow-lg shadow-blue-950/10 backdrop-blur transition hover:-translate-y-0.5 hover:border-blue-200 hover:text-blue-700"
-          aria-label="Mo loi chao chatbot"
-        >
-          Xin chào, tôi là trợ lý ảo của MetroNext. Bạn cần mình hỗ trợ gì?
-        </button>
-      ) : null}
-
       <button
         type="button"
         onClick={() => setIsOpen((value) => !value)}

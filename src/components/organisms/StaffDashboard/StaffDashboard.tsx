@@ -142,8 +142,8 @@ export default function StaffDashboard() {
   const [incidentPriority, setIncidentPriority] = useState("");
   const [loading, setLoading] = useState(true);
   const [clock, setClock] = useState(getNow());
-  const [autoRefresh, setAutoRefresh] = useState(true);
   const [chartRange, setChartRange] = useState<"24h"|"7d">("24h");
+  const [searchQuery, setSearchQuery] = useState("");
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Live clock
@@ -189,31 +189,37 @@ export default function StaffDashboard() {
     fetchAll();
   }, [fetchAll]);
 
-  // Auto refresh every 30s
   useEffect(() => {
-    if (autoRefresh) {
-      intervalRef.current = setInterval(fetchAll, 30000);
-    } else {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    }
+    intervalRef.current = setInterval(fetchAll, 30000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [autoRefresh, fetchAll]);
+  }, [fetchAll]);
+
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const getStationName = (stationId?: string) =>
+    stations.find((station) => station.stationId === stationId)?.name ?? "";
+  const matchesSearch = (...values: Array<string | undefined>) =>
+    !normalizedSearch ||
+    values.some((value) => (value ?? "").toLowerCase().includes(normalizedSearch));
 
   const displayedGates = gates.filter(
     (gate) =>
       (!selectedStationId || gate.stationId === selectedStationId) &&
-      (!selectedDeviceId || gate.gateId === selectedDeviceId),
+      (!selectedDeviceId || gate.gateId === selectedDeviceId) &&
+      matchesSearch(gate.gateId, gate.gateCode, gate.name, gate.stationName, getStationName(gate.stationId)),
   );
   const online = displayedGates.filter((gate) => getGateStatus(gate) === "ONLINE");
   const offline = displayedGates.filter((gate) => getGateStatus(gate) === "OFFLINE");
   const errorD = displayedGates.filter((gate) => getGateStatus(gate) === "ERROR");
   const displayedLiveStatuses = liveStationStatuses.filter(
-    (station) => !selectedStationId || station.stationId === selectedStationId,
+    (station) =>
+      (!selectedStationId || station.stationId === selectedStationId) &&
+      matchesSearch(station.stationId, getStationName(station.stationId), station.status),
   );
   const displayedDevices = devices.filter(
     (device) =>
       (!selectedStationId || device.stationId === selectedStationId) &&
-      (!selectedDeviceId || device.id === selectedDeviceId),
+      (!selectedDeviceId || device.id === selectedDeviceId) &&
+      matchesSearch(device.id, device.name, device.type, device.stationName, getStationName(device.stationId)),
   );
   const congestionLevel = displayedLiveStatuses.reduce(
     (maximum, station) => Math.max(maximum, station.congestionLevel ?? 0),
@@ -228,7 +234,8 @@ export default function StaffDashboard() {
   const selectedLogs = gateLogs.filter(
     (log) =>
       (!selectedStationId || log.stationId === selectedStationId) &&
-      (!selectedDeviceId || log.gateId === selectedDeviceId),
+      (!selectedDeviceId || log.gateId === selectedDeviceId) &&
+      matchesSearch(log.gateId, log.gateCode, log.ticketId, log.ticketCode, log.stationName, getStationName(log.stationId)),
   );
   const displayedLogs = filterLogsByHours(selectedLogs, timeWindow === "1h" ? 1 : timeWindow === "24h" ? 24 : 24 * 7);
   const acceptedLogs = displayedLogs.filter((log) => log.result === "ALLOW");
@@ -241,7 +248,17 @@ export default function StaffDashboard() {
     (incident) =>
       (!selectedStationId || incident.stationId === selectedStationId) &&
       (!incidentStatus || incident.status?.toUpperCase() === incidentStatus) &&
-      (!incidentPriority || getSev(incident) === incidentPriority),
+      (!incidentPriority || getSev(incident) === incidentPriority) &&
+      matchesSearch(
+        incident.title,
+        incident.description,
+        incident.stationName,
+        getStationName(incident.stationId),
+        incident.gateId,
+        incident.gateCode,
+        incident.deviceId,
+        incident.deviceCode,
+      ),
   );
   const systemAlertCount =
     displayedIncidents.filter(isOpenIncident).length +
@@ -285,11 +302,23 @@ export default function StaffDashboard() {
       </div>
 
       {/* ── Filter Bar ── */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 flex items-center gap-3 flex-wrap">
-        <button className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition">
+      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-gray-100 bg-white px-4 py-3 shadow-sm">
+        <div className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-600">
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z"/></svg>
           Bộ lọc
-        </button>
+        </div>
+        <div className="relative min-w-[240px] flex-1">
+          <svg className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Tìm ga, thiết bị, cổng, mã vé..."
+            className="h-10 w-full rounded-xl border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-sm text-gray-800 outline-none transition focus:border-blue-300 focus:bg-white focus:ring-2 focus:ring-blue-100"
+          />
+        </div>
         <select
           value={selectedStationId}
           onChange={(event) => {
@@ -307,7 +336,7 @@ export default function StaffDashboard() {
             }
           }}
           aria-label="Lọc theo ga"
-          className="text-xs border border-gray-200 rounded-lg px-3 py-1.5 bg-gray-50 text-gray-700 focus:outline-none"
+          className="h-10 min-w-40 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100"
         >
           <option value="">Tất cả ga</option>
           {stations.map((station) => (
@@ -320,7 +349,7 @@ export default function StaffDashboard() {
           value={selectedDeviceId}
           onChange={(event) => setSelectedDeviceId(event.target.value)}
           aria-label="Lọc theo thiết bị"
-          className="text-xs border border-gray-200 rounded-lg px-3 py-1.5 bg-gray-50 text-gray-700 focus:outline-none"
+          className="h-10 min-w-44 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100"
         >
           <option value="">Tất cả thiết bị</option>
           {devices
@@ -335,32 +364,15 @@ export default function StaffDashboard() {
           value={timeWindow}
           onChange={(event) => setTimeWindow(event.target.value as "1h" | "24h" | "7d")}
           aria-label="Lọc theo khoảng thời gian"
-          className="text-xs border border-gray-200 rounded-lg px-3 py-1.5 bg-gray-50 text-gray-700 focus:outline-none"
+          className="h-10 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100"
         >
           <option value="1h">1 giờ</option>
           <option value="24h">24 giờ</option>
           <option value="7d">7 ngày</option>
         </select>
 
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex h-10 items-center rounded-xl bg-gray-50 px-3">
           <span className="text-xs text-gray-400 font-mono">Cập nhật: {clock}</span>
-          {/* Auto toggle */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-gray-600">Tự động</span>
-            <button
-              onClick={() => setAutoRefresh(v => !v)}
-              className={`relative h-5 w-9 rounded-full transition-colors ${autoRefresh ? "bg-blue-600" : "bg-gray-200"}`}
-            >
-              <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${autoRefresh ? "left-[18px]" : "left-0.5"}`} />
-            </button>
-          </div>
-          <button
-            onClick={fetchAll}
-            className="flex items-center gap-1.5 text-xs font-bold text-blue-600 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-            Làm mới
-          </button>
         </div>
       </div>
 

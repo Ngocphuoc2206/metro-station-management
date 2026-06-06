@@ -986,7 +986,7 @@ function StaffScanPage() {
 
               <div className="rounded-[28px] border border-emerald-200 bg-emerald-50 px-5 py-4 shadow-sm">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-700">
-                  Pass
+                  Thành công
                 </div>
                 <div className="mt-3 text-3xl font-black leading-none text-emerald-700">
                   {shiftPassCount}
@@ -998,7 +998,7 @@ function StaffScanPage() {
 
               <div className="rounded-[28px] border border-rose-200 bg-rose-50 px-5 py-4 shadow-sm">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-rose-700">
-                  Fail
+                  Từ chối
                 </div>
                 <div className="mt-3 text-3xl font-black leading-none text-rose-700">
                   {shiftFailCount}
