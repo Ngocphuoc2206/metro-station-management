@@ -100,7 +100,7 @@ export default function UserFormModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[600px] overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-150 overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="px-6 py-5 flex items-center justify-between border-b border-gray-100">
           <h2 className="text-xl font-bold text-gray-900">
@@ -271,6 +271,7 @@ export default function UserFormModal({
                   onClick={() =>
                     setValue(
                       "status",
+                      // eslint-disable-next-line react-hooks/incompatible-library
                       watch("status") === "active" ? "inactive" : "active",
                     )
                   }
