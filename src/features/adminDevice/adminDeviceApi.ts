@@ -27,8 +27,11 @@ function normalizeDevice(raw: RawDevice): AdminDeviceResponse {
     status: raw.status ?? "INACTIVE",
     stationId: raw.stationId,
     stationName: raw.stationName,
+    gateId: raw.gateId,
+    gateName: raw.gateName,
     typeId: raw.typeId,
     typeName: raw.typeName ?? raw.type ?? raw.deviceType,
+    lastMaintenance: raw.lastMaintenance,
     additionalDetails: raw.additionalDetails ?? raw.config,
   };
 }
