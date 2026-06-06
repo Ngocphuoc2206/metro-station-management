@@ -131,6 +131,24 @@ const mapTicketTypeLabel = (ticketTypeId?: string) => {
   return "Vé Lượt";
 };
 
+const translateTicketTypeName = (ticketTypeName?: string, ticketTypeId?: string) => {
+  const rawName = (ticketTypeName ?? "").trim();
+  const normalized = rawName.toLowerCase();
+
+  if (normalized === "month" || normalized.includes("monthly")) return "Vé Tháng";
+  if (normalized === "day" || normalized.includes("daily")) return "Vé Ngày";
+  if (
+    normalized === "single" ||
+    normalized === "one-way" ||
+    normalized === "one way" ||
+    normalized.includes("single trip")
+  ) {
+    return "Vé Lượt";
+  }
+
+  return rawName || mapTicketTypeLabel(ticketTypeId);
+};
+
 const formatMoneyVnd = (value?: number) => {
   if (typeof value !== "number") return "0đ";
   return new Intl.NumberFormat("vi-VN", {
@@ -327,7 +345,7 @@ export default function PassengerPage() {
         rawId: t.id,
         status,
         code: t.code ? `#${t.code}` : `#${t.id}`,
-        type: t.ticketTypeName || mapTicketTypeLabel(t.ticketTypeId),
+        type: translateTicketTypeName(t.ticketTypeName, t.ticketTypeId),
         route,
         issuedAt: t.issuedAt,
         expiredAt: t.expiredAt || t.validTo,
