@@ -27,6 +27,12 @@ export default function StaffSidebar() {
   const { name, email } = useSelector((s: RootState) => s.userReducer);
   const handleLogout = useLogout();
 
+  // Nếu name trống hoặc trùng email → dùng phần trước @ của email làm tên hiển thị
+  const isNameEmail = name && name.includes("@");
+  const displayName = isNameEmail
+    ? name.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+    : name;
+
   return (
     <aside className="flex min-h-screen w-20 flex-col justify-between border-r border-gray-100 bg-white sm:w-64">
       <div>
@@ -83,12 +89,12 @@ export default function StaffSidebar() {
           <div className="flex w-full items-center justify-center gap-3 pt-2 sm:justify-start">
             <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
               <span className="text-emerald-700 font-bold mb-0.5">
-                {name ? name.charAt(0).toUpperCase() : "S"}
+                {displayName ? displayName.charAt(0).toUpperCase() : "S"}
               </span>
             </div>
             <div className="hidden min-w-0 pr-2 sm:block">
               <p className="text-sm font-bold text-gray-900 truncate">
-                {name || "Nhân viên"}
+                {displayName || "Nhân viên"}
               </p>
               <p className="text-xs text-gray-400 truncate">
                 {email || "Vai trò: Nhân viên ga"}
