@@ -23,7 +23,6 @@ public class FareService {
     @Autowired
     private FareMatrixRepository fareMatrixRepository;
 
-    private static final double SINGLE_BASE_FARE = 5000.0;
     private static final double SINGLE_PRICE_PER_KM = 1000.0;
     private static final double SINGLE_MAX_FARE = 20000.0;
 
@@ -33,19 +32,22 @@ public class FareService {
         TicketType ticketType = ticketTypeRepository.findByName(TicketName.valueOf(ticketTypeName))
                 .orElseThrow(() -> new AppException(ErrorCode.TICKET_TYPE_INVALID));
 
+        double ticketPrice = ticketType.getPrice();
         // Case 1: Monthly -> lấy giá cố định trong bảng ticket_type
-        if (ticketName != TicketName.Daily) {
-            return ticketType.getPrice();
+        if (ticketName == TicketName.Month) {
+            return ticketPrice;
         }
 
-        // CASE 2: Daily → calculate fare matrix
+        // CASE 2: Daily / SINGLE → calculate fare matrix
         validateSingleFareInput(originId, destinationId, distance);
 
         double rawPrice = 0;
         // distance <= 5km
         if (distance <= 5){
-            rawPrice = SINGLE_BASE_FARE;
-        } else rawPrice = SINGLE_BASE_FARE + distance * SINGLE_PRICE_PER_KM;
+            rawPrice = ticketPrice;
+        } else {
+            rawPrice = ticketPrice + distance * SINGLE_PRICE_PER_KM;
+        }
         double roundedPrice = roundUpToNearestThousand(rawPrice);
 
         return Math.min(roundedPrice, SINGLE_MAX_FARE);

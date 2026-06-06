@@ -52,6 +52,7 @@ public class TicketService {
         List<Ticket> tickets = new ArrayList<>();
         for (OrderItem item: order.getOrderItems()){
             int quantity = item.getQuantity() == null ? 0 : item.getQuantity();
+            TicketType ticketType = item.getTicketType();
 
             for (int i = 0; i < quantity; i++) {
                 Ticket ticket = Ticket.builder()
@@ -61,7 +62,7 @@ public class TicketService {
                         .orderItem(item)
                         .status(TicketStatus.READY)
                         .issuedAt(now)
-                        .expiredAt(now.plusDays(resolveValidityDays(item.getTicketType().getId())))
+                        .expiredAt(calculateExpiredAt(ticketType, now))
                         .build();
 
                 tickets.add(ticket);
@@ -186,40 +187,37 @@ public class TicketService {
         return code;
     }
 
-    private int resolveValidityDays(String ticketTypeId) {
-        if (ticketTypeId == null) {
-            return 1;
-        }
-
-        return ticketTypeRepository.findById(ticketTypeId)
-                .map(TicketType::getValidityDays)
-                .filter(days -> days > 0)
-                .orElse(1);
-    }
-
     private void refreshTicketStatus(Ticket ticket, LocalDateTime now) {
         if (ticket.getExpiredAt() != null
-                && ticket.getExpiredAt().isBefore(now)
+                && !ticket.getExpiredAt().isAfter(now)
                 && ticket.getStatus() != TicketStatus.USED
                 && ticket.getStatus() != TicketStatus.CANCELLED) {
-            if (isMonthTicket(ticket)) {
-                ticket.setStatus(TicketStatus.USED);
 
-                if (ticket.getUsedAt() == null) {
-                    ticket.setUsedAt(now);
-                }
-            } else {
-                ticket.setStatus(TicketStatus.EXPIRED);
-            }
+            ticket.setStatus(TicketStatus.EXPIRED);
             ticketRepository.save(ticket);
         }
     }
 
-    private boolean isMonthTicket(Ticket ticket) {
-        return ticket != null
-                && ticket.getOrderItem() != null
-                && ticket.getOrderItem().getTicketType() != null
-                && ticket.getOrderItem().getTicketType().getName() == TicketName.Month;
+    private LocalDateTime calculateExpiredAt(TicketType ticketType, LocalDateTime now) {
+        if (ticketType == null || ticketType.getName() == null) {
+            return now.toLocalDate().plusDays(1).atStartOfDay();
+        }
+
+        if (ticketType.getName() == TicketName.Single || ticketType.getName() == TicketName.Daily) {
+            return now.toLocalDate()
+                    .plusDays(1)
+                    .atStartOfDay();
+        }
+
+        if (ticketType.getName() == TicketName.Month) {
+            return now.plusDays(
+                    ticketType.getValidityDays() != null && ticketType.getValidityDays() > 0
+                            ? ticketType.getValidityDays()
+                            : 30
+            );
+        }
+
+        return now.toLocalDate().plusDays(1).atStartOfDay();
     }
 
     private TicketResponse toTicketResponse(Ticket ticket) {

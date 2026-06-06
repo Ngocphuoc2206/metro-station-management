@@ -58,12 +58,23 @@ public class ApplicationInitConfig {
 
             // Init Ticket-Types
             if (ticketTypeRepository.count() == 0){
+
+                ticketTypeRepository.save(
+                        TicketType.builder()
+                                .name(TicketName.Single)
+                                .isActive(true)
+                                .price(5000.0)
+                                .description("Vé lượt dùng cho một chuyến đi từ ga xuất phát đến ga đích")
+                                .validityDays(1)
+                                .build()
+                );
+
                 ticketTypeRepository.save(
                         TicketType.builder()
                                 .name(TicketName.Daily)
                                 .isActive(true)
-                                .price(1000.0)
-                                .description("Vé lượt dùng để quét 1 lần trong ngày")
+                                .price(30000.0)
+                                .description("Vé ngày dùng để quét trong ngày")
                                 .validityDays(1)
                                 .build()
                 );
@@ -78,6 +89,27 @@ public class ApplicationInitConfig {
                                 .build()
                 );
             }
+
+//            upsertTicketType(
+//                    TicketName.Single,
+//                    8000.0,
+//                    "Vé lượt dùng cho một chuyến đi trong ngày",
+//                    1
+//            );
+//
+//            upsertTicketType(
+//                    TicketName.Daily,
+//                    40000.0,
+//                    "Vé ngày dùng để đi nhiều chuyến trong ngày",
+//                    1
+//            );
+//
+//            upsertTicketType(
+//                    TicketName.Month,
+//                    300000.0,
+//                    "Vé tháng dùng để đi nhiều chuyến trong 30 ngày",
+//                    30
+//            );
 
 
                 Role passengerRole = roleRepository.findByRoleName(PredefinedRole.USER_ROLE)
@@ -137,5 +169,24 @@ public class ApplicationInitConfig {
 
             log.info("Application initialization completed .....");
         };
+    }
+
+    private void upsertTicketType(
+            TicketName name,
+            Double price,
+            String description,
+            Integer validityDays
+    ) {
+        TicketType ticketType = ticketTypeRepository.findByName(name)
+                .orElse(TicketType.builder()
+                        .name(name)
+                        .build());
+
+        ticketType.setPrice(price);
+        ticketType.setDescription(description);
+        ticketType.setValidityDays(validityDays);
+        ticketType.setIsActive(true);
+
+        ticketTypeRepository.save(ticketType);
     }
 }
