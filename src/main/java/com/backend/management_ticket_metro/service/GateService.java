@@ -6,10 +6,7 @@ import com.backend.management_ticket_metro.dto.request.UpdateGateStatusRequest;
 import com.backend.management_ticket_metro.dto.response.GateResponse;
 import com.backend.management_ticket_metro.dto.response.GateScanLogResponse;
 import com.backend.management_ticket_metro.dto.response.GateScanResponse;
-import com.backend.management_ticket_metro.entity.Gate;
-import com.backend.management_ticket_metro.entity.GateScanLog;
-import com.backend.management_ticket_metro.entity.Ticket;
-import com.backend.management_ticket_metro.entity.TicketQrToken;
+import com.backend.management_ticket_metro.entity.*;
 import com.backend.management_ticket_metro.enums.GateAction;
 import com.backend.management_ticket_metro.enums.GateStatus;
 import com.backend.management_ticket_metro.enums.ScanResult;
@@ -27,6 +24,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 @Service
@@ -39,52 +37,66 @@ public class GateService {
     private final TicketRepository ticketRepository;
 
     @Transactional
-    public GateScanResponse scan(ScanTicketRequest request){
+    public GateScanResponse scan(ScanTicketRequest request) {
         LocalDateTime now = LocalDateTime.now();
+
+        if (!StringUtils.hasText(request.getGateId())) {
+            return buildDenyResponse(null, null, null, null, null,
+                    "Gate id is required", now);
+        }
 
         Gate gate = gateRepository.findById(request.getGateId()).orElse(null);
 
-        // Check gate is null
-        if (gate == null){
+        if (gate == null) {
             return buildDenyResponse(null, null, null, null, null,
                     ErrorCode.GATE_NOT_FOUND.getMessage(), now);
         }
 
-        // Check gate is active
-        if (gate.getStatus() != GateStatus.ACTIVE) {
-            return denyAndLog(gate, null, null, ErrorCode.GATE_NOT_FOUND.getMessage(), now);
+        // Check gate belongs to station
+        if (gate.getStation() == null) {
+            return denyAndLog(gate, null, null,
+                    "Gate station is missing", now);
         }
 
-        // Get token value
+        if (StringUtils.hasText(request.getStationId())
+                && (gate.getStation() != null)
+                && !Objects.equals(request.getStationId(), gate.getStation().getStationId())) {
+            return denyAndLog(gate, null, null,
+                    "Station does not match gate", now);
+        }
+
+        if (gate.getStatus() != GateStatus.ACTIVE) {
+            return denyAndLog(gate, null, null, ErrorCode.GATE_NOT_ACTIVE.getMessage(), now);
+        }
+
         String tokenValue = extractToken(request.getQrContent());
 
-        // Write log token
-        if (!StringUtils.hasText(tokenValue)){
+        if (!StringUtils.hasText(tokenValue)) {
             return denyAndLog(gate, null, null, ErrorCode.QR_TOKEN_EMPTY.getMessage(), now);
         }
 
         Optional<TicketQrToken> qrTokenOptional = ticketQrTokenRepository.findByToken(tokenValue);
 
-        if (qrTokenOptional.isEmpty()){
+        if (qrTokenOptional.isEmpty()) {
             return denyAndLog(gate, null, null, ErrorCode.QR_TOKEN_INVALID.getMessage(), now);
         }
 
         TicketQrToken qrToken = qrTokenOptional.get();
         Ticket ticket = qrToken.getTicket();
 
-        if (qrToken.getUsedAt() != null){
+        if (qrToken.getUsedAt() != null) {
             return denyAndLog(gate, ticket, qrToken, ErrorCode.QR_TOKEN_USED.getMessage(), now);
         }
 
-        if (qrToken.getRevokedAt() != null){
+        if (qrToken.getRevokedAt() != null) {
             return denyAndLog(gate, ticket, qrToken, ErrorCode.QR_TOKEN_REVOKE.getMessage(), now);
         }
 
-        if (qrToken.getExpiresAt() == null || qrToken.getExpiresAt().isBefore(now)){
+        if (qrToken.getExpiresAt() == null || qrToken.getExpiresAt().isBefore(now)) {
             return denyAndLog(gate, ticket, qrToken, ErrorCode.QR_TOKEN_EXPIRED.getMessage(), now);
         }
 
-        if (ticket.getExpiredAt() != null && ticket.getExpiredAt().isBefore(now)){
+        if (ticket.getExpiredAt() != null && ticket.getExpiredAt().isBefore(now)) {
             updateExpiredTicketStatus(ticket, now);
             ticketRepository.save(ticket);
             return denyAndLog(gate, ticket, qrToken, ErrorCode.TICKET_EXPIRED.getMessage(), now);
@@ -105,45 +117,56 @@ public class GateService {
         GateAction expectedAction = getExpectedAction(ticket);
 
         if (request.getAction() != null && request.getAction() != expectedAction) {
-            return denyAndLog(
-                    gate,
-                    ticket,
-                    qrToken,
-                    "Wrong scan action. Expected " + expectedAction,
-                    now
-            );
+            return denyAndLog(gate, ticket, qrToken,
+                    "Wrong scan action. Expected " + expectedAction, now);
         }
 
-        if (gate.getAction() != expectedAction){
-            return denyAndLog(
-                    gate,
-                    ticket,
-                    qrToken,
-                    "Wrong gate action. Expected " + expectedAction,
-                    now
-            );
+        if (gate.getAction() != expectedAction) {
+            return denyAndLog(gate, ticket, qrToken,
+                    "Wrong gate action. Expected " + expectedAction, now);
         }
-        // After scan card is success
-        qrToken.setUsedAt(now);
-        ticketQrTokenRepository.save(qrToken);
 
-        if (gate.getAction() == GateAction.TAP_IN){
+        // Check route ticket
+        boolean routeBasedTicket = !isDailyTicket(ticket) && !isMonthTicket(ticket);
+        if (routeBasedTicket) {
+            if (ticket.getOrderItem() == null
+                    || ticket.getOrderItem().getFromStation() == null
+                    || ticket.getOrderItem().getToStation() == null) {
+                return denyAndLog(gate, ticket, qrToken,
+                        "Ticket route information is missing", now);
+            }
+
+            Station expectedStation = expectedAction == GateAction.TAP_IN
+                    ? ticket.getOrderItem().getFromStation()
+                    : ticket.getOrderItem().getToStation();
+
+            if (gate.getStation() == null
+                    || !Objects.equals(gate.getStation().getStationId(), expectedStation.getStationId())) {
+                return denyAndLog(gate, ticket, qrToken,
+                        "Wrong station. Expected " + expectedStation.getName(), now);
+            }
+        }
+
+        if (gate.getAction() == GateAction.TAP_IN) {
             ticket.setStatus(TicketStatus.ACTIVE);
 
-            if (ticket.getActivatedAt() == null){
+            if (ticket.getActivatedAt() == null) {
                 ticket.setActivatedAt(now);
             }
-        } else if (gate.getAction() == GateAction.TAP_OUT){
-            if (isDailyTicket(ticket)) {
+        } else if (gate.getAction() == GateAction.TAP_OUT) {
+            if (routeBasedTicket) {
                 ticket.setStatus(TicketStatus.USED);
                 ticket.setUsedAt(now);
+
+                qrToken.setUsedAt(now);
+                ticketQrTokenRepository.save(qrToken);
             } else {
                 ticket.setStatus(TicketStatus.ACTIVE);
             }
         }
 
         ticketRepository.save(ticket);
-        // write scan log
+
         GateScanLog log = gateScanLogRepository.save(
                 GateScanLog.builder()
                         .gate(gate)
@@ -220,17 +243,11 @@ public class GateService {
     }
 
     private void updateExpiredTicketStatus(Ticket ticket, LocalDateTime now) {
-       // If ticket type is month
-        if (isMonthTicket(ticket)) {
-            ticket.setStatus(TicketStatus.USED);
-
-            if (ticket.getUsedAt() == null) {
-                ticket.setUsedAt(now);
-            }
-            return;
-        }
-        // ticket type is daily
         ticket.setStatus(TicketStatus.EXPIRED);
+
+        if (ticket.getUsedAt() == null) {
+            ticket.setUsedAt(now);
+        }
     }
 
     private boolean isDailyTicket(Ticket ticket) {
