@@ -38,8 +38,10 @@ export const API_ENDPOINTS = {
     ),
   },
   devices: {
+    base: endpoint(process.env.NEXT_PUBLIC_DEVICES_ENDPOINT, "/devices"),
     admin: endpoint(process.env.NEXT_PUBLIC_ADMIN_DEVICES_ENDPOINT, "/admin/devices"),
     staff: endpoint(process.env.NEXT_PUBLIC_STAFF_DEVICES_ENDPOINT, "/staff/devices"),
+    types: endpoint(process.env.NEXT_PUBLIC_DEVICE_TYPES_ENDPOINT, "/staff/devices/types"),
   },
   incidents: {
     staff: endpoint(process.env.NEXT_PUBLIC_STAFF_INCIDENTS_ENDPOINT, "/staff/incidents"),
@@ -48,6 +50,7 @@ export const API_ENDPOINTS = {
     staff: endpoint(process.env.NEXT_PUBLIC_STAFF_SHIFTS_ENDPOINT, "/staff/shifts"),
   },
   gates: {
+    admin: endpoint(process.env.NEXT_PUBLIC_ADMIN_GATES_ENDPOINT, "/admin/gates"),
     staff: endpoint(process.env.NEXT_PUBLIC_STAFF_GATES_ENDPOINT, "/staff/gates"),
     scan: endpoint(process.env.NEXT_PUBLIC_STAFF_GATE_SCAN_ENDPOINT, "/staff/gates/scan"),
     logs: endpoint(process.env.NEXT_PUBLIC_STAFF_GATE_LOGS_ENDPOINT, "/staff/gates/logs"),

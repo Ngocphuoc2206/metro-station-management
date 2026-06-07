@@ -155,6 +155,7 @@ export default function IncidentDetailPage() {
 
   const statusColors = {
     Open: "bg-gray-100 text-gray-700",
+    Approved: "bg-indigo-100 text-indigo-700",
     Assigned: "bg-blue-100 text-blue-700",
     InProgress: "bg-orange-100 text-orange-700",
     Escalated: "bg-red-100 text-red-700",

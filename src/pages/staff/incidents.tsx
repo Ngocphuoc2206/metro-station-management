@@ -1,16 +1,16 @@
 import Head from "next/head";
 import { withAuth } from "@components/templates/withAuth";
 import StaffLayout from "@components/organisms/StaffDashboard/StaffLayout";
-import IncidentDashboard from "@components/organisms/IncidentDashboard/IncidentDashboard";
+import IncidentManagement from "@components/organisms/IncidentShared/IncidentManagement";
 
 function StaffIncidentsPage() {
   return (
     <>
       <Head>
-        <title>Sự cố | MetroNext</title>
+        <title>Su co | MetroNext</title>
       </Head>
       <StaffLayout>
-        <IncidentDashboard />
+        <IncidentManagement mode="staff" />
       </StaffLayout>
     </>
   );

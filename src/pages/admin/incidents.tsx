@@ -1,11 +1,11 @@
 import { withAuth } from "@components/templates/withAuth";
 import AdminLayout from "@components/organisms/AdminDashboard/AdminLayout";
-import AdminIncidentDashboard from "@components/organisms/AdminIncidentDashboard/AdminIncidentDashboard";
+import IncidentManagement from "@components/organisms/IncidentShared/IncidentManagement";
 
 function AdminIncidentsPage() {
   return (
-    <AdminLayout title="Duyệt sự cố | MetroNext Admin">
-      <AdminIncidentDashboard />
+    <AdminLayout title="Duyet su co | MetroNext Admin">
+      <IncidentManagement mode="admin" />
     </AdminLayout>
   );
 }
