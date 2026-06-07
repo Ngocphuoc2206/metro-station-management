@@ -82,6 +82,13 @@ public class FareService {
         return ticketTypeRepository.save(ticketType);
     }
 
+    public void deleteTicketType(String id){
+        TicketType ticketType = ticketTypeRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.TICKET_TYPE_INVALID));
+
+        ticketTypeRepository.delete(ticketType);
+    }
+
     public FareMatrix createFare(FareMatrixRequest request) {
         FareMatrix fare = FareMatrix.builder()
                 .originStationId(request.getOriginStationId())
