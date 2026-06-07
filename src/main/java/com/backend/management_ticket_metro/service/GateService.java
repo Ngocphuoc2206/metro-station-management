@@ -13,10 +13,7 @@ import com.backend.management_ticket_metro.enums.ScanResult;
 import com.backend.management_ticket_metro.enums.TicketName;
 import com.backend.management_ticket_metro.enums.TicketStatus;
 import com.backend.management_ticket_metro.exception.AppException;
-import com.backend.management_ticket_metro.repository.GateRepository;
-import com.backend.management_ticket_metro.repository.GateScanLogRepository;
-import com.backend.management_ticket_metro.repository.TicketQrTokenRepository;
-import com.backend.management_ticket_metro.repository.TicketRepository;
+import com.backend.management_ticket_metro.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +23,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -35,6 +33,7 @@ public class GateService {
     private final GateScanLogRepository gateScanLogRepository;
     private final TicketQrTokenRepository ticketQrTokenRepository;
     private final TicketRepository ticketRepository;
+    private final StationRepository stationRepository;
 
     @Transactional
     public GateScanResponse scan(ScanTicketRequest request) {
@@ -360,5 +359,17 @@ public class GateService {
                 .message(log.getMessage())
                 .scannedAt(log.getScannedAt())
                 .build();
+    }
+    @Transactional(readOnly = true)
+    public List<GateResponse> getGatesByStation(String stationId) {
+
+        if(!stationRepository.existsById(stationId)){
+            throw new AppException(ErrorCode.STATION_NOT_FOUND);
+        }
+
+        List<Gate> gates =gateRepository.findByStationStationId(stationId);
+        return  gates.stream()
+                .map(this::toGateResponse)
+                .toList();
     }
 }

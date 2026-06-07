@@ -61,4 +61,12 @@ public class StaffGateController {
                 .results(gateService.updateGateStatus(id, request))
                 .build();
     }
+
+    @GetMapping("/station/{stationId}")
+    public ApiResponse<List<GateResponse>> getGatesByStationId(@PathVariable String stationId) {
+        List<GateResponse> results = gateService.getGatesByStation(stationId);
+        return ApiResponse.<List<GateResponse>>builder()
+                .results(results)
+                .build();
+    }
 }
