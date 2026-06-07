@@ -63,11 +63,7 @@ public class IncidentService {
         Gate gate = (request.getGateId() != null) ? gateRepository.findById(request.getGateId()).orElse(null) : null;
         Devices devices = (request.getDeviceId() != null) ? devicesRepository.findById(request.getDeviceId()).orElse(null) : null;
 
-        // 1. System logic for auto-assigning a single default Staff account
-        User defaultStaff = userRepository.findByEmail(PredefinedAccount.STAFF_USER_NAME).orElse(null);
-
-        IncidentStatus initialStatus = (defaultStaff != null) ? IncidentStatus.ASSIGNED : IncidentStatus.OPEN;
-
+        // Khởi tạo sự cố luôn ở trạng thái OPEN, chưa có người xử lý (assignee = null)
         Incident incident = Incident.builder()
                 .title(request.getTitle())
                 .description(request.getDescription())
@@ -75,134 +71,238 @@ public class IncidentService {
                 .gate(gate)
                 .devices(devices)
                 .priority(request.getPriority())
-                .status(initialStatus)
+                .status(IncidentStatus.OPEN)
                 .reporter(reporter)
-                .assignee(defaultStaff) // Auto-assign cho Staff duy nhất
+                .assignee(null) // Auto-assign cho Staff duy nhất
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
+                .comments(new ArrayList<>())
                 .build();
 
         incident = incidentRepository.save(incident);
-
-        // 2. Pre-defined timeline for logging system auto-assignment actions
-        if (defaultStaff != null) {
-            incidentCommentRepository.save(IncidentComment.builder()
-                    .incident(incident)
-                    .user(reporter)
-                    .content("[Hệ thống] Tự động bàn giao sự cố kỹ thuật này cho Staff trực ga: " + defaultStaff.getFullName())
-                    .createdAt(LocalDateTime.now())
-                    .build());
-        }
-
-        // 3. Chained business scenario: Automatic update of broken equipment status
-        if (devices != null && (request.getPriority() == IncidentPriority.HIGH || request.getPriority() == IncidentPriority.CRITICAL)) {
+        // Kích hoạt ma trận tự động khóa thiết bị/nhà ga dựa trên độ nghiêm trọng
+        if(devices != null && (request.getPriority() == IncidentPriority.HIGH || request.getPriority() == IncidentPriority.CRITICAL)) {
             devices.setStatus(DeviceStatus.ERROR);
             devicesRepository.save(devices);
 
-            incidentCommentRepository.save(IncidentComment.builder()
+            IncidentComment sysComment = incidentCommentRepository.save(IncidentComment.builder()
                     .incident(incident)
                     .user(reporter)
-                    .content("[Hệ thống] Phát hiện sự cố nghiêm trọng. Thiết bị mã [" + devices.getDeviceCode() + "] tự động chuyển trạng thái sang: ERROR")
+                    .content("[Hệ thống] Phát hiện mức độ nghiêm trọng. Thiết bị mã [" + devices.getDeviceCode() + "] tự động chuyển trạng thái sang: ERROR")
                     .createdAt(LocalDateTime.now())
                     .build());
+            incident.getComments().add(sysComment);
         }
 
-        // 4. Extreme edge case: Critical system crash affecting the entire station
         if (request.getPriority() == IncidentPriority.CRITICAL && request.getTitle().toUpperCase().contains("TOÀN GA")) {
             station.setStatus(StationStatus.MAINTENANCE);
             stationRepository.save(station);
 
-            incidentCommentRepository.save(IncidentComment.builder()
+            IncidentComment sysComment = incidentCommentRepository.save(IncidentComment.builder()
                     .incident(incident)
                     .user(reporter)
-                    .content("[Hệ thống] CẢNH BÁO NGUY HIỂM: Nhà ga [" + station.getName() + "] tự động đóng cửa chuyển sang trạng thái: MAINTENANCE")
+                    .content("[Hệ thống] CẢNH BÁO NGUY HIỂM: Nhà ga [" + station.getName() + "] tự động chuyển trạng thái sang: MAINTENANCE")
                     .createdAt(LocalDateTime.now())
                     .build());
+            incident.getComments().add(sysComment);
         }
 
         return toIncidentResponse(incident);
     }
 
+
+    /**
+     * BƯỚC 2: ADMIN DUYỆT SỰ CỐ -> CHUYỂN SANG APPROVED & TỰ ĐỘNG GÁN CHO CHÍNH STAFF TẠO PHIẾU
+     */
     @Transactional
-    @PreAuthorize("hasAnyRole('STAFF')")
-    public IncidentResponse updateStatus(String id, String statusStr) {
+    @PreAuthorize("hasRole('ADMIN')")
+    public IncidentResponse approveIncident(String id) {
         Incident incident = incidentRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.INCIDENT_NOT_FOUND));
 
-        IncidentStatus newStatus = IncidentStatus.valueOf(statusStr.toUpperCase());
-        incident.setStatus(newStatus);
+        if (incident.getStatus() != IncidentStatus.OPEN) {
+            throw new AppException(ErrorCode.INVALID_INCIDENT_STATUS);
+        }
+
+        User admin = getCurrentUser();
+
+        // Luồng cốt lõi: Gán chính tài khoản Staff báo cáo ban đầu chịu trách nhiệm đi sửa tại chỗ
+        incident.setAssignee(incident.getReporter());
+        incident.setStatus(IncidentStatus.APPROVED);
         incident.setUpdatedAt(LocalDateTime.now());
 
-        User currentUser = getCurrentUser();
-
-        // System log for status transitions
-        incidentCommentRepository.save(IncidentComment.builder()
+        IncidentComment sysComment = incidentCommentRepository.save(IncidentComment.builder()
                 .incident(incident)
-                .user(currentUser)
-                .content("[Hệ thống] Trạng thái sự cố cập nhật sang: " + newStatus.name())
+                .user(admin)
+                .content("[Hệ thống] Admin đã phê duyệt sự cố. Lệnh sửa chữa được giao lại cho nhân viên trực ga: " + incident.getReporter().getFullName())
                 .createdAt(LocalDateTime.now())
                 .build());
+        if (incident.getComments() == null) incident.setComments(new ArrayList<>());
+        incident.getComments().add(sysComment); // Cập nhật bộ nhớ tạm
 
-        // Business scenario: When technical incident is RESOLVED or CLOSED
-        if (newStatus == IncidentStatus.RESOLVED || newStatus == IncidentStatus.CLOSED) {
+        return toIncidentResponse(incidentRepository.save(incident));
+    }
 
-            // 1. Restore equipment to normal operating status
-            if (incident.getDevices() != null) {
-                Devices devices = incident.getDevices();
-                devices.setStatus(DeviceStatus.ACTIVE);
-                devicesRepository.save(devices);
+    /**
+     * BƯỚC 3: STAFF BẤM "BẮT ĐẦU SỬA" -> CHUYỂN SANG IN_PROGRESS
+     */
+    @Transactional
+    @PreAuthorize("hasRole('STAFF')")
+    public IncidentResponse startProcessing(String id) {
+        Incident incident = incidentRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.INCIDENT_NOT_FOUND));
 
-                incidentCommentRepository.save(IncidentComment.builder()
-                        .incident(incident)
-                        .user(currentUser)
-                        .content("[Hệ thống] Kỹ thuật viên báo cáo sửa xong thiết bị [" + devices.getDeviceCode() + "]. Tự động mở lại: ACTIVE")
-                        .createdAt(LocalDateTime.now())
-                        .build());
-            }
+        // Chỉ cho phép chuyển sang IN_PROGRESS từ trạng thái APPROVED (hoặc được giao việc)
+        if (incident.getStatus() != IncidentStatus.APPROVED) {
+            throw new AppException(ErrorCode.INVALID_INCIDENT_STATUS);
+        }
 
-            // 2. Restore station to normal passenger handling status (if previously under full station outage)
-            if (incident.getStation().getStatus() == StationStatus.MAINTENANCE) {
-                Station station = incident.getStation();
-                station.setStatus(StationStatus.ACTIVE);
-                stationRepository.save(station);
+        User currentUser = getCurrentUser();
+        // Kiểm tra bảo mật: Đúng tài khoản Staff được chỉ định mới được quyền xử lý phiếu này
+        if (!incident.getAssignee().getUserId().equals(currentUser.getUserId())) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
 
-                incidentCommentRepository.save(IncidentComment.builder()
-                        .incident(incident)
-                        .user(currentUser)
-                        .content("[Hệ thống] Hệ thống nhà ga [" + station.getName() + "] đã khắc phục xong sự cố. Tự động mở cửa đón khách: ACTIVE")
-                        .createdAt(LocalDateTime.now())
-                        .build());
-            }
+        incident.setStatus(IncidentStatus.IN_PROGRESS);
+        incident.setUpdatedAt(LocalDateTime.now());
+
+        IncidentComment sysComment = incidentCommentRepository.save(IncidentComment.builder()
+                .incident(incident)
+                .user(currentUser)
+                .content("[Hệ thống] Nhân viên trực ga đã tiếp nhận hiện trường và bắt đầu tiến hành khắc phục.")
+                .createdAt(LocalDateTime.now())
+                .build());
+        if (incident.getComments() == null) incident.setComments(new ArrayList<>());
+        incident.getComments().add(sysComment);
+
+        return toIncidentResponse(incidentRepository.save(incident));
+    }
+
+    /**
+     * BƯỚC 4: STAFF SỬA XONG -> BẤM "BÁO CÁO HOÀN THÀNH" -> CHUYỂN SANG RESOLVED & TỰ ĐỘNG KHÔI PHỤC THIẾT BỊ
+     */
+    @Transactional
+    @PreAuthorize("hasRole('STAFF')")
+    public IncidentResponse resolveIncident(String id) {
+        Incident incident = incidentRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.INCIDENT_NOT_FOUND));
+
+        if (incident.getStatus() != IncidentStatus.IN_PROGRESS) {
+            throw new AppException(ErrorCode.INVALID_INCIDENT_STATUS);
+        }
+
+        User currentUser = getCurrentUser();
+        if (!incident.getAssignee().getUserId().equals(currentUser.getUserId())) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+
+        incident.setStatus(IncidentStatus.RESOLVED);
+        incident.setUpdatedAt(LocalDateTime.now());
+
+        if (incident.getComments() == null) incident.setComments(new ArrayList<>());
+
+        IncidentComment resolveComment = incidentCommentRepository.save(IncidentComment.builder()
+                .incident(incident)
+                .user(currentUser)
+                .content("[Hệ thống] Nhân viên báo cáo đã sửa chữa xong thiết bị. Chờ bàn giao Admin kiểm tra nghiệm thu.")
+                .createdAt(LocalDateTime.now())
+                .build());
+        incident.getComments().add(resolveComment);
+
+        // KÍCH HOẠT LUỒNG KHÔI PHỤC TỰ ĐỘNG: Đưa thiết bị/nhà ga quay trở lại phục vụ khách (ACTIVE)
+        if (incident.getDevices() != null) {
+            Devices devices = incident.getDevices();
+            devices.setStatus(DeviceStatus.ACTIVE);
+            devicesRepository.save(devices);
+
+            IncidentComment deviceComment = incidentCommentRepository.save(IncidentComment.builder()
+                    .incident(incident)
+                    .user(currentUser)
+                    .content("[Hệ thống] Sửa chữa hoàn tất thiết bị [" + devices.getDeviceCode() + "]. Tự động mở lại: ACTIVE")
+                    .createdAt(LocalDateTime.now())
+                    .build());
+            incident.getComments().add(deviceComment);
+        }
+
+        if (incident.getStation().getStatus() == StationStatus.MAINTENANCE) {
+            Station station = incident.getStation();
+            station.setStatus(StationStatus.ACTIVE);
+            stationRepository.save(station);
+
+            IncidentComment stationComment = incidentCommentRepository.save(IncidentComment.builder()
+                    .incident(incident)
+                    .user(currentUser)
+                    .content("[Hệ thống] Sự cố toàn ga tại [" + station.getName() + "] đã khắc phục. Tự động mở cửa đón khách: ACTIVE")
+                    .createdAt(LocalDateTime.now())
+                    .build());
+            incident.getComments().add(stationComment);
         }
 
         return toIncidentResponse(incidentRepository.save(incident));
     }
+
+    /**
+     * BƯỚC 5A: ADMIN KIỂM TRA THỰC TẾ OK -> BẤM "ĐÓNG SỰ CỐ" (CLOSED - KẾT THÚC)
+     */
     @Transactional
     @PreAuthorize("hasRole('ADMIN')")
-    public IncidentResponse assignStaff(String id, String staffId) {
+    public IncidentResponse closeIncident(String id) {
         Incident incident = incidentRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.INCIDENT_NOT_FOUND));
 
-        User staff = userRepository.findById(staffId)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        if (incident.getStatus() != IncidentStatus.RESOLVED) {
+            throw new AppException(ErrorCode.INVALID_INCIDENT_STATUS);
+        }
 
-        incident.setAssignee(staff);
-        incident.setStatus(IncidentStatus.ASSIGNED);
+        User admin = getCurrentUser();
+        incident.setStatus(IncidentStatus.CLOSED);
         incident.setUpdatedAt(LocalDateTime.now());
 
-        IncidentComment systemComment = IncidentComment.builder()
+        IncidentComment sysComment = incidentCommentRepository.save(IncidentComment.builder()
                 .incident(incident)
-                .user(getCurrentUser())
-                .content("[Hệ thống] Đã giao sự cố này cho nhân viên: " + staff.getFullName())
+                .user(admin)
+                .content("[Hệ thống] Admin đã nghiệm thu thực tế đạt yêu cầu. Đóng sự cố thành công.")
                 .createdAt(LocalDateTime.now())
-                .build();
-        incidentCommentRepository.save(systemComment);
+                .build());
+
+        if (incident.getComments() == null) incident.setComments(new ArrayList<>());
+        incident.getComments().add(sysComment);
+
+        return toIncidentResponse(incidentRepository.save(incident));
+    }
+
+    /**
+     * BƯỚC 5B: ADMIN KIỂM TRA THẤY VẪN LỖI -> BẤM "TÁI MỞ" (RE-OPEN) -> ĐẨY LÙI VỀ APPROVED
+     */
+    @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
+    public IncidentResponse reopenIncident(String id) {
+        Incident incident = incidentRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.INCIDENT_NOT_FOUND));
+
+        if (incident.getStatus() != IncidentStatus.RESOLVED) {
+            throw new AppException(ErrorCode.INVALID_INCIDENT_STATUS);
+        }
+
+        User admin = getCurrentUser();
+        // Đẩy lùi trạng thái về APPROVED để bắt Staff làm lại
+        incident.setStatus(IncidentStatus.APPROVED);
+        incident.setUpdatedAt(LocalDateTime.now());
+
+        IncidentComment sysComment = incidentCommentRepository.save(IncidentComment.builder()
+                .incident(incident)
+                .user(admin)
+                .content("[Hệ thống] NGHIỆM THU THẤT BẠI: Thiết bị kiểm tra vẫn phát sinh lỗi. Admin yêu cầu tái mở (Re-open) sự cố để xử lý lại.")
+                .createdAt(LocalDateTime.now())
+                .build());
+        if (incident.getComments() == null) incident.setComments(new ArrayList<>());
+        incident.getComments().add(sysComment);
 
         return toIncidentResponse(incidentRepository.save(incident));
     }
 
     @Transactional
-    @PreAuthorize("hasAnyRole('STAFF')")
+    @PreAuthorize("hasRole('STAFF')")
     public IncidentCommentResponse addComment(String id, String content) {
         if (content == null || content.isBlank()) {
             throw new AppException(ErrorCode.COMMENT_EMPTY);
@@ -257,7 +357,7 @@ public class IncidentService {
                 .priority(incident.getPriority().name())
                 .status(incident.getStatus().name())
                 .reporterName(incident.getReporter().getFullName())
-                .assigneeName(incident.getAssignee() != null ? incident.getAssignee().getFullName() : "Chưa bàn giao")
+                .assigneeName(incident.getAssignee() != null ? incident.getAssignee().getFullName() : "Chưa phê duyệt")
                 .createdAt(incident.getCreatedAt())
                 .updatedAt(incident.getUpdatedAt())
                 .comments(commentDTOs)
