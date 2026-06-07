@@ -7,8 +7,6 @@ import type {
   AdminDeviceStatus,
   AdminDeviceTypeOption,
 } from "@features/adminDevice/adminDeviceTypes";
-import { staffGateApi } from "@features/staffGate/staffGateApi";
-import type { GateResponse } from "@features/staffGate/staffGateTypes";
 import { stationApi } from "@features/station/stationApi";
 import type { Station } from "@features/station/stationTypes";
 import AdminDeviceFormModal from "./AdminDeviceFormModal";
@@ -38,16 +36,6 @@ function getStationName(device: AdminDeviceResponse, stations: Station[]) {
     ?? "-";
 }
 
-function getTypeOptions(devices: AdminDeviceResponse[]): AdminDeviceTypeOption[] {
-  const options = new Map<string, string>();
-  devices.forEach((device) => {
-    if (device.typeId && device.typeName) {
-      options.set(device.typeId, device.typeName);
-    }
-  });
-  return [...options.entries()].map(([id, name]) => ({ id, name }));
-}
-
 function getTypeName(typeId: string, typeOptions: AdminDeviceTypeOption[]) {
   return typeOptions.find((type) => type.id === typeId)?.name;
 }
@@ -55,7 +43,7 @@ function getTypeName(typeId: string, typeOptions: AdminDeviceTypeOption[]) {
 export default function AdminDeviceManagement() {
   const [devices, setDevices] = useState<AdminDeviceResponse[]>([]);
   const [stations, setStations] = useState<Station[]>([]);
-  const [gates, setGates] = useState<GateResponse[]>([]);
+  const [typeOptions, setTypeOptions] = useState<AdminDeviceTypeOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
@@ -67,20 +55,25 @@ export default function AdminDeviceManagement() {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([
+    Promise.allSettled([
       adminDeviceApi.getDevices(),
-      stationApi.getStations({}, 1, 500).then((result) => result.data),
-      staffGateApi.getGates().catch(() => []),
-    ])
-      .then(([deviceData, stationData, gateData]) => {
+      stationApi.getAdminStations(),
+      adminDeviceApi.getDeviceTypes(),
+    ] as const)
+      .then(([deviceResult, stationResult, deviceTypeResult]) => {
         if (cancelled) return;
-        setDevices(deviceData);
-        setStations(stationData);
-        setGates(gateData);
-        setError("");
-      })
-      .catch(() => {
-        if (!cancelled) setError("Không thể tải danh sách thiết bị.");
+
+        if (deviceResult.status === "fulfilled") {
+          setDevices(deviceResult.value);
+        }
+        if (stationResult.status === "fulfilled") {
+          setStations(stationResult.value);
+        }
+        if (deviceTypeResult.status === "fulfilled") {
+          setTypeOptions(deviceTypeResult.value);
+        }
+
+        setError(deviceResult.status === "rejected" ? "Không thể tải danh sách thiết bị." : "");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -94,8 +87,6 @@ export default function AdminDeviceManagement() {
     () => [...new Set(devices.map((device) => device.typeName).filter(Boolean) as string[])],
     [devices],
   );
-  const typeOptions = useMemo(() => getTypeOptions(devices), [devices]);
-
   const filteredDevices = useMemo(() => {
     const query = search.trim().toLowerCase();
     return devices.filter((device) => {
@@ -121,14 +112,13 @@ export default function AdminDeviceManagement() {
     if (editingDevice) {
       const updated = await adminDeviceApi.updateDevice(editingDevice.id, payload);
       const stationName = stations.find((station) => station.id === payload.stationId)?.name;
-      const gateName = gates.find((gate) => gate.gateId === payload.gateId)?.name;
       const merged = {
         ...editingDevice,
         ...updated,
         stationId: payload.stationId,
         stationName: stationName ?? updated.stationName ?? editingDevice.stationName,
         gateId: payload.gateId,
-        gateName: gateName ?? updated.gateName ?? editingDevice.gateName,
+        gateName: updated.gateName ?? editingDevice.gateName,
         typeId: payload.typeId,
         typeName: updated.typeName ?? typeName ?? editingDevice.typeName,
       };
@@ -137,14 +127,13 @@ export default function AdminDeviceManagement() {
     } else {
       const created = await adminDeviceApi.createDevice(payload);
       const stationName = stations.find((station) => station.id === payload.stationId)?.name;
-      const gateName = gates.find((gate) => gate.gateId === payload.gateId)?.name;
       setDevices((current) => [
         {
           ...created,
           stationId: payload.stationId,
           stationName: stationName ?? created.stationName,
           gateId: payload.gateId,
-          gateName: gateName ?? created.gateName,
+          gateName: created.gateName,
           typeId: payload.typeId,
           typeName: created.typeName ?? typeName,
         },
@@ -265,7 +254,6 @@ export default function AdminDeviceManagement() {
         isOpen={isFormOpen}
         device={editingDevice}
         stations={stations}
-        gates={gates}
         typeOptions={typeOptions}
         onClose={() => {
           setIsFormOpen(false);

@@ -1,192 +1,241 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { apiClient } from "@features/httpClient/ApiClient";
-import { API_ENDPOINTS, ApiResponse, withPathParam } from "@features/httpClient/apiEndpoints";
+import { API_ENDPOINTS, withPathParam } from "@features/httpClient/apiEndpoints";
+import { unwrapApiResponse } from "@features/httpClient/unwrap";
 import type {
-  IncidentRecord,
-  IncidentStatus,
-  IncidentSeverity,
+  BackendIncidentStatus,
+  IncidentComment,
+  IncidentDetailRecord,
   IncidentFilterParams,
   IncidentFormData,
-  IncidentDetailRecord,
+  IncidentPriority,
+  IncidentRecord,
+  IncidentSeverity,
+  IncidentStatus,
   IncidentTimelineEvent,
 } from "./incidentTypes";
 
-// ── Backend response shapes (khớp với response thực tế từ BE) ────────────────
-interface BackendIncident {
-  incidentId?: string;
+type BackendIncident = {
   id?: string;
   title?: string;
   description?: string;
   stationId?: string;
-  stationName?: string;   // BE trả về tên ga trực tiếp
-  gateId?: string;
-  gateCode?: string;      // Mã hiển thị của cổng (VD: GATE-BT-01)
-  deviceId?: string;
-  deviceCode?: string;    // Mã hiển thị của thiết bị
-  deviceType?: string;
-  priority?: string;      // LOW/MEDIUM/HIGH/CRITICAL
-  severity?: string;
-  status?: string;        // OPEN/ASSIGNED/IN_PROGRESS/RESOLVED/CLOSED
-  assigneeName?: string;
+  stationName?: string;
+  gateId?: string | null;
+  gateCode?: string | null;
+  deviceId?: string | null;
+  deviceCode?: string | null;
+  priority?: string;
+  status?: string;
   reporterName?: string;
-  assignedTo?: string;
+  assigneeName?: string;
   createdAt?: string;
   updatedAt?: string;
-  updatedDate?: string;
-  comments?: BackendComment[];
-  [key: string]: unknown;
-}
+  comments?: BackendIncidentComment[];
+};
 
-interface BackendComment {
-  commentId?: string;
+type BackendIncidentComment = {
   id?: string;
   userId?: string;
-  userName?: string;      // BE thực tế trả về userName
-  authorName?: string;
-  actorName?: string;
+  userName?: string;
   content?: string;
-  text?: string;
   createdAt?: string;
-  timestamp?: string;
-  type?: string;
-  [key: string]: unknown;
+};
+
+const priorityValues: IncidentPriority[] = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
+const statusValues: BackendIncidentStatus[] = ["OPEN", "APPROVED", "ASSIGNED", "IN_PROGRESS", "RESOLVED", "CLOSED"];
+
+function normalizePriority(value?: string): IncidentPriority {
+  const normalized = (value ?? "").toUpperCase();
+  return priorityValues.includes(normalized as IncidentPriority)
+    ? (normalized as IncidentPriority)
+    : "LOW";
 }
 
-// ── Normalizers ───────────────────────────────────────────────────────────────
-function normalizeSeverity(raw?: string): IncidentSeverity {
-  const v = (raw ?? "").toUpperCase();
-  if (v === "CRITICAL") return "critical";
-  if (v === "HIGH") return "high";
-  if (v === "MEDIUM") return "medium";
-  return "low";
+function priorityToSeverity(priority: IncidentPriority): IncidentSeverity {
+  return priority.toLowerCase() as IncidentSeverity;
 }
 
-function normalizeStatus(raw?: string): IncidentStatus {
-  const v = (raw ?? "").toUpperCase().replace(/[_\s-]/g, "");
-  if (v === "OPEN") return "Open";
-  if (v === "ASSIGNED") return "Assigned";
-  if (v.includes("PROGRESS") || v === "INPROGRESS") return "InProgress";
-  if (v === "ESCALATED") return "Escalated";
-  if (v === "RESOLVED") return "Resolved";
-  if (v === "CLOSED") return "Closed";
+function normalizeBackendStatus(value?: string): BackendIncidentStatus {
+  const normalized = (value ?? "").toUpperCase();
+  return statusValues.includes(normalized as BackendIncidentStatus)
+    ? (normalized as BackendIncidentStatus)
+    : "OPEN";
+}
+
+function backendStatusToUi(status: BackendIncidentStatus): IncidentStatus {
+  if (status === "APPROVED") return "Approved";
+  if (status === "ASSIGNED") return "Assigned";
+  if (status === "IN_PROGRESS") return "InProgress";
+  if (status === "RESOLVED") return "Resolved";
+  if (status === "CLOSED") return "Closed";
   return "Open";
 }
 
-function mapToUI(b: BackendIncident): IncidentRecord {
+function uiStatusToBackend(status: IncidentStatus | BackendIncidentStatus): BackendIncidentStatus {
+  const direct = normalizeBackendStatus(status);
+  if (direct !== "OPEN" || status === "OPEN" || status === "Open") return direct;
+  if (status === "Approved") return "APPROVED";
+  if (status === "Assigned") return "ASSIGNED";
+  if (status === "InProgress") return "IN_PROGRESS";
+  if (status === "Resolved") return "RESOLVED";
+  if (status === "Closed") return "CLOSED";
+  return "OPEN";
+}
+
+function severityToPriority(severity?: IncidentSeverity): IncidentPriority {
+  return normalizePriority(severity?.toUpperCase());
+}
+
+function mapComment(comment: BackendIncidentComment): IncidentComment {
   return {
-    id: b.incidentId ?? b.id ?? "",
-    title: b.title ?? "(Không có tiêu đề)",
-    stationId: b.stationName ?? b.stationId ?? "", // Dùng tên ga thay vì UUID để hiển thị
-    // Ưu tiên gateCode/deviceCode để hiển thị mã đọc được (VD: GATE-BT-01)
-    deviceId: b.gateCode ?? b.deviceCode ?? b.deviceId ?? b.gateId ?? "",
-    deviceType: b.deviceType ?? "gate",
-    severity: normalizeSeverity(b.priority ?? b.severity),
-    status: normalizeStatus(b.status),
-    assigneeName: b.assigneeName ?? b.reporterName ?? b.assignedTo,
-    description: b.description,
-    createdAt: b.createdAt ?? "",
-    updatedAt: b.updatedAt ?? b.updatedDate ?? b.createdAt ?? "",
+    id: comment.id ?? "",
+    userId: comment.userId,
+    userName: comment.userName,
+    content: comment.content ?? "",
+    createdAt: comment.createdAt ?? "",
   };
 }
 
-function mapCommentToTimeline(b: BackendComment, idx: number): IncidentTimelineEvent {
+function mapCommentToTimeline(comment: IncidentComment, index: number): IncidentTimelineEvent {
+  const isSystem = comment.content.startsWith("[");
   return {
-    id: b.commentId ?? b.id ?? `tl-${idx}`,
-    type: (b.type as any) ?? "comment",
-    actorName: b.userName ?? b.authorName ?? b.actorName ?? "Nhân viên", // BE trả về userName
-    timestamp: b.createdAt ?? b.timestamp ?? "",
-    content: b.content ?? b.text ?? "",
+    id: comment.id || `comment-${index}`,
+    type: isSystem ? "status_change" : "comment",
+    actorName: comment.userName || (isSystem ? "He thong" : "Nhan vien"),
+    timestamp: comment.createdAt,
+    content: comment.content,
+  };
+}
+
+function mapIncident(item: BackendIncident): IncidentRecord {
+  const priority = normalizePriority(item.priority);
+  const backendStatus = normalizeBackendStatus(item.status);
+  const comments = Array.isArray(item.comments) ? item.comments.map(mapComment) : [];
+  const assigneeName = item.assigneeName?.trim();
+  const hasRealAssignee =
+    assigneeName &&
+    !["chua ban giao", "chưa bàn giao", "chua phe duyet", "chưa phê duyệt"].includes(
+      assigneeName.toLowerCase(),
+    );
+
+  return {
+    id: item.id ?? "",
+    title: item.title ?? "Khong co tieu de",
+    description: item.description ?? "",
+    stationId: item.stationId ?? "",
+    stationName: item.stationName,
+    gateId: item.gateId,
+    gateCode: item.gateCode,
+    deviceId: item.deviceId,
+    deviceCode: item.deviceCode,
+    deviceType: item.deviceId ? "device" : item.gateId ? "gate" : "station",
+    priority,
+    severity: priorityToSeverity(priority),
+    backendStatus,
+    status: backendStatusToUi(backendStatus),
+    reporterName: item.reporterName,
+    assigneeName: hasRealAssignee ? assigneeName : undefined,
+    createdAt: item.createdAt ?? "",
+    updatedAt: item.updatedAt ?? item.createdAt ?? "",
+    comments,
+  };
+}
+
+function toDetail(item: BackendIncident): IncidentDetailRecord {
+  const mapped = mapIncident(item);
+  return {
+    ...mapped,
+    timeline: (mapped.comments ?? []).map(mapCommentToTimeline),
   };
 }
 
 export const incidentApi = {
-  // ── GET /staff/incidents (FE-31, hỗ trợ filter) ───────────────────────────
-  getIncidents: async (filters?: IncidentFilterParams): Promise<IncidentRecord[]> => {
-    const params = new URLSearchParams();
-    if (filters?.stationId && filters.stationId !== "all")
-      params.append("stationId", filters.stationId);
-    if (filters?.severity && filters.severity !== ("all" as any))
-      params.append("priority", filters.severity.toUpperCase());
+  getIncidents: async (filters: IncidentFilterParams = {}): Promise<IncidentRecord[]> => {
+    const params: Record<string, string> = {};
+    if (filters.status) params.status = filters.status;
+    if (filters.priority) params.priority = filters.priority;
+    else if (filters.severity && filters.severity !== "all") {
+      params.priority = severityToPriority(filters.severity);
+    }
+    if (filters.stationId && filters.stationId !== "all") params.stationId = filters.stationId;
 
-    const url = params.toString()
-      ? `${API_ENDPOINTS.incidents.staff}?${params.toString()}`
-      : API_ENDPOINTS.incidents.staff;
-
-    const res = await apiClient.get<ApiResponse<BackendIncident[]>>(url);
-    const raw = res.data.results;
-    if (!Array.isArray(raw)) return [];
-    return raw.map(mapToUI);
+    const res = await apiClient.get(API_ENDPOINTS.incidents.staff, { params });
+    const data = unwrapApiResponse<BackendIncident[]>(res.data);
+    return Array.isArray(data) ? data.map(mapIncident).filter((incident) => incident.id) : [];
   },
 
-  // ── GET /staff/incidents?status=OPEN (kanban filter) ──────────────────────
-  getIncidentsByStatus: async (status: string): Promise<IncidentRecord[]> => {
-    const res = await apiClient.get<ApiResponse<BackendIncident[]>>(
-      `${API_ENDPOINTS.incidents.staff}?status=${status.toUpperCase()}`
-    );
-    const raw = res.data.results;
-    if (!Array.isArray(raw)) return [];
-    return raw.map(mapToUI);
+  getIncidentsByStatus: async (status: BackendIncidentStatus | IncidentStatus): Promise<IncidentRecord[]> => {
+    return incidentApi.getIncidents({ status: uiStatusToBackend(status) });
   },
 
-  // ── GET /staff/incidents/{id} ─────────────────────────────────────────────
   getIncidentById: async (id: string): Promise<IncidentDetailRecord> => {
-    const res = await apiClient.get<ApiResponse<BackendIncident>>(
-      withPathParam(API_ENDPOINTS.incidents.staff, id)
-    );
-    const b = res.data.results;
-    const comments = (b.comments as BackendComment[] | undefined) ?? [];
-    return {
-      ...mapToUI(b),
-      timeline: comments.map(mapCommentToTimeline),
-      slaMinutes: (b.slaMinutes as number | undefined),
-    };
+    const res = await apiClient.get(withPathParam(API_ENDPOINTS.incidents.staff, id));
+    return toDetail(unwrapApiResponse<BackendIncident>(res.data));
   },
 
-  // ── POST /staff/incidents (FE-32) ─────────────────────────────────────────
   createIncident: async (data: IncidentFormData): Promise<IncidentRecord> => {
-    const res = await apiClient.post<ApiResponse<BackendIncident>>(
-      API_ENDPOINTS.incidents.staff,
-      {
-        title: data.title,
-        description: data.description ?? "",
-        stationId: (data as any).stationId ?? null,
-        gateId: (data as any).gateId ?? null,
-        deviceId: data.deviceId || null,
-        priority: data.severity.toUpperCase(), // LOW/MEDIUM/HIGH/CRITICAL
-      }
-    );
-    return mapToUI(res.data.results);
+    const res = await apiClient.post(API_ENDPOINTS.incidents.staff, {
+      title: data.title,
+      description: data.description ?? "",
+      stationId: data.stationId,
+      gateId: data.gateId || null,
+      deviceId: data.deviceId || null,
+      priority: data.priority ?? severityToPriority(data.severity),
+    });
+    return mapIncident(unwrapApiResponse<BackendIncident>(res.data));
   },
 
-  // ── POST /staff/incidents/{id}/comments (FE-33) — raw text, not JSON ─────
-  addTimelineComment: async (id: string, content: string): Promise<any> => {
-    const res = await apiClient.post<ApiResponse<BackendComment>>(
+  addTimelineComment: async (id: string, content: string): Promise<IncidentComment> => {
+    const res = await apiClient.post(
       `${withPathParam(API_ENDPOINTS.incidents.staff, id)}/comments`,
-      content,           // raw string body
-      { headers: { "Content-Type": "text/plain" } }
+      content,
+      { headers: { "Content-Type": "text/plain" } },
     );
-    return res.data.results ?? { id: Date.now(), content, type: "comment" };
+    return mapComment(unwrapApiResponse<BackendIncidentComment>(res.data));
   },
 
-  // ── PATCH /staff/incidents/{id}/status?status={status} (FE-33) ───────────
+  approveIncident: async (id: string): Promise<IncidentRecord> => {
+    const res = await apiClient.patch(`${withPathParam(API_ENDPOINTS.incidents.staff, id)}/approve`);
+    return mapIncident(unwrapApiResponse<BackendIncident>(res.data));
+  },
+
+  startIncident: async (id: string): Promise<IncidentRecord> => {
+    const res = await apiClient.patch(`${withPathParam(API_ENDPOINTS.incidents.staff, id)}/start`);
+    return mapIncident(unwrapApiResponse<BackendIncident>(res.data));
+  },
+
+  resolveIncident: async (id: string): Promise<IncidentRecord> => {
+    const res = await apiClient.patch(`${withPathParam(API_ENDPOINTS.incidents.staff, id)}/resolve`);
+    return mapIncident(unwrapApiResponse<BackendIncident>(res.data));
+  },
+
+  closeIncident: async (id: string): Promise<IncidentRecord> => {
+    const res = await apiClient.patch(`${withPathParam(API_ENDPOINTS.incidents.staff, id)}/close`);
+    return mapIncident(unwrapApiResponse<BackendIncident>(res.data));
+  },
+
+  reopenIncident: async (id: string): Promise<IncidentRecord> => {
+    const res = await apiClient.patch(`${withPathParam(API_ENDPOINTS.incidents.staff, id)}/reopen`);
+    return mapIncident(unwrapApiResponse<BackendIncident>(res.data));
+  },
+
   updateIncidentStatus: async (
     id: string,
-    newStatus: IncidentStatus,
-  ): Promise<IncidentRecord | null> => {
-    const beStatus = newStatus.toUpperCase().replace(/([A-Z])/g, "_$1").replace(/^_/, "");
-    // InProgress → IN_PROGRESS, Open → OPEN, etc.
-    const statusParam = newStatus === "InProgress" ? "IN_PROGRESS" : newStatus.toUpperCase();
-    const res = await apiClient.patch<ApiResponse<BackendIncident>>(
-      `${withPathParam(API_ENDPOINTS.incidents.staff, id)}/status?status=${statusParam}`,
-    );
-    return mapToUI(res.data.results ?? { status: beStatus } as BackendIncident);
+    status: IncidentStatus | BackendIncidentStatus,
+  ): Promise<IncidentRecord> => {
+    const backendStatus = uiStatusToBackend(status);
+    if (backendStatus === "APPROVED" || backendStatus === "ASSIGNED") {
+      return incidentApi.approveIncident(id);
+    }
+    if (backendStatus === "IN_PROGRESS") return incidentApi.startIncident(id);
+    if (backendStatus === "RESOLVED") return incidentApi.resolveIncident(id);
+    if (backendStatus === "CLOSED") return incidentApi.closeIncident(id);
+    const res = await apiClient.get(withPathParam(API_ENDPOINTS.incidents.staff, id));
+    return mapIncident(unwrapApiResponse<BackendIncident>(res.data));
   },
 
-  // ── PATCH /staff/incidents/{id}/assign?staffId={staffId} (FE-33) ─────────
   assignIncident: async (id: string, staffId: string): Promise<IncidentRecord> => {
-    const res = await apiClient.patch<ApiResponse<BackendIncident>>(
-      `${withPathParam(API_ENDPOINTS.incidents.staff, id)}/assign?staffId=${staffId}`,
-    );
-    return mapToUI(res.data.results);
+    void staffId;
+    return incidentApi.approveIncident(id);
   },
 };
