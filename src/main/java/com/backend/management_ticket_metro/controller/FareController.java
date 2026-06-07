@@ -51,6 +51,16 @@ public class FareController {
                 .build();
     }
 
+    @DeleteMapping("/admin/ticket-types/{id}")
+    public ApiResponse<?> deleteTicketType(
+            @PathVariable String id
+    ){
+        fareService.deleteTicketType(id);
+        return ApiResponse.builder()
+                .message("Delete Successfully")
+                .build();
+    }
+
     @PostMapping("/admin/fares")
     public ApiResponse<?> createFare(@RequestBody FareMatrixRequest request) {
         return ApiResponse.builder()
