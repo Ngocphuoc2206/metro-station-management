@@ -806,7 +806,10 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
                   </button>
 
                   <Link
-                    href="/passenger-page/buy-tickets-step-1"
+                    href={{
+                      pathname: "/passenger-page/buy-tickets-step-1",
+                      query: router.query,
+                    }}
                     className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-200 py-3 text-sm font-semibold text-neutral-900 transition hover:bg-slate-300"
                   >
                     <ChevronLeft className="h-4 w-4" />
