@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
+import { adminDeviceApi } from "@features/adminDevice/adminDeviceApi";
+import { getMyProfile } from "@features/user/userApi";
 import type { GateResponse } from "@features/staffGate/staffGateTypes";
 import type { Station } from "@features/station/stationTypes";
 import type {
@@ -40,7 +42,6 @@ interface Props {
   isOpen: boolean;
   device: AdminDeviceResponse | null;
   stations: Station[];
-  gates: GateResponse[];
   typeOptions: AdminDeviceTypeOption[];
   onClose: () => void;
   onSubmit: (payload: AdminDeviceRequest) => Promise<void>;
@@ -101,8 +102,6 @@ function optionalNumber(value: string) {
   return value.trim() ? Number(value) : undefined;
 }
 
-const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 function statusLabel(status: AdminDeviceStatus) {
   if (status === "ACTIVE") return "Hoạt động";
   if (status === "INACTIVE") return "Ngừng hoạt động";
@@ -127,14 +126,17 @@ export default function AdminDeviceFormModal({
   isOpen,
   device,
   stations,
-  gates,
   typeOptions,
   onClose,
   onSubmit,
 }: Props) {
   const [form, setForm] = useState<DeviceForm>(emptyForm);
+  const [gates, setGates] = useState<GateResponse[]>([]);
+  const [isLoadingGates, setIsLoadingGates] = useState(false);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentStaffId, setCurrentStaffId] = useState("");
+  const [isLoadingStaffId, setIsLoadingStaffId] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -174,6 +176,64 @@ export default function AdminDeviceFormModal({
     setError("");
   }, [device, isOpen]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let cancelled = false;
+    setCurrentStaffId("");
+    setIsLoadingStaffId(true);
+    getMyProfile()
+      .then((profile) => {
+        if (!cancelled) setCurrentStaffId(profile?.userId ?? "");
+      })
+      .catch(() => {
+        if (!cancelled) setCurrentStaffId("");
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingStaffId(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || form.detailKind !== "SCANNER" || !currentStaffId) return;
+    setForm((current) => {
+      if (current.detailKind !== "SCANNER" || current.assignedStaffId.trim()) {
+        return current;
+      }
+      return { ...current, assignedStaffId: currentStaffId };
+    });
+  }, [currentStaffId, form.detailKind, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !form.stationId) {
+      setGates([]);
+      setIsLoadingGates(false);
+      return;
+    }
+
+    let cancelled = false;
+    setGates([]);
+    setIsLoadingGates(true);
+    adminDeviceApi.getGatesByStation(form.stationId)
+      .then((data) => {
+        if (!cancelled) setGates(data);
+      })
+      .catch(() => {
+        if (!cancelled) setGates([]);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingGates(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [form.stationId, isOpen]);
+
   const title = device ? "Chỉnh sửa thiết bị" : "Thêm thiết bị mới";
   const selectedStationName = useMemo(
     () => stations.find((station) => station.id === form.stationId)?.name,
@@ -191,7 +251,7 @@ export default function AdminDeviceFormModal({
   );
   const filteredGates = useMemo(
     () => {
-      const stationGates = gates.filter((gate) => !form.stationId || !gate.stationId || gate.stationId === form.stationId);
+      const stationGates = gates.filter((gate) => !gate.stationId || gate.stationId === form.stationId);
       if (!device?.gateId || stationGates.some((gate) => gate.gateId === device.gateId)) {
         return stationGates;
       }
@@ -219,10 +279,15 @@ export default function AdminDeviceFormModal({
 
   const setTypeId = (typeId: string) => {
     const typeName = formTypeOptions.find((type) => type.id === typeId)?.name;
+    const detailKind = inferDetailKindFromName(typeName);
     setForm((current) => ({
       ...current,
       typeId,
-      detailKind: inferDetailKindFromName(typeName),
+      detailKind,
+      assignedStaffId:
+        detailKind === "SCANNER" && !current.assignedStaffId.trim()
+          ? currentStaffId
+          : current.assignedStaffId,
     }));
   };
 
@@ -234,10 +299,6 @@ export default function AdminDeviceFormModal({
     event.preventDefault();
     if (!form.deviceCode.trim() || !form.name.trim() || !form.stationId || !form.typeId.trim()) {
       setError("Vui lòng nhập mã, tên, ga và loại thiết bị.");
-      return;
-    }
-    if (!uuidPattern.test(form.stationId) || !uuidPattern.test(form.typeId.trim())) {
-      setError("Ga và loại thiết bị phải là ID UUID hợp lệ theo backend.");
       return;
     }
     if (form.detailKind === "GATE" && (!form.directionMode || !form.gateType.trim())) {
@@ -331,8 +392,15 @@ export default function AdminDeviceFormModal({
             </label>
             <label className="space-y-1.5">
               <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500">Cổng</span>
-              <select value={form.gateId} onChange={(event) => set("gateId", event.target.value)} className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-blue-400 focus:outline-none">
-                <option value="">Không gắn cổng</option>
+              <select
+                value={form.gateId}
+                disabled={!form.stationId || isLoadingGates}
+                onChange={(event) => set("gateId", event.target.value)}
+                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-blue-400 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+              >
+                <option value="">
+                  {!form.stationId ? "Chọn ga trước" : isLoadingGates ? "Đang tải cổng..." : "Không gắn cổng"}
+                </option>
                 {filteredGates.map((gate) => (
                   <option key={gate.gateId} value={gate.gateId}>
                     {gate.name || gate.gateCode || gate.gateId}
@@ -384,7 +452,7 @@ export default function AdminDeviceFormModal({
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <Field label="Battery level" value={form.batteryLevel} onChange={(value) => set("batteryLevel", value)} type="number" />
               <Field label="OS Version" value={form.osVersion} onChange={(value) => set("osVersion", value)} placeholder="Android 14" />
-              <Field label="Assigned staff ID" value={form.assignedStaffId} onChange={(value) => set("assignedStaffId", value)} placeholder="UUID nhân viên" />
+              <Field label="Assigned staff ID" value={form.assignedStaffId} onChange={(value) => set("assignedStaffId", value)} placeholder={isLoadingStaffId ? "Đang lấy ID nhân viên..." : "UUID nhân viên"} />
             </div>
           )}
           {error ? <p className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</p> : null}

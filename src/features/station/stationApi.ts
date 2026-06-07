@@ -4,7 +4,8 @@ import { Station, StationFilters, PaginatedResult } from "./stationTypes";
 
 // ── Backend response shape ────────────────────────────────────────────────────
 interface BackendStation {
-  stationId: string;
+  stationId?: string;
+  id?: string;
   stationCode?: string;
   name: string;
   address?: string;
@@ -18,6 +19,14 @@ interface BackendStation {
   [key: string]: unknown;
 }
 
+type StationListContainer = {
+  results?: unknown;
+  data?: unknown;
+  content?: unknown;
+  items?: unknown;
+  stations?: unknown;
+};
+
 // ── Map Backend → UI ──────────────────────────────────────────────────────────
 function toCoordinateString(value: unknown): string {
   if (value === null || value === undefined) return "";
@@ -28,10 +37,11 @@ function toCoordinateString(value: unknown): string {
 function mapToUI(b: BackendStation): Station {
   const lat = toCoordinateString(b.latitude ?? b.la_titude);
   const lng = toCoordinateString(b.longitude ?? b.long_titude);
+  const id = b.stationId ?? b.id ?? "";
 
   return {
-    id: b.stationId,
-    code: b.stationCode ?? b.stationId.slice(0, 8).toUpperCase(),
+    id,
+    code: b.stationCode ?? id.slice(0, 8).toUpperCase(),
     name: b.name,
     line: (b.line as string) ?? "—",
     zone: b.address ?? b.location ?? "—",
@@ -40,6 +50,20 @@ function mapToUI(b: BackendStation): Station {
     lat,
     lng,
   };
+}
+
+function extractStationList(payload: unknown): BackendStation[] {
+  if (Array.isArray(payload)) return payload as BackendStation[];
+  if (!payload || typeof payload !== "object") return [];
+
+  const container = payload as StationListContainer;
+  return extractStationList(
+    container.results ??
+    container.data ??
+    container.content ??
+    container.items ??
+    container.stations,
+  );
 }
 
 // ── Map UI form → Backend payload ─────────────────────────────────────────────
@@ -76,6 +100,11 @@ function mapToBackend(data: Partial<Station> & { latitude?: number; longitude?: 
 }
 
 export const stationApi = {
+  getAdminStations: async (): Promise<Station[]> => {
+    const stations = await stationApi.getStations({}, 1, 500);
+    return stations.data;
+  },
+
   // ── GET /stations (FE-19) ──────────────────────────────────────────────────
   getStations: async (
     filters: StationFilters,
@@ -85,7 +114,7 @@ export const stationApi = {
     const res = await apiClient.get<ApiResponse<BackendStation[]>>(
       API_ENDPOINTS.stations.base
     );
-    let data = (res.data.results ?? []).map(mapToUI);
+    let data = extractStationList(res.data).map(mapToUI);
 
     // Client-side filtering (vì backend GET /stations chưa có query params filter)
     if (filters.search) {
