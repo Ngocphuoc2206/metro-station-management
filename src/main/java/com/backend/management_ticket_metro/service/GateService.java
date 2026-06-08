@@ -10,10 +10,10 @@ import com.backend.management_ticket_metro.entity.*;
 import com.backend.management_ticket_metro.enums.GateAction;
 import com.backend.management_ticket_metro.enums.GateStatus;
 import com.backend.management_ticket_metro.enums.ScanResult;
-import com.backend.management_ticket_metro.enums.TicketName;
 import com.backend.management_ticket_metro.enums.TicketStatus;
 import com.backend.management_ticket_metro.exception.AppException;
 import com.backend.management_ticket_metro.repository.*;
+import com.backend.management_ticket_metro.util.TicketTypeNameUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -250,14 +250,14 @@ public class GateService {
     }
 
     private boolean isDailyTicket(Ticket ticket) {
-        return getTicketName(ticket) == TicketName.Daily;
+        return TicketTypeNameUtils.isDaily(getTicketName(ticket));
     }
 
     private boolean isMonthTicket(Ticket ticket) {
-        return getTicketName(ticket) == TicketName.Month;
+        return TicketTypeNameUtils.isMonth(getTicketName(ticket));
     }
 
-    private TicketName getTicketName(Ticket ticket) {
+    private String getTicketName(Ticket ticket) {
         if (ticket == null
                 || ticket.getOrderItem() == null
                 || ticket.getOrderItem().getTicketType() == null) {

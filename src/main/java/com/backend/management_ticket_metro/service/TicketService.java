@@ -5,11 +5,11 @@ import com.backend.management_ticket_metro.dto.response.*;
 import com.backend.management_ticket_metro.entity.*;
 import com.backend.management_ticket_metro.enums.GateAction;
 import com.backend.management_ticket_metro.enums.ScanResult;
-import com.backend.management_ticket_metro.enums.TicketName;
 import com.backend.management_ticket_metro.enums.TicketStatus;
 import com.backend.management_ticket_metro.exception.AppException;
 import com.backend.management_ticket_metro.mapper.OrderMapper;
 import com.backend.management_ticket_metro.repository.*;
+import com.backend.management_ticket_metro.util.TicketTypeNameUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -203,13 +203,14 @@ public class TicketService {
             return now.toLocalDate().plusDays(1).atStartOfDay();
         }
 
-        if (ticketType.getName() == TicketName.Single || ticketType.getName() == TicketName.Daily) {
+        if (TicketTypeNameUtils.isSingle(ticketType.getName())
+                || TicketTypeNameUtils.isDaily(ticketType.getName())) {
             return now.toLocalDate()
                     .plusDays(1)
                     .atStartOfDay();
         }
 
-        if (ticketType.getName() == TicketName.Month) {
+        if (TicketTypeNameUtils.isMonth(ticketType.getName())) {
             return now.plusDays(
                     ticketType.getValidityDays() != null && ticketType.getValidityDays() > 0
                             ? ticketType.getValidityDays()
@@ -217,7 +218,11 @@ public class TicketService {
             );
         }
 
-        return now.toLocalDate().plusDays(1).atStartOfDay();
+        return now.plusDays(
+                ticketType.getValidityDays() != null && ticketType.getValidityDays() > 0
+                        ? ticketType.getValidityDays()
+                        : 1
+        );
     }
 
     private TicketResponse toTicketResponse(Ticket ticket) {
