@@ -1,6 +1,5 @@
 import { apiClient } from "@features/httpClient/ApiClient";
 import { API_ENDPOINTS, ApiResponse, withPathParam } from "@features/httpClient/apiEndpoints";
-import { normalizeTicketNameForBackend } from "@utils/ticketTypeName";
 import { TicketType } from "./ticketTypeTypes";
 
 // ── Backend response shape (theo BE spec thực tế) ─────────────────────────────
@@ -89,7 +88,7 @@ function mapToUI(b: BackendTicketType): TicketType {
 // ── Map UI → Backend payload (theo BE spec) ────────────────────────────────────
 function mapToBackend(data: Partial<TicketType>): Record<string, unknown> {
   return {
-    name: data.name ? normalizeTicketNameForBackend(data.name) : undefined,
+    name: data.name?.trim() || undefined,
     description: data.conditions ?? "",
     price: data.price,
     validityDays: data.validityDuration,
@@ -137,11 +136,8 @@ export const ticketTypeApi = {
     return mapToUI(res.data.results);
   },
 
-  // Không có API xóa → dùng PUT để set isActive = false
+  // DELETE /admin/ticket-types/{id}
   deleteTicketType: async (id: string): Promise<void> => {
-    await apiClient.put(
-      withPathParam(API_ENDPOINTS.ticketTypes.admin, id),
-      { isActive: false }
-    );
+    await apiClient.delete(withPathParam(API_ENDPOINTS.ticketTypes.admin, id));
   },
 };

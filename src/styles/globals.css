@@ -25,6 +25,17 @@ body,
   font-family: Inter, "Segoe UI", Roboto, sans-serif;
 }
 
+.passenger-page-shell button:not(:disabled),
+.passenger-page-shell a[href],
+.passenger-page-shell [role="button"]:not([aria-disabled="true"]) {
+  cursor: pointer;
+}
+
+.passenger-page-shell button:disabled,
+.passenger-page-shell [aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
 .app-table-shell {
   overflow: hidden;
   border: 1px solid #e5e7eb;
