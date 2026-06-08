@@ -45,6 +45,8 @@ body,
 }
 
 .app-table-scroll {
+  width: 100%;
+  max-width: 100%;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -117,6 +119,11 @@ body,
 }
 
 @media (max-width: 768px) {
+  html,
+  body {
+    overflow-x: hidden;
+  }
+
   .app-table {
     min-width: 680px;
   }

@@ -212,7 +212,7 @@ export default function PermissionManagement() {
         className={`fixed top-4 right-4 z-[60] transition-all duration-300 transform ${toast ? "translate-y-0 opacity-100" : "-translate-y-4 opacity-0 pointer-events-none"}`}
       >
         {toast && (
-          <div className="bg-white rounded-xl shadow-2xl border border-gray-100 p-4 flex gap-3 min-w-[320px] animate-in fade-in slide-in-from-top-2">
+          <div className="flex w-[calc(100vw-2rem)] max-w-[320px] gap-3 rounded-xl border border-gray-100 bg-white p-4 shadow-2xl animate-in fade-in slide-in-from-top-2 sm:w-auto sm:min-w-[320px]">
             <div
               className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${toast.type === "success" ? "bg-emerald-100 text-emerald-600" : "bg-red-100 text-red-600"}`}
             >

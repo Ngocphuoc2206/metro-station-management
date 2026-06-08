@@ -285,7 +285,7 @@ export default function StaffDashboard() {
   return (
     <div className="space-y-5 -mt-2">
       {/* ── Header ── */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col items-start justify-between gap-3 sm:flex-row">
         <div>
           <nav className="text-xs text-gray-400 mb-0.5 flex items-center gap-1">
             <span>Cổng nhân viên</span>
@@ -307,7 +307,7 @@ export default function StaffDashboard() {
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z"/></svg>
           Bộ lọc
         </div>
-        <div className="relative min-w-[240px] flex-1">
+        <div className="relative min-w-0 flex-1 basis-full sm:basis-auto">
           <svg className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
@@ -336,7 +336,7 @@ export default function StaffDashboard() {
             }
           }}
           aria-label="Lọc theo ga"
-          className="h-10 min-w-40 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100"
+          className="h-10 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100 sm:w-auto sm:min-w-40"
         >
           <option value="">Tất cả ga</option>
           {stations.map((station) => (
@@ -349,7 +349,7 @@ export default function StaffDashboard() {
           value={selectedDeviceId}
           onChange={(event) => setSelectedDeviceId(event.target.value)}
           aria-label="Lọc theo thiết bị"
-          className="h-10 min-w-44 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100"
+          className="h-10 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100 sm:w-auto sm:min-w-44"
         >
           <option value="">Tất cả thiết bị</option>
           {devices
@@ -364,20 +364,20 @@ export default function StaffDashboard() {
           value={timeWindow}
           onChange={(event) => setTimeWindow(event.target.value as "1h" | "24h" | "7d")}
           aria-label="Lọc theo khoảng thời gian"
-          className="h-10 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100"
+          className="h-10 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100 sm:w-auto"
         >
           <option value="1h">1 giờ</option>
           <option value="24h">24 giờ</option>
           <option value="7d">7 ngày</option>
         </select>
 
-        <div className="ml-auto flex h-10 items-center rounded-xl bg-gray-50 px-3">
+        <div className="flex h-10 w-full items-center rounded-xl bg-gray-50 px-3 sm:ml-auto sm:w-auto">
           <span className="text-xs text-gray-400 font-mono">Cập nhật: {clock}</span>
         </div>
       </div>
 
       {/* ── 4 Stat Cards ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
           { label: "Lưu lượng hiện tại", badge: "LIVE", badgeColor: "bg-green-500", value: loading ? "—" : String(currentTraffic), sub: congestionLabel, subColor: congestionLevel >= 50 ? "text-orange-500" : "text-gray-500" },
           { label: "Vé đã quét", badge: "LIVE", badgeColor: "bg-green-500", value: loading ? "—" : String(acceptedScans), sub: "Lượt quét thành công", subColor: "text-gray-500" },
@@ -400,7 +400,7 @@ export default function StaffDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Bar Chart */}
         <div className="lg:col-span-2 bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-          <div className="flex items-center justify-between mb-4">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-sm font-bold text-gray-900">Biểu đồ lưu lượng theo giờ</h2>
               <p className="text-xs text-gray-400">Tổng lượt vào/ra theo giờ</p>
@@ -448,7 +448,7 @@ export default function StaffDashboard() {
             <Link href="/staff/devices" className="text-xs font-semibold text-blue-600 hover:text-blue-700">Tất cả</Link>
           </div>
           {/* Counters */}
-          <div className="grid grid-cols-3 border-b border-gray-50">
+          <div className="grid grid-cols-1 border-b border-gray-50 sm:grid-cols-3">
             {[
                { label:"TRỰC TUYẾN",  count: online.length,  color: "text-green-600" },
                { label:"NGOẠI TUYẾN", count: offline.length, color: "text-gray-400" },
@@ -491,7 +491,7 @@ export default function StaffDashboard() {
 
       {/* ── Recent Transactions ── */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-50">
+        <div className="flex flex-col gap-2 border-b border-gray-50 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div>
             <h2 className="text-sm font-bold text-gray-900">Giao dịch gần đây</h2>
               <p className="text-[11px] text-gray-400">5 giao dịch mới nhất</p>
@@ -535,8 +535,8 @@ export default function StaffDashboard() {
 
       {/* ── Recent Incidents ── */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-gray-50">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-3 border-b border-gray-50 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
             <span className="w-2.5 h-2.5 bg-red-500 rounded-sm" />
             <h2 className="text-sm font-bold text-gray-900">Sự cố gần đây (Recent Incidents)</h2>
           </div>
