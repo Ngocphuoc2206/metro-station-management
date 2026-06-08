@@ -430,7 +430,12 @@ public class TicketService {
         String destinationStation = tapOut != null
                 ? getStationName(tapOut, "Unknown Station")
                 : "In Transit";
-
+        Double ticketPrice = 0.0;
+        if(ticketId != null) {
+            ticketPrice = ticketRepository.findById(ticketId)
+                    .map(ticket -> ticket.getOrderItem() != null ? ticket.getOrderItem().getUnitprice() : 0.0)
+                    .orElse(0.0);
+        }
         return TripResponse.builder()
                 .id(tripId)
                 .ticketId(ticketId)
@@ -439,6 +444,7 @@ public class TicketService {
                 .checkIn(tapIn != null ? tapIn.getScannedAt() : null)
                 .checkOut(tapOut != null ? tapOut.getScannedAt() : null)
                 .status(resolveTripStatus(tapIn, tapOut))
+                .price(ticketPrice)
                 .build();
     }
 

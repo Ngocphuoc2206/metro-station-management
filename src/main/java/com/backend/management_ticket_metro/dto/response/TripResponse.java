@@ -16,4 +16,5 @@ public class TripResponse {
     private LocalDateTime checkIn;
     private LocalDateTime checkOut;
     private String status;
+    private  Double price;
 }
