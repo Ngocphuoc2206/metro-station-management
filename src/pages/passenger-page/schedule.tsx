@@ -354,9 +354,9 @@ export default function PassengerSchedulePage() {
         <div className="flex min-h-screen w-full">
           <PassengerSidebar />
 
-          <main className="flex min-w-0 flex-1 flex-col">
-            <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-slate-200/80 bg-white/80 px-4 backdrop-blur sm:px-8">
-              <div className="relative w-full max-w-md">
+          <main className="flex min-w-0 flex-1 flex-col pb-20 lg:pb-0">
+            <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-slate-200/80 bg-white/80 px-3 backdrop-blur sm:px-8">
+              <div className="relative min-w-0 flex-1 sm:max-w-md">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input
                   className="w-full rounded-2xl bg-slate-100 py-2.5 pl-10 pr-4 text-sm text-neutral-900 outline-none placeholder:text-slate-500"
@@ -365,12 +365,12 @@ export default function PassengerSchedulePage() {
                 />
               </div>
 
-              <div className="ml-4 flex items-center gap-4">
+              <div className="flex shrink-0 items-center gap-2 sm:gap-4">
                 <button className="relative flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-600">
                   <Bell className="h-5 w-5" />
                   <span className="absolute right-2 top-2 h-2 w-2 rounded-full border-2 border-white bg-red-500" />
                 </button>
-                <button className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-600">
+                <button className="hidden h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-600 min-[380px]:flex">
                   <Settings className="h-5 w-5" />
                 </button>
               </div>
@@ -384,10 +384,10 @@ export default function PassengerSchedulePage() {
                     <ChevronRight className="h-3.5 w-3.5" />
                     <span className="text-slate-900">Lịch tàu</span>
                   </div>
-                  <h1 className="text-4xl font-black leading-10 text-slate-900">Lịch tàu</h1>
+                  <h1 className="text-3xl font-black leading-tight text-slate-900 sm:text-4xl">Lịch tàu</h1>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-3">
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
                   {summaryCards.map((card) => (
                     <article
                       key={card.label}
@@ -400,7 +400,7 @@ export default function PassengerSchedulePage() {
                 </div>
 
                 <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                  <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 lg:flex-row lg:items-center lg:justify-between">
                     <div className="flex items-center gap-2 text-slate-900">
                       <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-600/10 text-blue-600">
                         <SlidersHorizontal className="h-4 w-4" />
@@ -411,7 +411,7 @@ export default function PassengerSchedulePage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
                       <button type="button" onClick={resetFilters} disabled={isFiltering} className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100 disabled:opacity-50">
                         Đặt lại
                       </button>
@@ -464,7 +464,7 @@ export default function PassengerSchedulePage() {
                       <span className="text-xs font-bold uppercase tracking-wide text-slate-500">{selectedStationName}</span>
                     </div>
                     <div className="overflow-x-auto">
-                      <table className="min-w-full text-left">
+                      <table className="min-w-[860px] text-left">
                         <thead className="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase text-slate-500">
                           <tr>
                             <th className="px-6 py-4">Tuyến</th>

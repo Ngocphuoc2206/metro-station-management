@@ -181,12 +181,12 @@ export default function PassengerHistoryPage() {
       </Head>
 
       <PassengerShell>
-        <div className="mx-auto max-w-7xl space-y-6">
+        <div className="mx-auto w-full max-w-7xl space-y-6">
           <div>
             <p className="text-sm text-slate-500">
               Hành khách / Lịch sử chuyến
             </p>
-            <h1 className="mt-1 text-4xl font-black text-slate-900">
+            <h1 className="mt-1 text-3xl font-black leading-tight text-slate-900 sm:text-4xl">
               Lịch sử chuyến
             </h1>
           </div>
@@ -198,7 +198,7 @@ export default function PassengerHistoryPage() {
           ) : null}
 
           <section className="overflow-visible rounded-2xl border border-slate-200 bg-white">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-4">
+            <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <h2 className="text-base font-bold text-slate-900">
                   Danh sách chuyến
@@ -208,8 +208,8 @@ export default function PassengerHistoryPage() {
                 </p>
               </div>
 
-              <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
-                <div className="relative min-w-56 flex-1 sm:max-w-72">
+              <div className="flex w-full flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap lg:w-auto lg:flex-1 lg:items-center lg:justify-end">
+                <div className="relative min-w-0 flex-1 sm:min-w-56 sm:max-w-72">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <input
                     value={query}
@@ -253,11 +253,11 @@ export default function PassengerHistoryPage() {
                   ) : null}
                 </div>
 
-                <div className="relative">
+                <div className="relative sm:w-auto">
                   <button
                     type="button"
                     onClick={() => setIsTimeFilterOpen((current) => !current)}
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-700 transition hover:bg-white"
+                    className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-700 transition hover:bg-white sm:w-10"
                     aria-label="Bộ lọc lịch sử chuyến"
                     aria-expanded={isTimeFilterOpen}
                   >
@@ -300,7 +300,7 @@ export default function PassengerHistoryPage() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="min-w-full text-left text-sm">
+                <table className="min-w-[760px] text-left text-sm">
                   <thead className="bg-slate-50 text-xs uppercase text-slate-500">
                     <tr>
                       <th className="p-4">Ngày</th>
@@ -351,7 +351,7 @@ export default function PassengerHistoryPage() {
             )}
           </section>
 
-          <div className="flex items-center justify-between text-sm text-slate-500">
+          <div className="flex flex-col gap-3 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
             <p>{showing}</p>
             <div className="flex items-center gap-2">
               <button
@@ -380,7 +380,7 @@ export default function PassengerHistoryPage() {
 
       {selected ? (
         <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/40">
-          <aside className="h-full w-full max-w-md bg-white p-6 shadow-xl">
+          <aside className="h-full w-full max-w-md overflow-y-auto bg-white p-4 shadow-xl sm:p-6">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold">Chi tiết chuyến đi</h2>
               <button onClick={() => setSelected(null)}>

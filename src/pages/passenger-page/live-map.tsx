@@ -685,12 +685,12 @@ export default function PassengerLiveMapPage() {
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700">
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
+              <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700 sm:px-4">
                 <Wifi className="h-4 w-4" />
                 Live
               </span>
-              <span className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm ring-1 ring-slate-200">
+              <span className="inline-flex min-w-0 items-center gap-2 rounded-full bg-white px-3 py-2 text-sm font-semibold text-slate-600 shadow-sm ring-1 ring-slate-200 sm:px-4">
                 <Clock3 className="h-4 w-4 text-sky-600" />
                 {lastUpdatedAt
                   ? `Cập nhật ${lastUpdatedAt.toLocaleTimeString("vi-VN")}`
@@ -706,7 +706,7 @@ export default function PassengerLiveMapPage() {
           ) : null}
 
           <section className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_18rem]">
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
               {[
                 {
                   label: "Tàu đang chạy",
@@ -746,7 +746,7 @@ export default function PassengerLiveMapPage() {
                         <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                           {card.label}
                         </p>
-                        <p className="mt-2 text-3xl font-black text-slate-950">
+                        <p className="mt-2 break-words text-2xl font-black text-slate-950 sm:text-3xl">
                           {card.value}
                         </p>
                       </div>
@@ -788,8 +788,8 @@ export default function PassengerLiveMapPage() {
 
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
             <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
-                <div className="flex items-center gap-3">
+              <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-4 lg:flex-row lg:items-center lg:justify-between sm:px-5">
+                <div className="flex min-w-0 items-center gap-3">
                   <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-50 text-sky-600">
                     <MapPinned className="h-5 w-5" />
                   </span>
@@ -804,7 +804,7 @@ export default function PassengerLiveMapPage() {
                 </div>
 
                 <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-                  <label className="relative min-w-56">
+                  <label className="relative min-w-0 sm:min-w-56">
                     <Route className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     <select
                       value={selectedRouteId}
@@ -822,7 +822,7 @@ export default function PassengerLiveMapPage() {
                     </select>
                   </label>
 
-                  <label className="relative min-w-56">
+                  <label className="relative min-w-0 sm:min-w-56">
                     <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     <input
                       value={searchTerm}
@@ -834,12 +834,12 @@ export default function PassengerLiveMapPage() {
                 </div>
               </div>
 
-              <div className="relative min-h-150 overflow-x-auto overflow-y-hidden bg-slate-950">
+              <div className="relative min-h-[420px] overflow-x-auto overflow-y-hidden bg-slate-950 sm:min-h-150">
                 <div className="absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.10)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.10)_1px,transparent_1px)] bg-[size:48px_48px]" />
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_18%,rgba(14,165,233,0.22),transparent_30%),radial-gradient(circle_at_82%_24%,rgba(16,185,129,0.18),transparent_28%),linear-gradient(135deg,rgba(15,23,42,0),rgba(15,23,42,0.72))]" />
 
                 <svg
-                  className="relative z-10 h-150 w-full min-w-240"
+                  className="relative z-10 h-[420px] w-full min-w-[860px] sm:h-150 sm:min-w-240"
                   viewBox="0 0 1040 500"
                   role="img"
                   aria-label="Bản đồ trực tuyến tuyến metro"
@@ -1003,7 +1003,7 @@ export default function PassengerLiveMapPage() {
                   </div>
                 ) : null}
 
-                <div className="absolute bottom-5 left-5 z-20 flex flex-wrap gap-2 rounded-2xl bg-white/95 p-3 text-xs font-semibold text-slate-600 shadow-lg backdrop-blur">
+                <div className="absolute inset-x-4 bottom-4 z-20 flex flex-wrap gap-2 rounded-2xl bg-white/95 p-3 text-xs font-semibold text-slate-600 shadow-lg backdrop-blur sm:inset-x-auto sm:bottom-5 sm:left-5">
                   <span className="inline-flex items-center gap-1.5">
                     <Circle className="h-3 w-3 fill-sky-500 text-sky-500" />
                     Bình thường
@@ -1047,7 +1047,7 @@ export default function PassengerLiveMapPage() {
                       {selectedTrain.direction}
                     </p>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2">
                     <div className="rounded-2xl bg-slate-50 p-4">
                       <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                         Ga kế tiếp
@@ -1204,7 +1204,7 @@ export default function PassengerLiveMapPage() {
                     key={train.id}
                     type="button"
                     onClick={() => setSelectedTrainId(train.id)}
-                    className={`flex items-center justify-between rounded-2xl border p-3 text-left transition ${
+                    className={`flex min-w-0 items-center justify-between gap-3 rounded-2xl border p-3 text-left transition ${
                       selectedTrain.id === train.id
                         ? "border-sky-200 bg-sky-50"
                         : "border-slate-200 bg-white hover:bg-slate-50"

@@ -16,18 +16,18 @@ export default function PassengerShell({ children }: PassengerShellProps) {
       <div className="flex min-h-screen w-full">
         <PassengerSidebar />
 
-        <main className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-slate-200/80 bg-white/80 px-4 backdrop-blur sm:px-8">
-            <div className="relative w-full max-w-md">
+        <main className="flex min-w-0 flex-1 flex-col pb-20 lg:pb-0">
+          <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-slate-200/80 bg-white/80 px-3 backdrop-blur sm:px-8">
+            <div className="relative min-w-0 flex-1 sm:max-w-md">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
-                className="w-full rounded-2xl bg-slate-100 py-2.5 pl-10 pr-4 text-sm text-neutral-900 outline-none placeholder:text-slate-500"
+                className="w-full rounded-2xl bg-slate-100 py-2.5 pl-10 pr-3 text-sm text-neutral-900 outline-none placeholder:text-slate-500 sm:pr-4"
                 placeholder="Tìm kiếm ga, vé, lịch trình..."
                 readOnly
               />
             </div>
 
-            <div className="ml-4 flex items-center gap-4">
+            <div className="flex shrink-0 items-center gap-2 sm:gap-4">
               <button
                 type="button"
                 aria-label="Thông báo"
@@ -39,7 +39,7 @@ export default function PassengerShell({ children }: PassengerShellProps) {
               <button
                 type="button"
                 aria-label="Cài đặt"
-                className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-600"
+                className="hidden h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-600 min-[380px]:flex"
               >
                 <Settings className="h-5 w-5" />
               </button>

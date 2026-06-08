@@ -34,18 +34,18 @@ export default function PassengerTicketQrModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-[2px]"
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/60 p-3 backdrop-blur-[2px] sm:p-4"
       onClick={onClose}
       role="presentation"
     >
       <div
-        className="w-full max-w-sm overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl"
+        className="my-4 w-full max-w-sm overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-label="Mã QR vào cổng"
       >
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+        <div className="flex items-center justify-between border-b border-slate-100 px-4 py-4 sm:px-6 sm:py-5">
           <h3 className="text-lg font-bold text-slate-900">Mã QR vào cổng</h3>
           <button
             type="button"
@@ -57,17 +57,17 @@ export default function PassengerTicketQrModal({
           </button>
         </div>
 
-        <div className="px-6 pb-6 pt-8">
-          <div className="mb-6 flex justify-center">
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
+        <div className="px-4 pb-5 pt-6 sm:px-6 sm:pb-6 sm:pt-8">
+          <div className="mb-5 flex justify-center sm:mb-6">
+            <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] sm:p-4">
               {qrImageUrl ? (
                 <img
                   src={qrImageUrl}
                   alt="Ticket QR"
-                  className={`h-48 w-48 ${isRefreshing ? "opacity-40" : ""}`}
+                  className={`h-40 w-40 sm:h-48 sm:w-48 ${isRefreshing ? "opacity-40" : ""}`}
                 />
               ) : (
-                <div className="flex h-48 w-48 items-center justify-center rounded-lg bg-slate-50 text-sm font-semibold text-slate-500">
+                <div className="flex h-40 w-40 items-center justify-center rounded-lg bg-slate-50 text-sm font-semibold text-slate-500 sm:h-48 sm:w-48">
                   Đang tải QR...
                 </div>
               )}
@@ -85,7 +85,7 @@ export default function PassengerTicketQrModal({
             <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
               Mã vé của bạn
             </p>
-            <p className="text-2xl font-black text-blue-600">{ticketCode}</p>
+            <p className="break-all text-xl font-black text-blue-600 sm:text-2xl">{ticketCode}</p>
           </div>
 
           <div className="mb-6 flex items-center justify-center gap-2 rounded-xl border border-red-100 bg-red-50 px-4 py-3">
@@ -113,7 +113,7 @@ export default function PassengerTicketQrModal({
           </button>
         </div>
 
-        <div className="border-t border-slate-100 bg-slate-50 px-6 py-5">
+        <div className="border-t border-slate-100 bg-slate-50 px-4 py-4 sm:px-6 sm:py-5">
           <button
             type="button"
             onClick={onClose}
