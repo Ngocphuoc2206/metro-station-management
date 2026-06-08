@@ -1,6 +1,6 @@
 import Head from "next/head";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CircleAlert, Loader2, QrCode, X } from "lucide-react";
+import { Archive, CircleAlert, Clock3, Loader2, QrCode, Search, Ticket, X } from "lucide-react";
 import PassengerTicketQrModal from "@components/organisms/PassengerTicketQrModal/PassengerTicketQrModal";
 import PassengerShell from "@components/templates/PassengerShell";
 import { myTicketApi, myTicketErrorMessage } from "@features/myTicket/myTicketApi";
@@ -41,7 +41,7 @@ const formatDateTime = (value?: string) => {
 const ticketStatus = (value: string) => {
   const status = value.toUpperCase();
   if (["USED", "COMPLETED", "CONSUMED", "FINISHED", "CHECKED_OUT", "TAP_OUT", "EXITED"].some((item) => status.includes(item))) return "Đã dùng";
-  if (["READY", "ACTIVE", "VALID", "IN_USE", "CHECKED_IN", "TAP_IN", "ENTERED"].some((item) => status.includes(item))) return "Sẵn sàng sử dụng";
+  if (["READY", "ACTIVE", "VALID", "IN_USE", "CHECKED_IN", "TAP_IN", "ENTERED"].some((item) => status.includes(item))) return "Chưa dùng";
   if (["EXPIRED", "INVALID", "CANCELLED", "INACTIVE"].some((item) => status.includes(item))) return "Hết hạn";
   return "Chưa dùng";
 };
@@ -153,11 +153,17 @@ export default function MyTicketsPage() {
 
   const stats = useMemo(() => ({
     total: tickets.length,
-    active: tickets.filter((ticket) => ticketStatus(ticket.status) === "Sẵn sàng sử dụng").length,
     unused: tickets.filter((ticket) => ticketStatus(ticket.status) === "Chưa dùng").length,
     used: tickets.filter((ticket) => ticketStatus(ticket.status) === "Đã dùng").length,
     expired: tickets.filter((ticket) => ticketStatus(ticket.status) === "Hết hạn").length,
   }), [tickets]);
+
+  const statCards = [
+    { label: "Tổng số vé", value: stats.total, color: "text-slate-900", icon: Ticket, iconTone: "bg-blue-50 text-blue-600" },
+    { label: "Chưa dùng", value: stats.unused, color: "text-amber-600", icon: QrCode, iconTone: "bg-amber-50 text-amber-600" },
+    { label: "Đã dùng", value: stats.used, color: "text-slate-600", icon: Archive, iconTone: "bg-slate-100 text-slate-600" },
+    { label: "Hết hạn", value: stats.expired, color: "text-red-600", icon: Clock3, iconTone: "bg-red-50 text-red-600" },
+  ];
 
   const openDetail = async (id: string) => {
     setSelectedTicket(tickets.find((ticket) => ticket.id === id) ?? null);
@@ -230,35 +236,38 @@ export default function MyTicketsPage() {
             <p className="text-sm text-slate-500">Hành khách / Vé của tôi</p>
             <h1 className="mt-1 text-3xl font-black leading-tight text-slate-900 sm:text-4xl">Vé của tôi</h1>
           </div>
-          <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
-            {[
-              ["Tổng số vé", stats.total, "text-slate-900"],
-              ["Sẵn sàng sử dụng", stats.active, "text-green-600"],
-              ["Chưa dùng", stats.unused, "text-amber-600"],
-              ["Đã dùng", stats.used, "text-slate-600"],
-              ["Hết hạn", stats.expired, "text-red-600"],
-            ].map(([label, value, color]) => (
-              <div key={String(label)} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <p className="text-xs font-bold uppercase text-slate-500">{label}</p>
-                <p className={`mt-2 text-2xl font-black sm:text-3xl ${color}`}>{value}</p>
-              </div>
-            ))}
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+            {statCards.map((card) => {
+              const Icon = card.icon;
+              return (
+                <div key={card.label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <span className={`mb-4 flex h-11 w-11 items-center justify-center rounded-2xl sm:mb-5 ${card.iconTone}`}>
+                    <Icon className="h-5 w-5" />
+                  </span>
+                  <p className="text-xs font-bold uppercase text-slate-500">{card.label}</p>
+                  <p className={`mt-2 text-2xl font-black sm:text-3xl ${card.color}`}>{card.value}</p>
+                </div>
+              );
+            })}
           </div>
           <section className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:flex-row sm:flex-wrap">
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm mã vé hoặc chặng đi" className="h-11 w-full min-w-0 flex-1 rounded-xl border border-slate-200 px-3 sm:min-w-64" />
             <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 px-3 sm:w-auto">
-              <option value="">Tất cả trạng thái</option><option>Sẵn sàng sử dụng</option><option>Chưa dùng</option><option>Đã dùng</option><option>Hết hạn</option>
+              <option value="">Tất cả trạng thái</option><option>Chưa dùng</option><option>Đã dùng</option><option>Hết hạn</option>
             </select>
             <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 px-3 sm:w-auto">
               <option value="">Tất cả loại vé</option><option>Vé lượt</option><option>Vé ngày</option><option>Vé tháng</option>
             </select>
+            <button type="button" className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm shadow-blue-600/20 sm:w-auto">
+              <Search className="h-4 w-4" />
+              Tìm kiếm
+            </button>
           </section>
           {error ? <p className="rounded-xl bg-red-50 p-4 text-sm text-red-700">{error}</p> : null}
           {loading ? <p className="flex items-center justify-center gap-2 rounded-2xl bg-white p-10 text-slate-500"><Loader2 className="h-5 w-5 animate-spin" />Đang tải vé</p> : (
             <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
               {visibleTickets.map((ticket) => {
                 const currentStatus = ticketStatus(ticket.status);
-                const isReady = ticket.status.toUpperCase() === "READY";
                 const isActive = ticket.status.toUpperCase() === "ACTIVE";
                 const isUsed = currentStatus === "Đã dùng";
                 
@@ -268,8 +277,8 @@ export default function MyTicketsPage() {
                     <div className="space-y-4 p-5">
                       <div className="flex justify-between gap-2">
                         <span className="text-xs font-bold text-slate-400">#{ticket.code}</span>
-                        <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${isActive ? "bg-green-50 text-green-700" : isReady ? "bg-blue-50 text-blue-700" : "bg-slate-100"}`}>
-                          {isReady ? "Chưa sử dụng" : currentStatus}
+                        <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${currentStatus === "Chưa dùng" ? "bg-amber-50 text-amber-700" : isUsed ? "bg-slate-100 text-slate-700" : currentStatus === "Hết hạn" ? "bg-red-50 text-red-700" : "bg-slate-100"}`}>
+                          {currentStatus}
                         </span>
                       </div>
                       
@@ -294,7 +303,7 @@ export default function MyTicketsPage() {
                           </>
                         ) : (
                           <>
-                            <p className="text-blue-600 font-medium">Trạng thái: Sẵn sàng sử dụng</p>
+                            <p className="text-amber-600 font-medium">Trạng thái: Chưa dùng</p>
                             {ticket.expiredAt && (
                               <p className="text-amber-600 font-medium">
                                 Hạn sử dụng: Đến {formatDateTime(ticket.expiredAt)}
@@ -349,7 +358,7 @@ export default function MyTicketsPage() {
               <p><span className="text-slate-500">Loại vé:</span> {typeName(selectedTicket)}</p>
               <p><span className="text-slate-500">Chặng:</span> {resolveRouteName(selectedTicket)}</p>
               {selectedTicket.orderId && <p><span className="text-slate-500">Mã đơn hàng:</span> {selectedTicket.orderId}</p>}
-              <p><span className="text-slate-500">Trạng thái:</span> {selectedTicket.status.toUpperCase() === 'READY' ? 'Chưa sử dụng' : ticketStatus(selectedTicket.status)}</p>
+              <p><span className="text-slate-500">Trạng thái:</span> {ticketStatus(selectedTicket.status)}</p>
               
               <div className="border-t border-slate-200 pt-3 space-y-2 text-xs text-slate-600">
                 <p><span className="text-slate-500 font-normal">Thời gian mua:</span> {formatDateTime(selectedTicket.issuedAt)}</p>

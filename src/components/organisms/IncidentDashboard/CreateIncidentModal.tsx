@@ -371,6 +371,42 @@ return (
                 <p className="text-xs text-gray-400">
                   Hỗ trợ JPG, PNG, tối đa 10MB
                 </p>
+              )}
+            </div>
+
+            {/* Mức độ nghiêm trọng */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-900 mb-2">
+                Mức độ nghiêm trọng
+              </label>
+              <div className="grid grid-cols-2 gap-2 rounded-xl bg-gray-50 p-1 sm:grid-cols-4">
+                {SEVERITY_OPTIONS.map((level: IncidentSeverity) => {
+                  const labels: Record<string, string> = {
+                    low: "Thấp",
+                    medium: "Trung bình",
+                    high: "Cao",
+                    critical: "Nghiêm trọng",
+                  };
+                  const activeClass =
+                    level === "low"
+                      ? "bg-white text-gray-900 shadow-sm"
+                      : level === "medium"
+                        ? "bg-white text-yellow-600 shadow-sm"
+                        : level === "high"
+                          ? "bg-white text-orange-600 shadow-sm"
+                          : "bg-white text-red-600 shadow-sm";
+
+                  return (
+                    <button
+                      key={level}
+                      type="button"
+                      onClick={() => setValue("severity", level)}
+                      className={`py-2 text-sm font-medium rounded-lg transition-all ${severity === level ? activeClass : "text-gray-500 hover:bg-gray-100"}`}
+                    >
+                      {labels[level]}
+                    </button>
+                  );
+                })}
               </div>
               {images.length > 0 && (
                 <div className="flex flex-wrap gap-3">
