@@ -1,4 +1,5 @@
 import type { NextPage } from "next";
+import Image from "next/image";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
 import PassengerShell from "@components/templates/PassengerShell";
@@ -243,6 +244,28 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
   const serviceFee = 0;
   const totalPrice = subtotal + serviceFee;
 
+  const paymentQrPreview = (
+    <div className="rounded-3xl border border-slate-200 bg-slate-50/70 p-4">
+      <div className="mx-auto max-w-80 overflow-hidden rounded-2xl border border-white bg-white p-3 shadow-sm">
+        <Image
+          src="/images/vietqr-payment.jpg"
+          alt="Mã QR thanh toán"
+          width={720}
+          height={720}
+          className="h-auto w-full"
+          priority={false}
+        />
+        <a
+          href="/images/vietqr-payment.jpg"
+          download="vietqr-payment.jpg"
+          className="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700"
+        >
+          Tải ảnh
+        </a>
+      </div>
+    </div>
+  );
+
   const goBackToStep2 = async () => {
     await router.push({
       pathname: "/passenger-page/buy-tickets-step-2",
@@ -397,6 +420,8 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
                     />
                   </button>
 
+                  {selectedPaymentMethod === "ewallet" ? paymentQrPreview : null}
+
                   <button
                     type="button"
                     onClick={() => setSelectedPaymentMethod("card")}
@@ -490,6 +515,8 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
                       }
                     />
                   </button>
+
+                  {selectedPaymentMethod === "vietqr" ? paymentQrPreview : null}
                 </div>
 
               </article>
