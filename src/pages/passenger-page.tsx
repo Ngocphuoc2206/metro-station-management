@@ -418,8 +418,8 @@ export default function PassengerPage() {
       </Head>
 
       <PassengerShell>
-        <div className="mx-auto w-full max-w-330 space-y-8">
-          <div className="space-y-8">
+        <div className="mx-auto w-full max-w-330 space-y-6 lg:space-y-8">
+          <div className="space-y-6 lg:space-y-8">
             <div className="flex flex-wrap items-end justify-between gap-4">
               <div>
                 <div className="mb-1 flex items-center gap-2 text-sm font-medium text-slate-500">
@@ -427,7 +427,7 @@ export default function PassengerPage() {
                   <ChevronRight className="h-3.5 w-3.5" />
                   <span className="text-neutral-900">Dashboard</span>
                 </div>
-                <h1 className="text-4xl font-black leading-10 text-neutral-900">
+                <h1 className="text-3xl font-black leading-tight text-neutral-900 sm:text-4xl">
                   Tổng quan
                 </h1>
               </div>
@@ -440,16 +440,16 @@ export default function PassengerPage() {
               </div>
             ) : null}
 
-            <div className="grid gap-6 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 lg:gap-6">
               {derivedStats.map((stat) => {
                 const StatIcon = statIcons[stat.tone];
                 return (
                   <article
                     key={stat.label}
-                    className="rounded-3xl border border-white/60 bg-white/80 p-6 shadow-[0px_8px_24px_-14px_rgba(15,23,42,0.25)] backdrop-blur transition hover:-translate-y-0.5"
+                    className="rounded-2xl border border-white/60 bg-white/80 p-4 shadow-[0px_8px_24px_-14px_rgba(15,23,42,0.25)] backdrop-blur transition hover:-translate-y-0.5 sm:rounded-3xl sm:p-6"
                   >
                     <div
-                      className={`mb-6 inline-flex rounded-2xl p-2 ${toneClass[stat.tone].icon}`}
+                      className={`mb-4 inline-flex rounded-2xl p-2 sm:mb-6 ${toneClass[stat.tone].icon}`}
                     >
                       <StatIcon className="h-5 w-5" />
                     </div>
@@ -457,7 +457,7 @@ export default function PassengerPage() {
                       {stat.label}
                     </p>
                     <div className="mt-1 flex items-end gap-2">
-                      <p className="text-3xl font-black leading-9 text-slate-900">
+                      <p className="break-words text-xl font-black leading-7 text-slate-900 sm:text-3xl sm:leading-9">
                         {stat.value}
                       </p>
                       {stat.subLabel ? (
@@ -475,12 +475,12 @@ export default function PassengerPage() {
               <div className="space-y-8">
                 <section>
                   <div className="mb-4 flex items-center justify-between">
-                    <h2 className="text-xl font-bold text-slate-900">
+                    <h2 className="text-lg font-bold text-slate-900 sm:text-xl">
                       Vé gần đây
                     </h2>
                     <Link
                       href="/passenger-page/my-tickets"
-                      className="text-sm font-semibold text-blue-600"
+                    className="shrink-0 text-sm font-semibold text-blue-600"
                     >
                       Xem tất cả
                     </Link>
@@ -490,7 +490,7 @@ export default function PassengerPage() {
                     {derivedRecentTickets.map((ticket) => (
                       <article
                         key={ticket.code}
-                        className={`flex flex-col rounded-3xl border border-white/60 border-t-4 bg-white/85 p-5 shadow-[0px_10px_30px_-18px_rgba(15,23,42,0.35)] backdrop-blur ${
+                        className={`flex min-w-0 flex-col rounded-3xl border border-white/60 border-t-4 bg-white/85 p-4 shadow-[0px_10px_30px_-18px_rgba(15,23,42,0.35)] backdrop-blur sm:p-5 ${
                           toneClass[ticket.tone].border
                         } ${ticket.disabled || isUsedTicketStatus(ticket.status) ? "opacity-75" : ""}`}
                       >
@@ -559,7 +559,7 @@ export default function PassengerPage() {
 
                 <section>
                   <div className="mb-4 flex items-center justify-between">
-                    <h2 className="text-xl font-bold text-neutral-900">
+                    <h2 className="text-lg font-bold text-neutral-900 sm:text-xl">
                       Chuyến gần nhất
                     </h2>
                     <button className="inline-flex items-center gap-1 rounded-2xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-900">
@@ -570,7 +570,7 @@ export default function PassengerPage() {
 
                   <div className="overflow-hidden rounded-3xl border border-white/60 bg-white/85 shadow-[0px_10px_30px_-18px_rgba(15,23,42,0.35)] backdrop-blur">
                     <div className="overflow-x-auto">
-                      <div className="min-w-180">
+                      <div className="min-w-[720px]">
                         <div className="grid grid-cols-5 bg-slate-50 text-xs font-bold uppercase text-slate-500">
                           <div className="px-6 py-4">Ngày</div>
                           <div className="px-6 py-4">Ga vào</div>

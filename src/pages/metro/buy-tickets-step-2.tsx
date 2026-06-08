@@ -575,11 +575,11 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
       <div className="mx-auto w-full max-w-[1200px]">
         <section className="flex min-w-0 flex-col gap-6">
           <div className="flex flex-col gap-4">
-            <h1 className="text-4xl leading-10 font-black text-neutral-900">
+            <h1 className="text-3xl leading-tight font-black text-neutral-900 sm:text-4xl sm:leading-10">
               Mua vé
             </h1>
 
-            <div className="flex items-start gap-8 border-b border-slate-300 text-sm font-bold tracking-tight">
+            <div className="flex items-start gap-4 overflow-x-auto border-b border-slate-300 text-sm font-bold tracking-tight sm:gap-8">
               <div className="border-b-[3px] border-blue-600 pb-3 pt-4 text-blue-600 opacity-70">
                 <span className="inline-flex items-center gap-1">
                   <Check className="h-3 w-3" />
@@ -603,7 +603,7 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
                   return (
                     <article
                       key={ticket.id}
-                      className={`relative flex h-full flex-col justify-between rounded-xl bg-white p-6 ${
+                      className={`relative flex h-full flex-col justify-between rounded-xl bg-white p-4 sm:p-6 ${
                         isSelected
                           ? "outline-2 outline-blue-600 shadow-[0px_4px_6px_-4px_rgba(19,127,236,0.10),0px_10px_15px_-3px_rgba(19,127,236,0.10)]"
                           : "outline outline-1 outline-slate-200 shadow-[0px_1px_2px_rgba(0,0,0,0.05)]"
@@ -695,7 +695,7 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
               <article className="relative h-32 overflow-hidden rounded-xl">
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-blue-400 opacity-90" />
                 <div className="absolute -right-8 top-0 h-32 w-40 rounded-l-full bg-white/20" />
-                <div className="absolute inset-0 flex flex-col justify-center px-8 text-white">
+                <div className="absolute inset-0 flex flex-col justify-center px-5 text-white sm:px-8">
                   <h3 className="text-lg font-bold leading-7">
                     Trải nghiệm MetroNext 5 sao
                   </h3>
@@ -708,7 +708,7 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
             </div>
 
             <aside className="w-full">
-              <article className="flex flex-col gap-4 rounded-xl bg-white p-6 shadow-[0px_1px_2px_rgba(0,0,0,0.05)] outline outline-1 outline-slate-200">
+              <article className="flex flex-col gap-4 rounded-xl bg-white p-4 shadow-[0px_1px_2px_rgba(0,0,0,0.05)] outline outline-1 outline-slate-200 sm:p-6">
                 <h3 className="text-lg leading-7 font-bold text-neutral-900">
                   Tóm tắt đơn
                 </h3>
