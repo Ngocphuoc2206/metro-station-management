@@ -90,17 +90,17 @@ export default function RoleDetailDrawer({ role, isOpen, onClose, onSave, isSavi
         </div>
 
         {/* Footer Fixed */}
-        <div className="p-5 border-t border-gray-100 bg-gray-50/50 flex gap-3 lg:rounded-b-2xl">
+        <div className="flex flex-col gap-3 border-t border-gray-100 bg-gray-50/50 p-5 sm:flex-row lg:rounded-b-2xl">
            <button 
              onClick={onClose}
-             className="px-6 py-3 flex-1 bg-white border border-gray-200 text-gray-600 font-bold text-sm rounded-xl hover:bg-gray-50 transition-colors"
+             className="flex-1 rounded-xl border border-gray-200 bg-white px-6 py-3 text-sm font-bold text-gray-600 transition-colors hover:bg-gray-50"
            >
              Đóng
            </button>
            <button 
              onClick={() => onSave(role.id)}
              disabled={!hasChanges || isSaving}
-             className="px-6 py-3 flex-1 bg-blue-600 text-white font-bold text-sm rounded-xl hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+             className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
            >
              {isSaving ? (
                 <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">

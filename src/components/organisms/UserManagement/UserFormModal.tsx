@@ -100,7 +100,7 @@ export default function UserFormModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-150 overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="flex max-h-[90vh] w-full max-w-[600px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
         {/* Header */}
         <div className="px-6 py-5 flex items-center justify-between border-b border-gray-100">
           <h2 className="text-xl font-bold text-gray-900">
@@ -178,7 +178,7 @@ export default function UserFormModal({
             </div>
 
             {/* ROW 2: Vai trò + Ga */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label className="block text-xs font-bold text-blue-900 mb-1.5 uppercase tracking-wide">
                   Vai trò
@@ -305,7 +305,7 @@ export default function UserFormModal({
                 <label className="block text-xs font-bold text-blue-900 mb-1.5 uppercase tracking-wide">
                   Mật khẩu tạm thời
                 </label>
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row">
                   <input
                     type="text"
                     readOnly
@@ -331,7 +331,7 @@ export default function UserFormModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 flex justify-end gap-3 rounded-b-2xl border-t border-gray-100 bg-gray-50/50">
+        <div className="flex flex-col-reverse gap-3 rounded-b-2xl border-t border-gray-100 bg-gray-50/50 px-6 py-4 sm:flex-row sm:justify-end">
           <button
             type="button"
             onClick={onClose}

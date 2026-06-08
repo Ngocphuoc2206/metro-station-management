@@ -236,7 +236,7 @@ function ProcessingModal({
         </div>
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-          <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
+          <div className="grid grid-cols-1 gap-x-6 gap-y-4 text-sm sm:grid-cols-2">
             <div>
               <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Mã sự cố</div>
               <div className="font-bold text-blue-600">{shortCode}</div>

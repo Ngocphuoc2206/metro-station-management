@@ -38,6 +38,7 @@ interface ApiIncident {
 }
 
 const CHART_HOURS = Array.from({ length: 12 }, (_, index) => index * 2);
+type TimeWindow = "1h" | "24h" | "7d";
 
 function getGateStatus(gate: ApiGate) {
   const status = (gate.status ?? "").toUpperCase();
@@ -119,6 +120,12 @@ function filterLogsByHours(logs: GateLog[], hours: number) {
   });
 }
 
+function getTimeWindowHours(timeWindow: TimeWindow) {
+  if (timeWindow === "1h") return 1;
+  if (timeWindow === "7d") return 24 * 7;
+  return 24;
+}
+
 function groupLogsByHour(logs: GateLog[]) {
   return CHART_HOURS.map((startHour) => {
     const bucket = logs.filter((log) => {
@@ -172,6 +179,7 @@ export default function StaffDashboard() {
   const [incidentPriority, setIncidentPriority] = useState("");
   const [loading, setLoading] = useState(true);
   const [clock, setClock] = useState(getNow());
+  const [timeWindow, setTimeWindow] = useState<TimeWindow>("24h");
   const [chartRange, setChartRange] = useState<"24h" | "7d">("24h");
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -249,13 +257,13 @@ export default function StaffDashboard() {
   const stableDeviceCount = displayedDevices.filter(isOperationalDevice).length;
   const stableAssetCount = stableStationCount + stableDeviceCount;
   const displayedAssetCount = displayedLiveStatuses.length + displayedDevices.length;
-  const selectedLogs = gateLogs.filter((log) => {
+  const selectedLogs = filterLogsByHours(gateLogs.filter((log) => {
     const matchStation = !appliedStationId || log.stationId === appliedStationId;
     const matchDevice = !appliedDeviceId || log.gateId === appliedDeviceId;
     const matchDateFrom = !appliedDateFrom || (log.timestamp ?? "") >= appliedDateFrom;
     const matchDateTo = !appliedDateTo || (log.timestamp ?? "") <= appliedDateTo + "T23:59:59";
     return matchStation && matchDevice && matchDateFrom && matchDateTo;
-  });
+  }), getTimeWindowHours(timeWindow));
   const displayedLogs = selectedLogs;
   const acceptedLogs = displayedLogs.filter((log) => log.result === "ALLOW");
   const currentTraffic = Math.max(
@@ -294,7 +302,7 @@ export default function StaffDashboard() {
   return (
     <div className="space-y-5 -mt-2">
       {/* ── Header ── */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col items-start justify-between gap-3 sm:flex-row">
         <div>
           <nav className="text-xs text-gray-400 mb-0.5 flex items-center gap-1">
             <span>Cổng nhân viên</span>
@@ -320,10 +328,10 @@ export default function StaffDashboard() {
             className="w-full text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 bg-gray-50 text-gray-700 focus:outline-none"
           />
         </div>
-
-        {/* Đến ngày */}
-        <div className="flex flex-col gap-1 flex-1">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Đến ngày</span>
+        <div className="relative min-w-0 flex-1 basis-full sm:basis-auto">
+          <svg className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
           <input
             type="date"
             value={draftDateTo}
@@ -334,49 +342,60 @@ export default function StaffDashboard() {
             className="w-full text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 bg-gray-50 text-gray-700 focus:outline-none"
           />
         </div>
-
-        {/* Ga */}
-        <div className="flex flex-col gap-1 flex-1">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Ga</span>
-          <select
-            value={draftStationId}
-            onChange={(event) => {
-              const stationId = event.target.value;
-              setDraftStationId(stationId);
-              if (draftDeviceId && !devices.some((d) => d.id === draftDeviceId && (!stationId || d.stationId === stationId))) {
-                setDraftDeviceId("");
-              }
-            }}
-            aria-label="Lọc theo ga"
-            className="w-full text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 bg-gray-50 text-gray-700 focus:outline-none"
-          >
-            <option value="">Tất cả ga</option>
-            {stations.map((station) => (
-              <option key={station.stationId} value={station.stationId}>
-                {station.name}
+        <select
+          value={draftStationId}
+          onChange={(event) => {
+            const stationId = event.target.value;
+            setDraftStationId(stationId);
+            if (
+              draftDeviceId &&
+              !devices.some(
+                (device) =>
+                  device.id === draftDeviceId &&
+                  (!stationId || device.stationId === stationId),
+              )
+            ) {
+              setDraftDeviceId("");
+            }
+          }}
+          aria-label="Lọc theo ga"
+          className="h-10 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100 sm:w-auto sm:min-w-40"
+        >
+          <option value="">Tất cả ga</option>
+          {stations.map((station) => (
+            <option key={station.stationId} value={station.stationId}>
+              {station.name}
+            </option>
+          ))}
+        </select>
+        <select
+          value={draftDeviceId}
+          onChange={(event) => setDraftDeviceId(event.target.value)}
+          aria-label="Lọc theo thiết bị"
+          className="h-10 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100 sm:w-auto sm:min-w-44"
+        >
+          <option value="">Tất cả thiết bị</option>
+          {devices
+            .filter((device) => !draftStationId || device.stationId === draftStationId)
+            .map((device) => (
+              <option key={device.id} value={device.id}>
+                {device.name}
               </option>
             ))}
-          </select>
-        </div>
+        </select>
+        <select
+          value={timeWindow}
+          onChange={(event) => setTimeWindow(event.target.value as TimeWindow)}
+          aria-label="Lọc theo khoảng thời gian"
+          className="h-10 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100 sm:w-auto"
+        >
+          <option value="1h">1 giờ</option>
+          <option value="24h">24 giờ</option>
+          <option value="7d">7 ngày</option>
+        </select>
 
-        {/* Thiết bị */}
-        <div className="flex flex-col gap-1 flex-1">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Thiết bị</span>
-          <select
-            value={draftDeviceId}
-            onChange={(event) => setDraftDeviceId(event.target.value)}
-            aria-label="Lọc theo thiết bị"
-            className="w-full text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 bg-gray-50 text-gray-700 focus:outline-none"
-          >
-            <option value="">Tất cả thiết bị</option>
-            {devices
-              .filter((device) => !draftStationId || device.stationId === draftStationId)
-              .map((device) => (
-                <option key={device.id} value={device.id}>
-                  {device.name}
-                </option>
-              ))}
-          </select>
+        <div className="flex h-10 w-full items-center rounded-xl bg-gray-50 px-3 sm:ml-auto sm:w-auto">
+          <span className="text-xs text-gray-400 font-mono">Cập nhật: {clock}</span>
         </div>
 
         {/* Nút Tìm kiếm */}
@@ -406,7 +425,7 @@ export default function StaffDashboard() {
       </div>
 
       {/* ── 4 Stat Cards ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
           {
             label: "Lưu lượng hiện tại",
@@ -479,7 +498,7 @@ export default function StaffDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Bar Chart */}
         <div className="lg:col-span-2 bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-          <div className="flex items-center justify-between mb-4">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-sm font-bold text-gray-900">Biểu đồ lưu lượng theo giờ</h2>
               <p className="text-xs text-gray-400">Tổng lượt vào/ra theo giờ</p>
@@ -526,7 +545,7 @@ export default function StaffDashboard() {
             <Link href="/staff/devices" className="text-xs font-semibold text-blue-600 hover:text-blue-700">Tất cả</Link>
           </div>
           {/* Counters */}
-          <div className="grid grid-cols-3 border-b border-gray-50">
+          <div className="grid grid-cols-1 border-b border-gray-50 sm:grid-cols-3">
             {[
               { label: "TRỰC TUYẾN", count: online.length, color: "text-green-600" },
               { label: "NGOẠI TUYẾN", count: offline.length, color: "text-gray-400" },
@@ -569,7 +588,7 @@ export default function StaffDashboard() {
 
       {/* ── Recent Transactions ── */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-50">
+        <div className="flex flex-col gap-2 border-b border-gray-50 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div>
             <h2 className="text-sm font-bold text-gray-900">Giao dịch gần đây</h2>
             <p className="text-[11px] text-gray-400">5 giao dịch mới nhất</p>
@@ -613,8 +632,8 @@ export default function StaffDashboard() {
 
       {/* ── Recent Incidents ── */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-gray-50">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-3 border-b border-gray-50 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
             <span className="w-2.5 h-2.5 bg-red-500 rounded-sm" />
             <h2 className="text-sm font-bold text-gray-900">Sự cố gần đây (Recent Incidents)</h2>
           </div>

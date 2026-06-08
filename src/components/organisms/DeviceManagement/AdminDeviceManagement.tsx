@@ -160,12 +160,12 @@ export default function AdminDeviceManagement() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Quản lý thiết bị</h1>
           <p className="mt-1 text-sm text-gray-500">Quản trị cổng, máy bán vé, máy nạp tiền và thiết bị quét.</p>
         </div>
-        <button type="button" onClick={openCreate} className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700">
+        <button type="button" onClick={openCreate} className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700 sm:w-auto">
           <span className="text-lg leading-none">+</span>
           Thêm thiết bị
         </button>
@@ -177,13 +177,13 @@ export default function AdminDeviceManagement() {
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder="Tìm theo mã, tên, ga..."
-          className="min-w-[260px] flex-1 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+          className="min-w-0 flex-1 basis-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100 sm:basis-auto"
         />
-        <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className="min-w-[170px] rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-700 focus:outline-none">
+        <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-700 focus:outline-none sm:w-auto sm:min-w-[170px]">
           <option value="">Tất cả loại</option>
           {typeNames.map((type) => <option key={type} value={type}>{type}</option>)}
         </select>
-        <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="min-w-[170px] rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-700 focus:outline-none">
+        <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-700 focus:outline-none sm:w-auto sm:min-w-[170px]">
           <option value="">Tất cả trạng thái</option>
           {statuses.map((status) => (
             <option key={status} value={status}>

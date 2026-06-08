@@ -303,7 +303,12 @@ export default function PassengerHistoryPage() {
           <aside className="h-full w-full max-w-md bg-white p-6 shadow-xl">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold">Chi tiết chuyến đi</h2>
-              <button onClick={() => setSelected(null)}>
+              <button
+                type="button"
+                onClick={() => setSelected(null)}
+                className="rounded-xl p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                aria-label="Đóng chi tiết chuyến đi"
+              >
                 <X />
               </button>
             </div>
@@ -323,20 +328,12 @@ export default function PassengerHistoryPage() {
                 {formatDateTime(selected.checkInAt)}
               </p>
               <p>
-                <span className="text-slate-500">Cổng vào:</span>{" "}
-                {selected.entryGate || "--"}
-              </p>
-              <p>
                 <span className="text-slate-500">Ga ra:</span>{" "}
                 {selected.destinationStationName || "--"}
               </p>
               <p>
                 <span className="text-slate-500">Thời gian ra:</span>{" "}
                 {formatDateTime(selected.checkOutAt)}
-              </p>
-              <p>
-                <span className="text-slate-500">Cổng ra:</span>{" "}
-                {selected.exitGate || "--"}
               </p>
               <p>
                 <span className="text-slate-500">Tổng tiền:</span>{" "}

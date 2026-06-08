@@ -160,7 +160,7 @@ export default function RouteManagement() {
   return (
     <div className="flex flex-col gap-6">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 leading-tight mb-1">
             Quản lý tuyến & lộ trình
@@ -177,7 +177,7 @@ export default function RouteManagement() {
             setRouteToEdit(null);
             setIsModalOpen(true);
           }}
-          className="flex items-center gap-2 px-5 py-2.5 text-white bg-blue-600 hover:bg-blue-700 rounded-xl text-sm font-semibold transition-colors shadow-sm"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 sm:w-auto"
         >
           <svg
             className="w-4 h-4"
@@ -197,9 +197,9 @@ export default function RouteManagement() {
       </div>
 
       {/* Main 3-Column Layout */}
-      <div className="flex flex-col lg:flex-row gap-6 items-start h-[calc(100vh-180px)]">
+      <div className="flex min-h-0 flex-col items-start gap-6 lg:h-[calc(100vh-180px)] lg:flex-row">
         {/* Left: Route List */}
-        <div className="w-full lg:w-[320px] shrink-0 overflow-y-auto h-full pr-2 custom-scrollbar">
+        <div className="max-h-[42vh] w-full shrink-0 overflow-y-auto pr-0 custom-scrollbar lg:h-full lg:max-h-none lg:w-[320px] lg:pr-2">
           <RouteList
             routes={routes}
             selectedId={selectedRouteId}
@@ -217,7 +217,7 @@ export default function RouteManagement() {
 
         {/* Middle & Right Wrapper */}
         {selectedRoute ? (
-          <div className="flex-1 flex flex-col xl:flex-row gap-6 h-full w-full">
+          <div className="flex w-full flex-1 flex-col gap-6 xl:h-full xl:flex-row">
             {/* Middle: Sequence */}
             {loadingDetail ? (
               <div className="flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 flex items-center justify-center min-h-[500px]">
@@ -235,7 +235,7 @@ export default function RouteManagement() {
             )}
 
             {/* Right: Params */}
-            <div className="shrink-0 h-full overflow-y-auto px-1">
+            <div className="w-full shrink-0 overflow-y-auto px-1 xl:h-full xl:w-auto">
               <RouteOperatingParams
                 route={selectedRoute}
                 onUpdate={handleUpdateParams}

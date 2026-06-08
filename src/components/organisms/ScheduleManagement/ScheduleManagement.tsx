@@ -195,11 +195,11 @@ export default function ScheduleManagement() {
           </nav>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
           <select
             value={selectedRouteFilter}
             onChange={(event) => setSelectedRouteFilter(event.target.value)}
-            className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+            className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 sm:w-auto"
           >
             <option value="">Tất cả tuyến</option>
             {routes.map((route) => (
@@ -212,14 +212,14 @@ export default function ScheduleManagement() {
             type="button"
             onClick={loadData}
             disabled={loading}
-            className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50 sm:w-auto"
           >
             Tải lại
           </button>
           <button
             type="button"
             onClick={openCreateModal}
-            className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+            className="w-full rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 sm:w-auto"
           >
             Thêm lịch tàu
           </button>
@@ -239,7 +239,7 @@ export default function ScheduleManagement() {
 
       <div>
         <section className="app-table-shell">
-          <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+          <div className="flex flex-col gap-2 border-b border-gray-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-base font-bold text-gray-900">
                 Danh sách lịch tàu
@@ -392,7 +392,7 @@ export default function ScheduleManagement() {
               </select>
             </label>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               <label className="block space-y-1.5">
                 <span className="text-[11px] font-bold uppercase tracking-wide text-gray-500">
                   Hướng
@@ -427,7 +427,7 @@ export default function ScheduleManagement() {
               </label>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               <label className="block space-y-1.5">
                 <span className="text-[11px] font-bold uppercase tracking-wide text-gray-500">
                   Giờ khởi hành
@@ -479,7 +479,7 @@ export default function ScheduleManagement() {
               </form>
             </div>
 
-            <div className="flex justify-end gap-3 px-6 py-4">
+            <div className="flex flex-col-reverse gap-3 px-6 py-4 sm:flex-row sm:justify-end">
               <button
                 type="button"
                 onClick={closeFormModal}

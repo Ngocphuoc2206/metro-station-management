@@ -328,7 +328,7 @@ function IncidentDetailModal({
         {/* Body */}
         <div className="px-6 py-5 space-y-4 max-h-[65vh] overflow-y-auto">
           {/* Info grid */}
-          <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
+          <div className="grid grid-cols-1 gap-x-6 gap-y-4 text-sm sm:grid-cols-2">
             <div>
               <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">
                 Mã sự cố
@@ -677,7 +677,7 @@ export default function AdminIncidentDashboard() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
           {
             label: "Tổng sự cố",
@@ -759,7 +759,7 @@ export default function AdminIncidentDashboard() {
               className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition"
             />
           </div>
-          <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-xl">
+          <div className="flex flex-wrap items-center gap-1 rounded-xl bg-gray-50 p-1">
             {[
               { value: "all", label: "Tất cả", count: incidents.length },
               { value: "open", label: "Mới mở", count: stats.pending },
