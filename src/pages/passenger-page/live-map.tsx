@@ -26,7 +26,6 @@ import {
   TrainFront,
   UsersRound,
   Wifi,
-  Wrench,
 } from "lucide-react";
 
 type TrainStatus = "on-time" | "delayed" | "arriving";

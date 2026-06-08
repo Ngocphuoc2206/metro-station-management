@@ -1,5 +1,16 @@
-export type IncidentStatus = 
+export type BackendIncidentStatus =
+  | "OPEN"
+  | "APPROVED"
+  | "ASSIGNED"
+  | "IN_PROGRESS"
+  | "RESOLVED"
+  | "CLOSED";
+
+export type IncidentPriority = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+
+export type IncidentStatus =
   | "Open"
+  | "Approved"
   | "Assigned"
   | "InProgress"
   | "Escalated"
@@ -8,52 +19,69 @@ export type IncidentStatus =
 
 export type IncidentSeverity = "low" | "medium" | "high" | "critical";
 
-// Cột Kanban tương ứng để gom nhóm theo UI
 export type KanbanColumnKey = "TODO" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
 
+export interface IncidentComment {
+  id: string;
+  userId?: string;
+  userName?: string;
+  content: string;
+  createdAt: string;
+}
+
 export interface IncidentRecord {
-  id: string; // VD: INC-2024-001
-  title: string; // Lỗi quét mã QR tại Cổng 04
-  stationId: string; // G-STN-001
-  deviceId: string; // Tách làm deviceId riêng cho chuẩn UI form mới
+  id: string;
+  title: string;
+  description?: string;
+  stationId: string;
+  stationName?: string;
+  gateId?: string | null;
+  gateCode?: string | null;
+  deviceId?: string | null;
+  deviceCode?: string | null;
   deviceType: string;
+  priority?: IncidentPriority;
   severity: IncidentSeverity;
+  backendStatus?: BackendIncidentStatus;
   status: IncidentStatus;
-  assigneeName?: string; // Tên nhân viên được giao xử lý
-  description?: string; // Thông tin mô tả
-  createdAt: string; // 14:20 hoặc timestamp
+  reporterName?: string;
+  assigneeName?: string;
+  createdAt: string;
   updatedAt: string;
+  comments?: IncidentComment[];
 }
 
 export interface IncidentFormData {
   title: string;
-  stationId: string;   // bắt buộc theo BE
-  deviceId?: string;
+  stationId: string;
   gateId?: string;
-  severity: IncidentSeverity;
+  deviceId?: string;
+  priority?: IncidentPriority;
+  severity?: IncidentSeverity;
   description?: string;
-  images?: File[];
 }
 
 export interface IncidentFilterParams {
   stationId?: string;
+  priority?: IncidentPriority | "";
+  severity?: IncidentSeverity | "all";
+  status?: BackendIncidentStatus | "";
   deviceType?: string;
-  severity?: IncidentSeverity;
 }
 
-export type TimelineEventType = "comment" | "status_change" | "assigned" | "escalated";
+export type TimelineEventType = "comment" | "status_change" | "assigned";
 
 export interface IncidentTimelineEvent {
   id: string;
   type: TimelineEventType;
   actorName: string;
-  timestamp: string; // "14:35 - Hôm nay"
-  content: string; // Nội dung comment hoặc mô tả thay đổi trạng thái
+  timestamp: string;
+  content: string;
   oldStatus?: IncidentStatus;
   newStatus?: IncidentStatus;
 }
 
 export interface IncidentDetailRecord extends IncidentRecord {
   timeline: IncidentTimelineEvent[];
-  slaMinutes?: number; // Ví dụ 45 phút còn lại
+  slaMinutes?: number;
 }
