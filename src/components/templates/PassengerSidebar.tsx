@@ -69,10 +69,6 @@ export default function PassengerSidebar() {
   const displayEmail = profile?.email || email || "Metro";
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  useEffect(() => {
-    setIsMobileMenuOpen(false);
-  }, [router.pathname]);
-
   return (
     <>
     <aside className="hidden w-64 shrink-0 border-r border-slate-200/80 bg-white/90 backdrop-blur lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col">
@@ -141,6 +137,7 @@ export default function PassengerSidebar() {
                   <Link
                     key={item.href}
                     href={item.href}
+                    onClick={() => setIsMobileMenuOpen(false)}
                     className={`flex items-center gap-3 rounded-2xl px-3 py-3 text-left transition ${
                       active ? "bg-blue-50 text-blue-600" : "text-slate-700 hover:bg-slate-50"
                     }`}

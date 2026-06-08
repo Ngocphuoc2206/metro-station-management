@@ -1,9 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { useState } from "react";
 import { useSelector } from "react-redux";
 import { useLogout } from "@features/auth/useLogout";
 import type { RootState } from "@stores/index";
 import Link from "next/link";
 import router from "next/router";
+import { Menu, X } from "lucide-react";
 
 const STAFF_NAV = [
   { label: "Tổng quan", href: "/staff", icon: DashboardIcon },
@@ -11,21 +13,12 @@ const STAFF_NAV = [
   { label: "Sự cố", href: "/staff/incidents", icon: IncidentIcon },
   { label: "Quét vé", href: "/staff/scan", icon: ScanIcon },
   { label: "Nhật ký soát vé", href: "/staff/ticket-log", icon: TicketLogIcon },
-  {
-    label: "Nhật ký giao dịch",
-    href: "/staff/transaction-logs",
-    icon: TransactionIcon,
-  },
-  {
-    label: "Hồ sơ ca trực",
-    href: "/staff/shift-profile",
-    icon: ShiftProfileIcon,
-  },
 ];
 
 export default function StaffSidebar() {
   const { name } = useSelector((s: RootState) => s.userReducer);
   const handleLogout = useLogout();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Nếu name trống hoặc trùng email → dùng phần trước @ của email làm tên hiển thị
   const isNameEmail = name && name.includes("@");
@@ -34,7 +27,8 @@ export default function StaffSidebar() {
     : name;
 
   return (
-    <aside className="sticky top-0 flex h-screen w-20 shrink-0 flex-col border-r border-gray-100 bg-white sm:w-64">
+    <>
+    <aside className="hidden h-screen w-64 shrink-0 flex-col border-r border-gray-100 bg-white lg:sticky lg:top-0 lg:flex">
       <div className="min-h-0 flex-1 overflow-y-auto">
         {/* Logo */}
         <div className="flex items-center justify-center gap-3 border-b border-gray-50 px-3 py-5 sm:justify-start sm:px-6">
@@ -75,43 +69,72 @@ export default function StaffSidebar() {
         </nav>
       </div>
 
-      {/* Cài đặt & User Info */}
-      <div className="space-y-2 border-t border-gray-100 px-3 py-4 sm:px-5">
-        <a
-          href="#settings"
-          className="flex items-center justify-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 sm:justify-start"
-        >
-          <SettingsIcon active={false} />
-          <span className="hidden sm:inline">Cài đặt</span>
-        </a>
-
-        <div className="flex items-center justify-between pt-2">
-          <div className="flex w-full items-center justify-center gap-3 pt-2 sm:justify-start">
-            <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
-              <span className="text-emerald-700 font-bold mb-0.5">
-                {displayName ? displayName.charAt(0).toUpperCase() : "S"}
-              </span>
-            </div>
-            <div className="hidden min-w-0 pr-2 sm:block">
-              <p className="text-sm font-bold text-gray-900 truncate">
-                {displayName || "Nhân viên"}
-              </p>
-              <p className="text-xs text-gray-400 truncate">
-                Nhân viên ga
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <button
-          onClick={handleLogout}
-          className="mt-2 w-full rounded-lg border border-transparent py-2 text-xs font-semibold text-gray-400 transition-colors hover:border-red-100 hover:bg-red-50 hover:text-red-500"
-        >
-          <span className="hidden sm:inline">Đăng xuất</span>
-          <span className="sm:hidden">Thoát</span>
-        </button>
-      </div>
     </aside>
+
+    <div className="lg:hidden">
+      <button
+        type="button"
+        onClick={() => setIsMobileMenuOpen((current) => !current)}
+        className="fixed left-3 top-3 z-50 flex h-10 w-10 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-700 shadow-sm backdrop-blur transition hover:bg-gray-50"
+        aria-label={isMobileMenuOpen ? "Đóng menu" : "Mở menu"}
+        aria-expanded={isMobileMenuOpen}
+      >
+        {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+      </button>
+
+      {isMobileMenuOpen ? (
+        <>
+          <button
+            type="button"
+            className="fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-[1px]"
+            aria-label="Đóng menu"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+          <div className="fixed left-3 right-3 top-16 z-50 max-h-[calc(100vh-5rem)] overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-2xl">
+            <div className="flex items-center gap-3 border-b border-gray-100 p-4">
+              <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                </svg>
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold text-gray-900">{displayName || "Nhân viên"}</p>
+                <p className="truncate text-xs text-gray-400">Nhân viên ga</p>
+              </div>
+            </div>
+
+            <nav className="max-h-[70vh] space-y-1 overflow-y-auto p-3">
+              {STAFF_NAV.map((item) => {
+                const active = router.pathname === item.href;
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={`flex items-center gap-3 rounded-2xl px-3 py-3 text-left transition ${
+                      active ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    <Icon active={active} />
+                    <span className={`text-sm ${active ? "font-bold" : "font-semibold"}`}>{item.label}</span>
+                  </Link>
+                );
+              })}
+              <div className="border-t border-gray-100 pt-2">
+                <button
+                  onClick={handleLogout}
+                  className="w-full rounded-2xl px-3 py-3 text-left text-sm font-semibold text-red-600 transition hover:bg-red-50"
+                >
+                  Đăng xuất
+                </button>
+              </div>
+            </nav>
+          </div>
+        </>
+      ) : null}
+    </div>
+    </>
   );
 }
 

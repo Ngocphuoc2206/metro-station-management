@@ -34,10 +34,10 @@ function readFileAsDataUrl(file: File): Promise<string> {
 // ── Shared Badge Components ───────────────────────────────────────────────────
 function SeverityBadge({ severity }: { severity: string }) {
   const map: Record<string, { label: string; cls: string }> = {
-    critical: { label: "Nguy cấp",    cls: "bg-red-600 text-white" },
-    high:     { label: "Cao",          cls: "bg-red-600 text-white" },
-    medium:   { label: "Trung bình",   cls: "bg-orange-400 text-white" },
-    low:      { label: "Thấp",         cls: "bg-gray-200 text-gray-700" },
+    critical: { label: "Nguy cấp", cls: "bg-red-600 text-white" },
+    high: { label: "Cao", cls: "bg-red-600 text-white" },
+    medium: { label: "Trung bình", cls: "bg-orange-400 text-white" },
+    low: { label: "Thấp", cls: "bg-gray-200 text-gray-700" },
   };
   const v = map[severity] ?? map.low;
   return (
@@ -54,12 +54,12 @@ function SeverityBadge({ severity }: { severity: string }) {
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; cls: string }> = {
-    Open:       { label: "Tạo mới",       cls: "bg-gray-100 text-gray-600 border border-gray-200" },
-    Assigned:   { label: "Đã phân công",  cls: "bg-blue-50 text-blue-600 border border-blue-200" },
-    InProgress: { label: "Đang xử lý",    cls: "bg-orange-50 text-orange-600 border border-orange-200" },
-    Escalated:  { label: "Đang xử lý",    cls: "bg-orange-50 text-orange-600 border border-orange-200" },
-    Resolved:   { label: "Đã hoàn thành", cls: "bg-green-50 text-green-700 border border-green-200" },
-    Closed:     { label: "Đã đóng",       cls: "bg-slate-100 text-slate-600 border border-slate-200" },
+    Open: { label: "Tạo mới", cls: "bg-gray-100 text-gray-600 border border-gray-200" },
+    Assigned: { label: "Đã phân công", cls: "bg-blue-50 text-blue-600 border border-blue-200" },
+    InProgress: { label: "Đang xử lý", cls: "bg-orange-50 text-orange-600 border border-orange-200" },
+    Escalated: { label: "Đang xử lý", cls: "bg-orange-50 text-orange-600 border border-orange-200" },
+    Resolved: { label: "Đã hoàn thành", cls: "bg-green-50 text-green-700 border border-green-200" },
+    Closed: { label: "Đã đóng", cls: "bg-slate-100 text-slate-600 border border-slate-200" },
   };
   const v = map[status] ?? map.Open;
   return (
@@ -259,7 +259,7 @@ function ProcessingModal({
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-          <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
+          <div className="grid grid-cols-1 gap-x-6 gap-y-4 text-sm sm:grid-cols-2">
             <div>
               <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Mã sự cố</div>
               <div className="font-bold text-blue-600">{shortCode}</div>
@@ -305,9 +305,8 @@ function ProcessingModal({
                 onChange={(e) => e.target.files && addFiles(Array.from(e.target.files))}
               />
               <div
-                className={`border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-colors ${
-                  isDragging ? "border-blue-400 bg-blue-50" : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                }`}
+                className={`border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-colors ${isDragging ? "border-blue-400 bg-blue-50" : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                  }`}
                 onClick={() => fileInputRef.current?.click()}
                 onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                 onDragLeave={(e) => { e.preventDefault(); setIsDragging(false); }}
