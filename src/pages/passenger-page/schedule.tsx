@@ -350,7 +350,7 @@ export default function PassengerSchedulePage() {
         <title>Lịch tàu | MetroNext</title>
       </Head>
 
-      <div className="min-h-screen w-full bg-[linear-gradient(180deg,#f8fafc_0%,#eef2ff_45%,#f8fafc_100%)]">
+      <div className="passenger-page-shell min-h-screen w-full bg-[linear-gradient(180deg,#f8fafc_0%,#eef2ff_45%,#f8fafc_100%)]">
         <div className="flex min-h-screen w-full">
           <PassengerSidebar />
 
