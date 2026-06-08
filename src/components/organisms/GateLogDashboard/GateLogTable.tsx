@@ -42,7 +42,7 @@ export default function GateLogTable({ logs, onDetail, page, pageSize, total, on
         <table className="app-table app-table-compact text-sm">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50">
-              {["Thời gian", "Mã cổng", "Ga", "Mã vé", "Hành động", "Kết quả", "Chi tiết"].map((column) => (
+              {["Thời gian", "Mã cổng", "Ga", "Mã vé", "Hành động", "Trạng thái", "Thao tác"].map((column) => (
                 <th key={column} className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">
                   {column}
                 </th>
@@ -80,12 +80,9 @@ export default function GateLogTable({ logs, onDetail, page, pageSize, total, on
                   <button
                     type="button"
                     onClick={() => onDetail(log)}
-                    title="Xem chi tiết"
-                    className="text-blue-500 transition-colors hover:text-blue-700"
+                    className="text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors"
                   >
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                    </svg>
+                    Chi tiết
                   </button>
                 </td>
               </tr>
