@@ -2,10 +2,16 @@ import Head from "next/head";
 import { useEffect, useMemo, useState } from "react";
 import PassengerShell from "@components/templates/PassengerShell";
 import { liveApi, liveErrorMessage } from "@features/live/liveApi";
-import type { LiveStationStatusDto, LiveTrainDto } from "@features/live/liveTypes";
+import type {
+  LiveStationStatusDto,
+  LiveTrainDto,
+} from "@features/live/liveTypes";
 import { publicApi } from "@features/public/publicApi";
 import type { RouteDto, StationDto } from "@features/public/publicTypes";
-import { scheduleApi, scheduleErrorMessage } from "@features/schedule/scheduleApi";
+import {
+  scheduleApi,
+  scheduleErrorMessage,
+} from "@features/schedule/scheduleApi";
 import type { ScheduleDto } from "@features/schedule/scheduleTypes";
 import {
   Activity,
@@ -26,6 +32,7 @@ import {
   TrainFront,
   UsersRound,
   Wifi,
+  Wrench,
 } from "lucide-react";
 
 type TrainStatus = "on-time" | "delayed" | "arriving";
@@ -66,15 +73,78 @@ type ScheduleStop = ScheduleDto & {
 };
 
 const fallbackStations: Station[] = [
-  { id: "ben-thanh", name: "Bến Thành", x: 82, y: 355, status: "busy", congestionLevel: 78 },
-  { id: "opera", name: "Nhà hát TP", x: 172, y: 316, status: "normal", congestionLevel: 42 },
-  { id: "ba-son", name: "Ba Son", x: 270, y: 280, status: "normal", congestionLevel: 36 },
-  { id: "van-thanh", name: "Văn Thánh", x: 382, y: 244, status: "normal", congestionLevel: 48 },
-  { id: "tan-cang", name: "Tân Cảng", x: 500, y: 220, status: "busy", congestionLevel: 72 },
-  { id: "thao-dien", name: "Thảo Điền", x: 622, y: 190, status: "normal", congestionLevel: 40 },
-  { id: "an-phu", name: "An Phú", x: 740, y: 160, status: "normal", congestionLevel: 31 },
-  { id: "rach-chiec", name: "Rạch Chiếc", x: 850, y: 128, status: "normal", congestionLevel: 34 },
-  { id: "suoi-tien", name: "Suối Tiên", x: 950, y: 100, status: "normal", congestionLevel: 45 },
+  {
+    id: "ben-thanh",
+    name: "Bến Thành",
+    x: 82,
+    y: 355,
+    status: "busy",
+    congestionLevel: 78,
+  },
+  {
+    id: "opera",
+    name: "Nhà hát TP",
+    x: 172,
+    y: 316,
+    status: "normal",
+    congestionLevel: 42,
+  },
+  {
+    id: "ba-son",
+    name: "Ba Son",
+    x: 270,
+    y: 280,
+    status: "normal",
+    congestionLevel: 36,
+  },
+  {
+    id: "van-thanh",
+    name: "Văn Thánh",
+    x: 382,
+    y: 244,
+    status: "normal",
+    congestionLevel: 48,
+  },
+  {
+    id: "tan-cang",
+    name: "Tân Cảng",
+    x: 500,
+    y: 220,
+    status: "busy",
+    congestionLevel: 72,
+  },
+  {
+    id: "thao-dien",
+    name: "Thảo Điền",
+    x: 622,
+    y: 190,
+    status: "normal",
+    congestionLevel: 40,
+  },
+  {
+    id: "an-phu",
+    name: "An Phú",
+    x: 740,
+    y: 160,
+    status: "normal",
+    congestionLevel: 31,
+  },
+  {
+    id: "rach-chiec",
+    name: "Rạch Chiếc",
+    x: 850,
+    y: 128,
+    status: "normal",
+    congestionLevel: 34,
+  },
+  {
+    id: "suoi-tien",
+    name: "Suối Tiên",
+    x: 950,
+    y: 100,
+    status: "normal",
+    congestionLevel: 45,
+  },
 ];
 
 const fallbackTrains: Train[] = [
@@ -169,18 +239,33 @@ const emptyStation: Station = {
 
 const mapTrainStatus = (value: string): TrainStatus => {
   const status = value.toUpperCase();
-  if (status.includes("DELAY") || status.includes("LATE") || status.includes("TRỄ")) {
+  if (
+    status.includes("DELAY") ||
+    status.includes("LATE") ||
+    status.includes("TRỄ")
+  ) {
     return "delayed";
   }
-  if (status.includes("ARRIV") || status.includes("APPROACH") || status.includes("ĐẾN")) {
+  if (
+    status.includes("ARRIV") ||
+    status.includes("APPROACH") ||
+    status.includes("ĐẾN")
+  ) {
     return "arriving";
   }
   return "on-time";
 };
 
-const mapStationStatus = (value: string, congestionLevel = 0): StationStatus => {
+const mapStationStatus = (
+  value: string,
+  congestionLevel = 0,
+): StationStatus => {
   const status = value.toUpperCase();
-  if (status.includes("MAINTENANCE") || status.includes("CLOSED") || status.includes("BẢO")) {
+  if (
+    status.includes("MAINTENANCE") ||
+    status.includes("CLOSED") ||
+    status.includes("BẢO")
+  ) {
     return "maintenance";
   }
   if (
@@ -194,7 +279,8 @@ const mapStationStatus = (value: string, congestionLevel = 0): StationStatus => 
   return "normal";
 };
 
-const getStationId = (station: LiveStationStatusDto) => station.stationId || station.id;
+const getStationId = (station: LiveStationStatusDto) =>
+  station.stationId || station.id;
 
 const minutesUntil = (time: string) => {
   if (!time) return null;
@@ -222,7 +308,12 @@ const formatClock = (value: string) => {
 const getScheduleStatus = (status: string) => {
   const value = status.toUpperCase();
   if (value.includes("DELAY") || value.includes("TRỄ")) return "Trễ";
-  if (value.includes("CANCEL") || value.includes("HUỶ") || value.includes("HỦY")) return "Huỷ";
+  if (
+    value.includes("CANCEL") ||
+    value.includes("HUỶ") ||
+    value.includes("HỦY")
+  )
+    return "Huỷ";
   if (value.includes("ACTIVE") || value.includes("ON")) return "Đang chạy";
   return status || "Theo lịch";
 };
@@ -231,7 +322,9 @@ export default function PassengerLiveMapPage() {
   const [routes, setRoutes] = useState<RouteDto[]>([]);
   const [stationsApi, setStationsApi] = useState<StationDto[]>([]);
   const [schedules, setSchedules] = useState<ScheduleDto[]>([]);
-  const [stationStatuses, setStationStatuses] = useState<LiveStationStatusDto[]>([]);
+  const [stationStatuses, setStationStatuses] = useState<
+    LiveStationStatusDto[]
+  >([]);
   const [trainLocations, setTrainLocations] = useState<LiveTrainDto[]>([]);
   const [selectedRouteId, setSelectedRouteId] = useState("");
   const [selectedTrainId, setSelectedTrainId] = useState("");
@@ -323,7 +416,9 @@ export default function PassengerLiveMapPage() {
         setSelectedStationId((current) =>
           liveStations.some((station) => getStationId(station) === current)
             ? current
-            : (liveStations[0] ? getStationId(liveStations[0]) : ""),
+            : liveStations[0]
+              ? getStationId(liveStations[0])
+              : "",
         );
         setLastUpdatedAt(new Date());
       } catch (err) {
@@ -363,7 +458,12 @@ export default function PassengerLiveMapPage() {
             };
             const congestionLevel = Math.min(
               100,
-              Math.max(0, station.congestionLevel ?? fallbackStations[index]?.congestionLevel ?? 0),
+              Math.max(
+                0,
+                station.congestionLevel ??
+                  fallbackStations[index]?.congestionLevel ??
+                  0,
+              ),
             );
 
             return {
@@ -388,8 +488,7 @@ export default function PassengerLiveMapPage() {
             const stationIndex = allDisplayStations.findIndex(
               (station) => station.id === train.nextStationId,
             );
-            const fallback =
-              allDisplayStations[stationIndex] ??
+            const fallback = allDisplayStations[stationIndex] ??
               fallbackTrains[index] ??
               fallbackStations[index] ?? {
                 x: 82 + index * 96,
@@ -417,7 +516,8 @@ export default function PassengerLiveMapPage() {
         !normalizedSearch ||
         train.code.toLowerCase().includes(normalizedSearch) ||
         train.nextStation.toLowerCase().includes(normalizedSearch);
-      const matchesRoute = !selectedRouteId || train.routeId === selectedRouteId || !train.routeId;
+      const matchesRoute =
+        !selectedRouteId || train.routeId === selectedRouteId || !train.routeId;
       return matchesSearch && matchesRoute;
     });
   }, [allDisplayStations, searchTerm, selectedRouteId, trainLocations]);
@@ -447,12 +547,18 @@ export default function PassengerLiveMapPage() {
     const routesById = new Map(routes.map((route) => [route.id, route]));
     trainLocations.forEach((train) => {
       if (train.routeId && !routesById.has(train.routeId)) {
-        routesById.set(train.routeId, { id: train.routeId, name: `Tuyến ${train.routeId}` });
+        routesById.set(train.routeId, {
+          id: train.routeId,
+          name: `Tuyến ${train.routeId}`,
+        });
       }
     });
     schedules.forEach((schedule) => {
       if (schedule.routeId && !routesById.has(schedule.routeId)) {
-        routesById.set(schedule.routeId, { id: schedule.routeId, name: `Tuyến ${schedule.routeId}` });
+        routesById.set(schedule.routeId, {
+          id: schedule.routeId,
+          name: `Tuyến ${schedule.routeId}`,
+        });
       }
     });
     return Array.from(routesById.values());
@@ -460,29 +566,46 @@ export default function PassengerLiveMapPage() {
 
   const resolvedRouteName = useMemo(() => {
     const route = routes.find((item) => item.id === selectedRouteId);
-    return route?.name ?? (selectedRouteId ? `Tuyến ${selectedRouteId}` : "Tất cả tuyến");
+    return (
+      route?.name ??
+      (selectedRouteId ? `Tuyến ${selectedRouteId}` : "Tất cả tuyến")
+    );
   }, [routes, selectedRouteId]);
 
   const upcomingSchedules = useMemo<ScheduleStop[]>(() => {
     const routeFiltered = schedules.filter(
       (schedule) => !selectedRouteId || schedule.routeId === selectedRouteId,
     );
-    const stationFiltered = isStationSchedulePinned && selectedStation.id
-      ? routeFiltered.filter((schedule) => schedule.stationId === selectedStation.id)
-      : routeFiltered;
+    const stationFiltered =
+      isStationSchedulePinned && selectedStation.id
+        ? routeFiltered.filter(
+            (schedule) => schedule.stationId === selectedStation.id,
+          )
+        : routeFiltered;
 
     const scheduleStops = stationFiltered
       .map((schedule) => ({
         ...schedule,
-        stationName: stationNameById.get(schedule.stationId) ?? schedule.stationId,
-        routeName: routeNameById.get(schedule.routeId) ?? `Tuyến ${schedule.routeId}`,
-        minutesUntil: minutesUntil(schedule.departureTime || schedule.arrivalTime),
+        stationName:
+          stationNameById.get(schedule.stationId) ?? schedule.stationId,
+        routeName:
+          routeNameById.get(schedule.routeId) ?? `Tuyến ${schedule.routeId}`,
+        minutesUntil: minutesUntil(
+          schedule.departureTime || schedule.arrivalTime,
+        ),
         source: "schedule" as const,
       }))
-      .filter((schedule) => schedule.minutesUntil === null || schedule.minutesUntil >= 0);
+      .filter(
+        (schedule) =>
+          schedule.minutesUntil === null || schedule.minutesUntil >= 0,
+      );
 
     const liveStops = (trainLocations.length > 0 ? displayTrains : [])
-      .filter((train) => !isStationSchedulePinned || train.nextStationId === selectedStation.id)
+      .filter(
+        (train) =>
+          !isStationSchedulePinned ||
+          train.nextStationId === selectedStation.id,
+      )
       .map((train) => ({
         id: `live-${train.id}`,
         routeId: train.routeId ?? selectedRouteId,
@@ -494,7 +617,7 @@ export default function PassengerLiveMapPage() {
         status: statusLabel[train.status],
         stationName: train.nextStation,
         routeName: train.routeId
-          ? routeNameById.get(train.routeId) ?? `Tuyến ${train.routeId}`
+          ? (routeNameById.get(train.routeId) ?? `Tuyến ${train.routeId}`)
           : resolvedRouteName,
         minutesUntil: etaMinutes(train.eta),
         source: "live" as const,
@@ -517,15 +640,23 @@ export default function PassengerLiveMapPage() {
     trainLocations.length,
   ]);
 
-  const linePath = allDisplayStations.length > 1
-    ? allDisplayStations.map((station) => `${station.x},${station.y}`).join(" ")
-    : "";
+  const linePath =
+    allDisplayStations.length > 1
+      ? allDisplayStations
+          .map((station) => `${station.x},${station.y}`)
+          .join(" ")
+      : "";
   const activeStations = allDisplayStations.filter(
     (station) => station.status !== "maintenance",
   ).length;
-  const delayedTrains = displayTrains.filter((train) => train.status === "delayed").length;
+  const delayedTrains = displayTrains.filter(
+    (train) => train.status === "delayed",
+  ).length;
   const averageOccupancy = displayTrains.length
-    ? Math.round(displayTrains.reduce((sum, train) => sum + train.occupancy, 0) / displayTrains.length)
+    ? Math.round(
+        displayTrains.reduce((sum, train) => sum + train.occupancy, 0) /
+          displayTrains.length,
+      )
     : 0;
   const nextSchedule = upcomingSchedules[0];
   const hasLiveData = stationStatuses.length > 0 || trainLocations.length > 0;
@@ -549,7 +680,8 @@ export default function PassengerLiveMapPage() {
                 Theo dõi tàu đang chạy
               </h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                Xem vị trí tàu, mật độ ga và các chuyến sắp khởi hành theo thời gian thực.
+                Xem vị trí tàu, mật độ ga và các chuyến sắp khởi hành theo thời
+                gian thực.
               </p>
             </div>
 
@@ -584,7 +716,9 @@ export default function PassengerLiveMapPage() {
                 },
                 {
                   label: "Ga hoạt động",
-                  value: isLoadingLive ? "--" : `${activeStations}/${allDisplayStations.length}`,
+                  value: isLoadingLive
+                    ? "--"
+                    : `${activeStations}/${allDisplayStations.length}`,
                   icon: CheckCircle2,
                   tone: "text-emerald-700 bg-emerald-50",
                 },
@@ -603,7 +737,10 @@ export default function PassengerLiveMapPage() {
               ].map((card) => {
                 const Icon = card.icon;
                 return (
-                  <article key={card.label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <article
+                    key={card.label}
+                    className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                  >
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
@@ -613,7 +750,9 @@ export default function PassengerLiveMapPage() {
                           {card.value}
                         </p>
                       </div>
-                      <span className={`flex h-10 w-10 items-center justify-center rounded-2xl ${card.tone}`}>
+                      <span
+                        className={`flex h-10 w-10 items-center justify-center rounded-2xl ${card.tone}`}
+                      >
                         <Icon className="h-5 w-5" />
                       </span>
                     </div>
@@ -630,7 +769,8 @@ export default function PassengerLiveMapPage() {
               <p className="mt-3 text-2xl font-black">
                 {nextSchedule
                   ? nextSchedule.source === "live"
-                    ? (nextSchedule.etaText || `${nextSchedule.minutesUntil ?? "--"}'`)
+                    ? nextSchedule.etaText ||
+                      `${nextSchedule.minutesUntil ?? "--"}'`
                     : formatClock(nextSchedule.departureTime)
                   : "--:--"}
               </p>
@@ -654,7 +794,9 @@ export default function PassengerLiveMapPage() {
                     <MapPinned className="h-5 w-5" />
                   </span>
                   <div>
-                    <h2 className="text-lg font-black text-slate-950">{resolvedRouteName}</h2>
+                    <h2 className="text-lg font-black text-slate-950">
+                      {resolvedRouteName}
+                    </h2>
                     <p className="text-xs text-slate-500">
                       Chọn tàu hoặc ga để xem lịch trình và trạng thái chi tiết.
                     </p>
@@ -666,7 +808,9 @@ export default function PassengerLiveMapPage() {
                     <Route className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     <select
                       value={selectedRouteId}
-                      onChange={(event) => setSelectedRouteId(event.target.value)}
+                      onChange={(event) =>
+                        setSelectedRouteId(event.target.value)
+                      }
                       className="h-11 w-full appearance-none rounded-2xl border border-slate-200 bg-slate-50 pl-9 pr-4 text-sm font-semibold text-slate-800 outline-none transition focus:border-sky-300 focus:bg-white focus:ring-4 focus:ring-sky-100"
                     >
                       <option value="">Tất cả tuyến</option>
@@ -734,7 +878,9 @@ export default function PassengerLiveMapPage() {
                     const isSelected = selectedStation.id === station.id;
                     const isDimmed =
                       searchTerm.trim() &&
-                      !station.name.toLowerCase().includes(searchTerm.trim().toLowerCase());
+                      !station.name
+                        .toLowerCase()
+                        .includes(searchTerm.trim().toLowerCase());
 
                     return (
                       <g
@@ -851,7 +997,8 @@ export default function PassengerLiveMapPage() {
                   <div className="absolute inset-0 z-20 flex items-center justify-center p-6">
                     <div className="max-w-sm rounded-2xl border border-slate-700 bg-slate-900/92 px-6 py-5 text-center text-sm text-slate-300 shadow-xl backdrop-blur">
                       <Radio className="mx-auto mb-2 h-6 w-6 text-sky-300" />
-                      Chưa có dữ liệu live từ hệ thống vận hành. Màn hình đang hiển thị sơ đồ tuyến mẫu.
+                      Chưa có dữ liệu live từ hệ thống vận hành. Màn hình đang
+                      hiển thị sơ đồ tuyến mẫu.
                     </div>
                   </div>
                 ) : null}
@@ -880,9 +1027,13 @@ export default function PassengerLiveMapPage() {
                     <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                       Tàu được chọn
                     </p>
-                    <h2 className="text-2xl font-black text-slate-950">{selectedTrain.code}</h2>
+                    <h2 className="text-2xl font-black text-slate-950">
+                      {selectedTrain.code}
+                    </h2>
                   </div>
-                  <span className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${statusClass[selectedTrain.status]}`}>
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${statusClass[selectedTrain.status]}`}
+                  >
                     {statusLabel[selectedTrain.status]}
                   </span>
                 </div>
@@ -892,20 +1043,26 @@ export default function PassengerLiveMapPage() {
                     <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                       Hướng đi
                     </p>
-                    <p className="mt-1 text-sm font-bold text-slate-950">{selectedTrain.direction}</p>
+                    <p className="mt-1 text-sm font-bold text-slate-950">
+                      {selectedTrain.direction}
+                    </p>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="rounded-2xl bg-slate-50 p-4">
                       <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                         Ga kế tiếp
                       </p>
-                      <p className="mt-1 text-sm font-bold text-slate-950">{selectedTrain.nextStation}</p>
+                      <p className="mt-1 text-sm font-bold text-slate-950">
+                        {selectedTrain.nextStation}
+                      </p>
                     </div>
                     <div className="rounded-2xl bg-sky-50 p-4">
                       <p className="text-xs font-bold uppercase tracking-wide text-sky-700">
                         ETA
                       </p>
-                      <p className="mt-1 text-sm font-black text-sky-700">{selectedTrain.eta}</p>
+                      <p className="mt-1 text-sm font-black text-sky-700">
+                        {selectedTrain.eta}
+                      </p>
                     </div>
                   </div>
                   <div>
@@ -932,12 +1089,16 @@ export default function PassengerLiveMapPage() {
               <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="mb-4 flex items-center gap-2">
                   <MapPinned className="h-5 w-5 text-sky-600" />
-                  <h2 className="text-lg font-black text-slate-950">Ga được chọn</h2>
+                  <h2 className="text-lg font-black text-slate-950">
+                    Ga được chọn
+                  </h2>
                 </div>
                 <div className="rounded-2xl bg-slate-50 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-base font-black text-slate-950">{selectedStation.name}</p>
+                      <p className="text-base font-black text-slate-950">
+                        {selectedStation.name}
+                      </p>
                       <p className="mt-1 text-xs font-semibold text-slate-500">
                         {stationStatusLabel[selectedStation.status]}
                       </p>
@@ -959,14 +1120,20 @@ export default function PassengerLiveMapPage() {
                   <div>
                     <div className="flex items-center gap-2">
                       <Clock3 className="h-5 w-5 text-sky-600" />
-                      <h2 className="text-lg font-black text-slate-950">Lịch sắp đến</h2>
+                      <h2 className="text-lg font-black text-slate-950">
+                        Lịch sắp đến
+                      </h2>
                     </div>
                     <p className="mt-1 text-xs font-semibold text-slate-500">
-                      {isStationSchedulePinned ? selectedStation.name : "Toàn tuyến realtime"}
+                      {isStationSchedulePinned
+                        ? selectedStation.name
+                        : "Toàn tuyến realtime"}
                     </p>
                   </div>
                   {isLoadingSchedule ? (
-                    <span className="text-xs font-bold text-slate-400">Đang tải</span>
+                    <span className="text-xs font-bold text-slate-400">
+                      Đang tải
+                    </span>
                   ) : null}
                 </div>
 
@@ -981,15 +1148,21 @@ export default function PassengerLiveMapPage() {
                         key={schedule.id}
                         type="button"
                         onClick={() => {
-                          if (schedule.stationId) selectStation(schedule.stationId);
+                          if (schedule.stationId)
+                            selectStation(schedule.stationId);
                         }}
                         className="flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 text-left transition hover:border-sky-200 hover:bg-sky-50"
                       >
-                        <span className={`flex h-11 w-14 shrink-0 items-center justify-center rounded-2xl text-sm font-black text-white ${
-                          schedule.source === "live" ? "bg-sky-600" : "bg-slate-950"
-                        }`}>
+                        <span
+                          className={`flex h-11 w-14 shrink-0 items-center justify-center rounded-2xl text-sm font-black text-white ${
+                            schedule.source === "live"
+                              ? "bg-sky-600"
+                              : "bg-slate-950"
+                          }`}
+                        >
                           {schedule.source === "live"
-                            ? (schedule.etaText || `${schedule.minutesUntil ?? "--"}'`)
+                            ? schedule.etaText ||
+                              `${schedule.minutesUntil ?? "--"}'`
                             : formatClock(schedule.departureTime)}
                         </span>
                         <span className="min-w-0 flex-1">
@@ -1005,7 +1178,9 @@ export default function PassengerLiveMapPage() {
                           </span>
                         </span>
                         <span className="text-xs font-black text-sky-700">
-                          {schedule.minutesUntil === null ? "--" : `${schedule.minutesUntil}'`}
+                          {schedule.minutesUntil === null
+                            ? "--"
+                            : `${schedule.minutesUntil}'`}
                         </span>
                       </button>
                     ))
@@ -1019,7 +1194,9 @@ export default function PassengerLiveMapPage() {
             <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="mb-4 flex items-center gap-2">
                 <Radio className="h-5 w-5 text-sky-600" />
-                <h2 className="text-lg font-black text-slate-950">Đoàn tàu trên tuyến</h2>
+                <h2 className="text-lg font-black text-slate-950">
+                  Đoàn tàu trên tuyến
+                </h2>
               </div>
               <div className="grid gap-3 md:grid-cols-2">
                 {displayTrains.map((train) => (
@@ -1058,7 +1235,9 @@ export default function PassengerLiveMapPage() {
             <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="mb-4 flex items-center gap-2">
                 <Activity className="h-5 w-5 text-sky-600" />
-                <h2 className="text-lg font-black text-slate-950">Tình hình vận hành</h2>
+                <h2 className="text-lg font-black text-slate-950">
+                  Tình hình vận hành
+                </h2>
               </div>
               <div className="space-y-3">
                 {[
@@ -1072,26 +1251,38 @@ export default function PassengerLiveMapPage() {
                     icon: AlertTriangle,
                     label: "Tàu cần chú ý",
                     value: delayedTrains,
-                    text: delayedTrains > 0 ? "Có tàu đang báo trễ." : "Không có cảnh báo trễ.",
+                    text:
+                      delayedTrains > 0
+                        ? "Có tàu đang báo trễ."
+                        : "Không có cảnh báo trễ.",
                   },
                   {
                     icon: Wrench,
                     label: "Ga bảo trì",
-                    value: allDisplayStations.filter((station) => station.status === "maintenance").length,
+                    value: allDisplayStations.filter(
+                      (station) => station.status === "maintenance",
+                    ).length,
                     text: "Theo trạng thái live của từng ga.",
                   },
                 ].map((item) => {
                   const Icon = item.icon;
                   return (
-                    <div key={item.label} className="rounded-2xl bg-slate-50 p-4">
+                    <div
+                      key={item.label}
+                      className="rounded-2xl bg-slate-50 p-4"
+                    >
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2 text-sm font-black text-slate-950">
                           <Icon className="h-4 w-4 text-sky-600" />
                           {item.label}
                         </div>
-                        <span className="text-sm font-black text-slate-950">{item.value}</span>
+                        <span className="text-sm font-black text-slate-950">
+                          {item.value}
+                        </span>
                       </div>
-                      <p className="mt-1 text-xs font-semibold text-slate-500">{item.text}</p>
+                      <p className="mt-1 text-xs font-semibold text-slate-500">
+                        {item.text}
+                      </p>
                     </div>
                   );
                 })}
