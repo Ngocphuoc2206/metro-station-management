@@ -22,6 +22,7 @@ export default function IncidentDashboard() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedIncident, setSelectedIncident] = useState<IncidentRecord | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+
   // Lưu ảnh bằng chứng xử lý theo incidentId (base64) — persist qua F5 nhờ localStorage
   const [evidenceStore, setEvidenceStore] = useState<Record<string, string[]>>(() => {
     if (typeof window === "undefined") return {};
