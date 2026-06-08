@@ -77,4 +77,37 @@ public interface GateScanLogRepository extends JpaRepository<GateScanLog, String
             @Param("user") User user,
             Pageable pageable
     );
+    // Thêm vào interface GateScanLogRepository
+    @Query("""
+    SELECT COUNT(l) FROM GateScanLog l
+    WHERE l.scannedAt >= :start AND l.scannedAt <= :end
+      AND l.result = com.backend.management_ticket_metro.enums.ScanResult.ALLOW
+      AND l.action = com.backend.management_ticket_metro.enums.GateAction.TAP_OUT
+      AND (:stationId IS NULL OR l.station.stationId = :stationId)
+""")
+    Long countTripsCompleted(LocalDateTime start, LocalDateTime end, String stationId, String routeId);
+
+    @Query("""
+    SELECT FUNCTION('DATE', l.scannedAt),
+           SUM(CASE WHEN l.action = 'TAP_OUT' AND l.result = 'ALLOW' THEN 1 ELSE 0 END),
+           SUM(CASE WHEN l.action = 'TAP_IN' AND l.result = 'ALLOW' THEN 1 ELSE 0 END),
+           SUM(CASE WHEN l.result = 'DENY' THEN 1 ELSE 0 END)
+    FROM GateScanLog l
+    WHERE l.scannedAt >= :start AND l.scannedAt <= :end
+      AND (:stationId IS NULL OR l.station.stationId = :stationId)
+    GROUP BY FUNCTION('DATE', l.scannedAt)
+""")
+    List<Object[]> getTripsReportByDate(LocalDateTime start, LocalDateTime end, String stationId, String routeId);
+
+    @Query("""
+    SELECT l.gate.gateId, l.gate.gateCode, l.gate.name, l.station.name,
+           COUNT(l),
+           SUM(CASE WHEN l.result = 'ALLOW' THEN 1 ELSE 0 END),
+           SUM(CASE WHEN l.result = 'DENY' THEN 1 ELSE 0 END)
+    FROM GateScanLog l
+    WHERE l.scannedAt >= :start AND l.scannedAt <= :end
+      AND (:stationId IS NULL OR l.station.stationId = :stationId)
+    GROUP BY l.gate.gateId, l.gate.gateCode, l.gate.name, l.station.name
+""")
+    List<Object[]> getGateActivityReport(LocalDateTime start, LocalDateTime end, String stationId);
 }

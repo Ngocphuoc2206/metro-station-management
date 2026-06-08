@@ -25,4 +25,11 @@ public interface IncidentRepository extends JpaRepository<Incident, String> {
             @Param("priority") IncidentPriority priority,
             @Param("stationId") String stationId
     );
+    // Thêm vào interface IncidentRepository
+    @Query("""
+    SELECT COUNT(i) FROM Incident i
+    WHERE i.status != com.backend.management_ticket_metro.enums.IncidentStatus.CLOSED
+      AND (:stationId IS NULL OR i.station.stationId = :stationId)
+""")
+    Long countActiveIncidents(String stationId);
 }
