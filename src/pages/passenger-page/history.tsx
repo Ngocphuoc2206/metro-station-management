@@ -1,15 +1,6 @@
 import Head from "next/head";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Check,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  Filter,
-  Loader2,
-  Search,
-  X,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Loader2, X } from "lucide-react";
 import PassengerShell from "@components/templates/PassengerShell";
 import { publicApi } from "@features/public/publicApi";
 import type { StationDto } from "@features/public/publicTypes";
@@ -18,42 +9,10 @@ import type { TripDto, TripPage } from "@features/trip/tripTypes";
 
 const LIMIT = 10;
 
-type TimeFilterKey = "today" | "3d" | "7d" | "1m" | "all";
-
-const TIME_FILTERS: Array<{ key: TimeFilterKey; label: string; days?: number }> = [
-  { key: "today", label: "Hôm nay", days: 0 },
-  { key: "3d", label: "3 ngày gần đây", days: 3 },
-  { key: "7d", label: "7 ngày gần đây", days: 7 },
-  { key: "1m", label: "1 tháng", days: 30 },
-  { key: "all", label: "Tất cả" },
-];
-
-const toInputDate = (date: Date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
-
-const toStartDateTime = (value?: string) =>
+const toStartDateTime = (value: string) =>
   value ? new Date(`${value}T00:00:00`).toISOString() : undefined;
-
-const toEndDateTime = (value?: string) =>
+const toEndDateTime = (value: string) =>
   value ? new Date(`${value}T23:59:59.999`).toISOString() : undefined;
-
-const getDateRange = (filter: TimeFilterKey) => {
-  const option = TIME_FILTERS.find((item) => item.key === filter);
-  if (!option || option.key === "all") return {};
-
-  const end = new Date();
-  const start = new Date();
-  start.setDate(end.getDate() - (option.days ?? 0));
-
-  return {
-    from: toInputDate(start),
-    to: toInputDate(end),
-  };
-};
 
 const formatDate = (value?: string) => {
   if (!value) return "--";
@@ -66,9 +25,7 @@ const formatDate = (value?: string) => {
 const formatDateTime = (value?: string) => {
   if (!value) return "--";
   const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? value
-    : date.toLocaleString("vi-VN");
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString("vi-VN");
 };
 
 const formatFare = (value?: number) =>
@@ -76,11 +33,10 @@ const formatFare = (value?: number) =>
 
 export default function PassengerHistoryPage() {
   const [stations, setStations] = useState<StationDto[]>([]);
-  const [timeFilter, setTimeFilter] = useState<TimeFilterKey>("today");
-  const [isTimeFilterOpen, setIsTimeFilterOpen] = useState(false);
-  const [isStationFilterOpen, setIsStationFilterOpen] = useState(false);
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
   const [stationId, setStationId] = useState("");
-  const [query, setQuery] = useState("");
+  const [filters, setFilters] = useState({ from: "", to: "", stationId: "" });
   const [page, setPage] = useState(0);
   const [result, setResult] = useState<TripPage>({
     items: [],
@@ -94,30 +50,35 @@ export default function PassengerHistoryPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    publicApi.getStations().then(setStations).catch(() => {
-      // Trip history still works when station option labels cannot be loaded.
-    });
+    publicApi
+      .getStations()
+      .then(setStations)
+      .catch(() => {
+        // Trip history still works when station option labels cannot be loaded.
+      });
   }, []);
 
-  const loadTrips = useCallback(async (active: { current: boolean }) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const range = getDateRange(timeFilter);
-      const data = await tripApi.list({
-        page,
-        limit: LIMIT,
-        from: toStartDateTime(range.from),
-        to: toEndDateTime(range.to),
-        stationId: stationId || undefined,
-      });
-      if (active.current) setResult(data);
-    } catch (requestError) {
-      if (active.current) setError(tripErrorMessage(requestError));
-    } finally {
-      if (active.current) setLoading(false);
-    }
-  }, [page, stationId, timeFilter]);
+  const loadTrips = useCallback(
+    async (active: { current: boolean }) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await tripApi.list({
+          page,
+          limit: LIMIT,
+          from: toStartDateTime(filters.from),
+          to: toEndDateTime(filters.to),
+          stationId: filters.stationId || undefined,
+        });
+        if (active.current) setResult(data);
+      } catch (requestError) {
+        if (active.current) setError(tripErrorMessage(requestError));
+      } finally {
+        if (active.current) setLoading(false);
+      }
+    },
+    [filters, page],
+  );
 
   useEffect(() => {
     const active = { current: true };
@@ -127,30 +88,45 @@ export default function PassengerHistoryPage() {
     };
   }, [loadTrips]);
 
-  const selectedStationName = useMemo(() => {
-    return (
-      stations.find((station) => station.id === stationId)?.name ?? "Tất cả ga"
-    );
-  }, [stationId, stations]);
+  const applyFilters = () => {
+    setPage(0);
+    setFilters({ from, to, stationId });
+  };
 
-  const visibleTrips = useMemo(() => {
-    const keyword = query.trim().toLowerCase();
-    if (!keyword) return result.items;
+  const resetFilters = () => {
+    setFrom("");
+    setTo("");
+    setStationId("");
+    setPage(0);
+    setFilters({ from: "", to: "", stationId: "" });
+  };
 
-    return result.items.filter((trip) =>
-      [
-        trip.ticketCode,
-        trip.ticketId,
-        trip.originStationName,
-        trip.destinationStationName,
-        trip.status,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase()
-        .includes(keyword),
+  const exportCsv = () => {
+    const header = "ticket,origin,destination,checkIn,checkOut,status,fare\n";
+    const body = result.items
+      .map((trip) =>
+        [
+          trip.ticketCode,
+          trip.originStationName,
+          trip.destinationStationName,
+          trip.checkInAt,
+          trip.checkOutAt,
+          trip.status,
+          trip.fare ?? "",
+        ]
+          .map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`)
+          .join(","),
+      )
+      .join("\n");
+    const url = URL.createObjectURL(
+      new Blob([header + body], { type: "text/csv;charset=utf-8" }),
     );
-  }, [query, result.items]);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "trip-history.csv";
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
 
   const showing = useMemo(() => {
     if (!result.total) return "Không có chuyến đi";
@@ -159,35 +135,75 @@ export default function PassengerHistoryPage() {
     return `Hiển thị ${start} - ${end} của ${result.total} chuyến đi`;
   }, [result]);
 
-  const selectTimeFilter = (key: TimeFilterKey) => {
-    setTimeFilter(key);
-    setPage(0);
-    setIsTimeFilterOpen(false);
-  };
-
-  const selectStationFilter = (nextStationId: string) => {
-    setStationId(nextStationId);
-    setPage(0);
-    setIsStationFilterOpen(false);
-  };
-
   return (
     <>
       <Head>
         <title>Lịch sử chuyến | MetroNext</title>
       </Head>
-
       <PassengerShell>
-        <div className="mx-auto w-full max-w-7xl space-y-6">
-          <div>
-            <p className="text-sm text-slate-500">
-              Hành khách / Lịch sử chuyến
-            </p>
-            <h1 className="mt-1 text-3xl font-black leading-tight text-slate-900 sm:text-4xl">
-              Lịch sử chuyến
-            </h1>
+        <div className="mx-auto max-w-7xl space-y-6">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-sm text-slate-500">
+                Hành khách / Lịch sử chuyến
+              </p>
+              <h1 className="mt-1 text-4xl font-black text-slate-900">
+                Lịch sử chuyến
+              </h1>
+            </div>
+            <button
+              type="button"
+              onClick={exportCsv}
+              className="flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white"
+            >
+              <Download className="h-4 w-4" />
+              Xuất CSV trang hiện tại
+            </button>
           </div>
-
+          <section className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 md:grid-cols-4">
+            <input
+              type="date"
+              value={from}
+              onChange={(event) => setFrom(event.target.value)}
+              className="h-11 rounded-xl border border-slate-200 px-3"
+              aria-label="Từ ngày"
+            />
+            <input
+              type="date"
+              value={to}
+              onChange={(event) => setTo(event.target.value)}
+              className="h-11 rounded-xl border border-slate-200 px-3"
+              aria-label="Đến ngày"
+            />
+            <select
+              value={stationId}
+              onChange={(event) => setStationId(event.target.value)}
+              className="h-11 rounded-xl border border-slate-200 px-3"
+            >
+              <option value="">Tất cả ga</option>
+              {stations.map((station) => (
+                <option key={station.id} value={station.id}>
+                  {station.name}
+                </option>
+              ))}
+            </select>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={applyFilters}
+                className="flex-1 rounded-xl bg-blue-600 px-3 text-sm font-bold text-white"
+              >
+                Lọc
+              </button>
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="rounded-xl border border-slate-200 px-3 text-sm"
+              >
+                Xóa
+              </button>
+            </div>
+          </section>
           {error ? (
             <p className="rounded-xl bg-red-50 p-4 text-sm text-red-700">
               {error}
@@ -304,7 +320,7 @@ export default function PassengerHistoryPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {visibleTrips.map((trip) => (
+                    {result.items.map((trip) => (
                       <tr
                         key={trip.id}
                         onClick={() => setSelected(trip)}
@@ -330,12 +346,15 @@ export default function PassengerHistoryPage() {
                         <td className="p-4 font-semibold text-slate-900">
                           {formatFare(trip.fare)}
                         </td>
+                        <td className="p-4 font-semibold">
+                          {formatFare(trip.fare)}
+                        </td>
                         <td className="p-4">{trip.status || "--"}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-                {!visibleTrips.length ? (
+                {!result.items.length ? (
                   <p className="p-10 text-center text-sm text-slate-500">
                     Không tìm thấy chuyến đi.
                   </p>
@@ -343,8 +362,7 @@ export default function PassengerHistoryPage() {
               </div>
             )}
           </section>
-
-          <div className="flex flex-col gap-3 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center justify-between text-sm text-slate-500">
             <p>{showing}</p>
             <div className="flex items-center gap-2">
               <button

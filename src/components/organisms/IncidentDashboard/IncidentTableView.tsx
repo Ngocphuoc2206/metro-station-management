@@ -304,11 +304,10 @@ export default function IncidentTableView({
                   <button
                     key={p}
                     onClick={() => setPage(p as number)}
-                    className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-semibold transition ${
-                      page === p
+                    className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-semibold transition ${page === p
                         ? "bg-blue-600 text-white shadow-sm shadow-blue-200"
                         : "text-gray-600 hover:bg-gray-100"
-                    }`}
+                      }`}
                   >
                     {p}
                   </button>
