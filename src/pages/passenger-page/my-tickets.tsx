@@ -1,7 +1,7 @@
 import Head from "next/head";
-import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CircleAlert, Loader2, QrCode, X } from "lucide-react";
+import PassengerTicketQrModal from "@components/organisms/PassengerTicketQrModal/PassengerTicketQrModal";
 import PassengerShell from "@components/templates/PassengerShell";
 import { myTicketApi, myTicketErrorMessage } from "@features/myTicket/myTicketApi";
 import { publicApi } from "@features/public/publicApi";
@@ -231,12 +231,12 @@ export default function MyTicketsPage() {
     <>
       <Head><title>Vé của tôi | MetroNext</title></Head>
       <PassengerShell>
-        <div className="mx-auto max-w-7xl space-y-6">
+        <div className="mx-auto w-full max-w-7xl space-y-6">
           <div>
             <p className="text-sm text-slate-500">Hành khách / Vé của tôi</p>
-            <h1 className="mt-1 text-4xl font-black text-slate-900">Vé của tôi</h1>
+            <h1 className="mt-1 text-3xl font-black leading-tight text-slate-900 sm:text-4xl">Vé của tôi</h1>
           </div>
-          <div className="grid gap-4 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
             {[
               ["Tổng số vé", stats.total, "text-slate-900"],
               ["Sẵn sàng sử dụng", stats.active, "text-green-600"],
@@ -246,16 +246,16 @@ export default function MyTicketsPage() {
             ].map(([label, value, color]) => (
               <div key={String(label)} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <p className="text-xs font-bold uppercase text-slate-500">{label}</p>
-                <p className={`mt-2 text-3xl font-black ${color}`}>{value}</p>
+                <p className={`mt-2 text-2xl font-black sm:text-3xl ${color}`}>{value}</p>
               </div>
             ))}
           </div>
-          <section className="flex flex-wrap gap-3 rounded-2xl border border-slate-200 bg-white p-4">
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm mã vé hoặc chặng đi" className="h-11 min-w-64 flex-1 rounded-xl border border-slate-200 px-3" />
-            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="h-11 rounded-xl border border-slate-200 px-3">
+          <section className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:flex-row sm:flex-wrap">
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm mã vé hoặc chặng đi" className="h-11 w-full min-w-0 flex-1 rounded-xl border border-slate-200 px-3 sm:min-w-64" />
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 px-3 sm:w-auto">
               <option value="">Tất cả trạng thái</option><option>Sẵn sàng sử dụng</option><option>Chưa dùng</option><option>Đã dùng</option><option>Hết hạn</option>
             </select>
-            <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className="h-11 rounded-xl border border-slate-200 px-3">
+            <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 px-3 sm:w-auto">
               <option value="">Tất cả loại vé</option><option>Vé lượt</option><option>Vé ngày</option><option>Vé tháng</option>
             </select>
           </section>
@@ -310,7 +310,7 @@ export default function MyTicketsPage() {
                         )}
                       </div>
                     </div>
-                    <div className="flex gap-2 bg-slate-50 p-4">
+                    <div className="flex flex-col gap-2 bg-slate-50 p-4 min-[420px]:flex-row">
                       {!isUsed && currentStatus !== "Hết hạn" ? (
                         <button type="button" onClick={() => openQr(ticket)} className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-blue-600 py-2 text-xs font-bold text-white"><QrCode className="h-4 w-4" />QR vào cổng</button>
                       ) : null}
@@ -326,9 +326,28 @@ export default function MyTicketsPage() {
       </PassengerShell>
 
       {(selectedTicket || detailLoading || detailError) && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/40">
-          <aside className="h-full w-full max-w-md overflow-y-auto bg-white p-6 shadow-xl">
-            <div className="flex items-center justify-between"><h2 className="text-xl font-bold">Chi tiết vé</h2><button onClick={() => { setSelectedTicket(null); setDetailError(null); }}><X /></button></div>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+          onClick={() => { setSelectedTicket(null); setDetailError(null); }}
+        >
+          <div
+            className="max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl sm:p-6"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ticket-detail-title"
+          >
+            <div className="flex items-center justify-between gap-4">
+              <h2 id="ticket-detail-title" className="text-xl font-bold">Chi tiết vé</h2>
+              <button
+                type="button"
+                onClick={() => { setSelectedTicket(null); setDetailError(null); }}
+                className="flex h-9 w-9 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                aria-label="Đóng chi tiết vé"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
             {detailLoading ? <p className="mt-8 text-sm text-slate-500">Đang tải chi tiết...</p> : null}
             {detailError ? <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{detailError}</p> : null}
             {selectedTicket ? <div className="mt-6 space-y-4 text-sm">
@@ -345,26 +364,40 @@ export default function MyTicketsPage() {
                 <p><span className="text-slate-500 font-normal">Thời gian hết hạn:</span> {formatDateTime(selectedTicket.expiredAt)}</p>
               </div>
 
+              {ticketStatus(selectedTicket.status) !== "Đã dùng" && ticketStatus(selectedTicket.status) !== "Hết hạn" ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const ticket = selectedTicket;
+                    setSelectedTicket(null);
+                    setDetailError(null);
+                    openQr(ticket);
+                  }}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-bold text-white"
+                >
+                  <QrCode className="h-4 w-4" />
+                  Xem QR
+                </button>
+              ) : null}
+
               <h3 className="border-t border-slate-100 pt-5 font-bold">Lịch sử sử dụng vé</h3>
               {history.map((row) => <div key={row.id} className="rounded-xl bg-slate-50 p-3"><p className="font-semibold">{row.action || row.result || "Sử dụng vé"}</p><p className="text-slate-500">{formatTime(row.time)} - {row.stationName || getStationName(row.stationId) || "--"} - {row.gateCode || "--"}</p></div>)}
               {!history.length ? <p className="text-slate-500">Chưa có lịch sử sử dụng.</p> : null}
             </div> : null}
-          </aside>
-        </div>
-      )}
-
-      {qrTicket && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center">
-            <div className="flex justify-between"><h2 className="text-lg font-bold">Mã QR vào cổng</h2><button onClick={() => setQrTicket(null)}><X className="h-5 w-5" /></button></div>
-            <div className="my-6 flex h-56 items-center justify-center rounded-xl border border-slate-200">
-              {qrImage ? <Image src={qrImage} width={220} height={220} unoptimized alt="QR vé động" className={qrLoading ? "opacity-40" : ""} /> : qrError ? <p className="px-4 text-sm text-red-600">{qrError}</p> : <Loader2 className="h-6 w-6 animate-spin text-blue-600" />}
-            </div>
-            <p className="font-bold text-blue-600">#{qrTicket.code}</p>
-            {qr ? <p className="mt-3 rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-600">{qrLoading ? "Đang đổi mã QR..." : <>Đổi mã mới sau {String(Math.floor(seconds / 60)).padStart(2, "0")}:{String(seconds % 60).padStart(2, "0")}</>}</p> : null}
           </div>
         </div>
       )}
+
+      {qrTicket ? (
+        <PassengerTicketQrModal
+          ticketCode={`#${qrTicket.code}`}
+          qrImageUrl={qrImage}
+          isRefreshing={qrLoading}
+          error={qrError}
+          countdown={`${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`}
+          onClose={() => setQrTicket(null)}
+        />
+      ) : null}
     </>
   );
 }

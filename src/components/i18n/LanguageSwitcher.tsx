@@ -5,7 +5,7 @@ export default function LanguageSwitcher() {
 
   return (
     <div
-      className="fixed bottom-4 right-4 z-[9999] flex items-center gap-1 rounded-full border border-gray-200 bg-white p-1 shadow-lg"
+      className="fixed bottom-24 left-4 z-[9999] flex items-center gap-1 rounded-full border border-gray-200 bg-white p-1 shadow-lg sm:bottom-4 sm:left-auto sm:right-4"
       aria-label="Chuyển ngôn ngữ"
       title="Chuyển ngôn ngữ"
     >

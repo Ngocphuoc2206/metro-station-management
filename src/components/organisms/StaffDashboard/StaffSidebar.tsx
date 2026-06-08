@@ -14,7 +14,7 @@ const STAFF_NAV = [
 ];
 
 export default function StaffSidebar() {
-  const { name, email } = useSelector((s: RootState) => s.userReducer);
+  const { name } = useSelector((s: RootState) => s.userReducer);
   const handleLogout = useLogout();
 
   // Nếu name trống hoặc trùng email → dùng phần trước @ của email làm tên hiển thị
@@ -24,8 +24,8 @@ export default function StaffSidebar() {
     : name;
 
   return (
-    <aside className="flex min-h-screen w-20 flex-col justify-between border-r border-gray-100 bg-white sm:w-64">
-      <div>
+    <aside className="sticky top-0 flex h-screen w-20 shrink-0 flex-col border-r border-gray-100 bg-white sm:w-64">
+      <div className="min-h-0 flex-1 overflow-y-auto">
         {/* Logo */}
         <div className="flex items-center justify-center gap-3 border-b border-gray-50 px-3 py-5 sm:justify-start sm:px-6">
           <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">

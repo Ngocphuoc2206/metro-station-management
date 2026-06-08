@@ -309,11 +309,11 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
       <div className="mx-auto w-full max-w-[1200px]">
         <section className="flex min-w-0 flex-col gap-6">
           <div className="flex flex-col gap-4">
-            <h1 className="text-4xl leading-10 font-black text-neutral-900">
+            <h1 className="text-3xl leading-tight font-black text-neutral-900 sm:text-4xl sm:leading-10">
               Mua vé
             </h1>
 
-            <div className="flex items-start gap-8 border-b border-slate-300 text-sm font-bold tracking-tight">
+            <div className="flex items-start gap-4 overflow-x-auto border-b border-slate-300 text-sm font-bold tracking-tight sm:gap-8">
               <div className="border-b-[3px] border-green-500 pb-3 pt-4 text-green-500">
                 <span className="inline-flex items-center gap-1">
                   <Check className="h-3 w-3" />
@@ -334,7 +334,7 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
 
           <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
             <div className="flex min-w-0 flex-col gap-6">
-              <article className="flex flex-col gap-6 rounded-xl bg-white p-8 shadow-[0px_1px_2px_rgba(0,0,0,0.05)] outline outline-1 outline-slate-200">
+              <article className="flex flex-col gap-6 rounded-xl bg-white p-4 shadow-[0px_1px_2px_rgba(0,0,0,0.05)] outline outline-1 outline-slate-200 sm:p-8">
                 <h2 className="text-xl leading-7 font-bold text-neutral-900">
                   Phương thức thanh toán
                 </h2>
@@ -349,7 +349,7 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
                   <button
                     type="button"
                     onClick={() => setSelectedPaymentMethod("ewallet")}
-                    className={`flex w-full items-center justify-between rounded-3xl p-4 text-left transition ${
+                    className={`flex w-full items-center justify-between gap-3 rounded-3xl p-4 text-left transition ${
                       selectedPaymentMethod === "ewallet"
                         ? "bg-blue-600/5 outline-2 outline-blue-600"
                         : "outline outline-1 outline-slate-200 hover:bg-slate-50"
@@ -400,7 +400,7 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
                   <button
                     type="button"
                     onClick={() => setSelectedPaymentMethod("card")}
-                    className={`flex w-full items-center justify-between rounded-3xl p-4 text-left transition ${
+                    className={`flex w-full items-center justify-between gap-3 rounded-3xl p-4 text-left transition ${
                       selectedPaymentMethod === "card"
                         ? "bg-blue-600/5 outline-2 outline-blue-600"
                         : "outline outline-1 outline-slate-200 hover:bg-slate-50"
@@ -451,7 +451,7 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
                   <button
                     type="button"
                     onClick={() => setSelectedPaymentMethod("vietqr")}
-                    className={`flex w-full items-center justify-between rounded-3xl p-4 text-left transition ${
+                    className={`flex w-full items-center justify-between gap-3 rounded-3xl p-4 text-left transition ${
                       selectedPaymentMethod === "vietqr"
                         ? "bg-blue-600/5 outline-2 outline-blue-600"
                         : "outline outline-1 outline-slate-200 hover:bg-slate-50"
@@ -496,7 +496,7 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
 
               <article className="relative h-24 overflow-hidden rounded-xl">
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-blue-500 opacity-90" />
-                <div className="absolute inset-0 flex items-center gap-4 px-8 text-white">
+                <div className="absolute inset-0 flex items-center gap-4 px-5 text-white sm:px-8">
                   <ShieldCheck className="h-6 w-6 opacity-90" />
                   <div>
                     <h3 className="text-base leading-6 font-bold">
@@ -512,7 +512,7 @@ const MetroBuyTicketsStep3Page: NextPage = () => {
             </div>
 
             <aside className="w-full">
-              <article className="flex flex-col gap-4 rounded-xl bg-white p-6 shadow-[0px_1px_2px_rgba(0,0,0,0.05)] outline outline-1 outline-slate-200">
+              <article className="flex flex-col gap-4 rounded-xl bg-white p-4 shadow-[0px_1px_2px_rgba(0,0,0,0.05)] outline outline-1 outline-slate-200 sm:p-6">
                 <h3 className="text-lg leading-7 font-bold text-neutral-900">
                   Tóm tắt đơn
                 </h3>

@@ -6,6 +6,7 @@ import {
   type ApiResponse,
   withPathParam,
 } from "@features/httpClient/apiEndpoints";
+import { unwrapApiResponse } from "@features/httpClient/unwrap";
 
 // Type returned from backend
 export interface BackendUser {
@@ -89,7 +90,7 @@ export async function getMyProfile() {
   const res = await apiClient.get<ApiResponse<BackendUser>>(
     API_ENDPOINTS.users.me,
   );
-  return res.data.results;
+  return unwrapApiResponse<BackendUser>(res.data);
 }
 
 export async function updateMyProfile(data: any) {

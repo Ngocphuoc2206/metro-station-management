@@ -218,7 +218,6 @@ export default function StaffDashboard() {
     fetchAll();
   }, [fetchAll]);
 
-  // Auto refresh every 30s
   useEffect(() => {
     intervalRef.current = setInterval(fetchAll, 30000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
@@ -227,18 +226,22 @@ export default function StaffDashboard() {
   const displayedGates = gates.filter(
     (gate) =>
       (!selectedStationId || gate.stationId === selectedStationId) &&
-      (!selectedDeviceId || gate.gateId === selectedDeviceId),
+      (!selectedDeviceId || gate.gateId === selectedDeviceId) &&
+      matchesSearch(gate.gateId, gate.gateCode, gate.name, gate.stationName, getStationName(gate.stationId)),
   );
   const online = displayedGates.filter((gate) => getGateStatus(gate) === "ONLINE");
   const offline = displayedGates.filter((gate) => getGateStatus(gate) === "OFFLINE");
   const errorD = displayedGates.filter((gate) => getGateStatus(gate) === "ERROR");
   const displayedLiveStatuses = liveStationStatuses.filter(
-    (station) => !selectedStationId || station.stationId === selectedStationId,
+    (station) =>
+      (!selectedStationId || station.stationId === selectedStationId) &&
+      matchesSearch(station.stationId, getStationName(station.stationId), station.status),
   );
   const displayedDevices = devices.filter(
     (device) =>
       (!selectedStationId || device.stationId === selectedStationId) &&
-      (!selectedDeviceId || device.id === selectedDeviceId),
+      (!selectedDeviceId || device.id === selectedDeviceId) &&
+      matchesSearch(device.id, device.name, device.type, device.stationName, getStationName(device.stationId)),
   );
   const congestionLevel = displayedLiveStatuses.reduce(
     (maximum, station) => Math.max(maximum, station.congestionLevel ?? 0),
@@ -268,7 +271,17 @@ export default function StaffDashboard() {
     (incident) =>
       (!selectedStationId || incident.stationId === selectedStationId) &&
       (!incidentStatus || incident.status?.toUpperCase() === incidentStatus) &&
-      (!incidentPriority || getSev(incident) === incidentPriority),
+      (!incidentPriority || getSev(incident) === incidentPriority) &&
+      matchesSearch(
+        incident.title,
+        incident.description,
+        incident.stationName,
+        getStationName(incident.stationId),
+        incident.gateId,
+        incident.gateCode,
+        incident.deviceId,
+        incident.deviceCode,
+      ),
   );
   const systemAlertCount =
     displayedIncidents.filter(isOpenIncident).length +

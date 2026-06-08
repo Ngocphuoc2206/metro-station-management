@@ -67,8 +67,10 @@ export default function PassengerSidebar() {
 
   const displayName = profile?.fullName?.trim() || name || "Hành khách";
   const displayEmail = profile?.email || email || "Metro";
+  const primaryMobileItems = navItems;
 
   return (
+    <>
     <aside className="hidden w-64 shrink-0 border-r border-slate-200/80 bg-white/90 backdrop-blur lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col">
       <div className="flex items-center gap-3 p-6">
         <BrandMark className="h-8 w-8" />
@@ -99,5 +101,29 @@ export default function PassengerSidebar() {
         <PassengerLogoutButton />
       </div>
     </aside>
+
+    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 shadow-[0px_-10px_30px_-24px_rgba(15,23,42,0.45)] backdrop-blur lg:hidden">
+      <div className="mx-auto flex max-w-xl gap-1 overflow-x-auto">
+        {primaryMobileItems.map((item) => {
+          const Icon = item.icon;
+          const active = isNavActive(router.pathname, item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex min-w-16 shrink-0 flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 text-center transition ${
+                active ? "bg-blue-50 text-blue-600" : "text-slate-500 hover:bg-slate-50"
+              }`}
+            >
+              <Icon className="h-5 w-5 shrink-0" />
+              <span className="w-full truncate text-[10px] font-bold leading-3">
+                {item.label}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
+    </>
   );
 }
