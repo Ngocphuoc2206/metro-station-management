@@ -3,7 +3,6 @@ import React, { useState, useRef, useEffect } from "react";
 import type { IncidentRecord } from "@features/incident/incidentTypes";
 import { incidentApi } from "@features/incident/incidentApi";
 import toast from "react-hot-toast";
-
 interface Props {
   incident: IncidentRecord;
   onClose: () => void;
@@ -13,14 +12,12 @@ interface Props {
   /** Gọi khi hoàn thành — lưu base64 lên IncidentDashboard để persist */
   onEvidenceSaved: (incidentId: string, dataUrls: string[]) => void;
 }
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function toShortCode(id: string): string {
   const match = id.match(/\d+/);
   if (match) return `SC${String(parseInt(match[0], 10)).padStart(3, "0")}`;
   return id.slice(0, 6).toUpperCase();
 }
-
 /** Đọc File → base64 data URL (không bị expire như Object URL) */
 function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -30,7 +27,6 @@ function readFileAsDataUrl(file: File): Promise<string> {
     reader.readAsDataURL(file);
   });
 }
-
 // ── Shared Badge Components ───────────────────────────────────────────────────
 function SeverityBadge({ severity }: { severity: string }) {
   const map: Record<string, { label: string; cls: string }> = {
@@ -51,7 +47,6 @@ function SeverityBadge({ severity }: { severity: string }) {
     </span>
   );
 }
-
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; cls: string }> = {
     Open: { label: "Tạo mới", cls: "bg-gray-100 text-gray-600 border border-gray-200" },
@@ -69,7 +64,6 @@ function StatusBadge({ status }: { status: string }) {
     </span>
   );
 }
-
 // ── View Modal ────────────────────────────────────────────────────────────────
 function ViewModal({
   incident,
@@ -84,7 +78,6 @@ function ViewModal({
 }) {
   const [detailDesc, setDetailDesc] = useState<string | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(true);
-
   useEffect(() => {
     incidentApi
       .getIncidentById(incident.id)
@@ -92,7 +85,6 @@ function ViewModal({
       .catch(() => setDetailDesc(incident.description ?? null))
       .finally(() => setLoadingDetail(false));
   }, [incident.id, incident.description]);
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-[2px]">
       <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh]">
@@ -115,16 +107,13 @@ function ViewModal({
             </svg>
           </button>
         </div>
-
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
           <div className="grid grid-cols-[150px_1fr] gap-y-3.5 text-sm">
             <span className="text-gray-500 font-medium">Mã sự cố:</span>
             <span className="font-semibold text-gray-900">{shortCode}</span>
-
             <span className="text-gray-500 font-medium">Tên sự cố:</span>
             <span className="font-semibold text-gray-900">{incident.title}</span>
-
             <span className="text-gray-500 font-medium align-top pt-0.5">Mô tả chi tiết:</span>
             <span className="text-gray-700 leading-relaxed">
               {loadingDetail ? (
@@ -135,14 +124,11 @@ function ViewModal({
                 <span className="text-gray-400 italic">Không có mô tả</span>
               )}
             </span>
-
             <span className="text-gray-500 font-medium">Mức độ:</span>
             <div><SeverityBadge severity={incident.severity} /></div>
-
             <span className="text-gray-500 font-medium">Trạng thái hiện tại:</span>
             <div><StatusBadge status={incident.status} /></div>
           </div>
-
           {/* Ảnh bằng chứng xử lý (base64 – persist qua đóng/mở) */}
           {evidenceImages.length > 0 && (
             <div className="space-y-2 pt-1">
@@ -159,7 +145,6 @@ function ViewModal({
             </div>
           )}
         </div>
-
         {/* Footer */}
         <div className="px-6 py-4 border-t border-gray-50 flex justify-end">
           <button
@@ -173,7 +158,6 @@ function ViewModal({
     </div>
   );
 }
-
 // ── Processing Modal ──────────────────────────────────────────────────────────
 function ProcessingModal({
   incident,
@@ -192,7 +176,6 @@ function ProcessingModal({
   const [isDragging, setIsDragging] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
   // Cleanup object URLs on unmount
   useEffect(() => {
     return () => {
@@ -200,7 +183,6 @@ function ProcessingModal({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
   const addFiles = (incoming: File[]) => {
     const valid = incoming.filter(
       (f) => f.type.startsWith("image/") && f.size <= 10 * 1024 * 1024,
@@ -209,21 +191,18 @@ function ProcessingModal({
     const entries = valid.map((f) => ({ file: f, objectUrl: URL.createObjectURL(f) }));
     setFiles((prev) => [...prev, ...entries]);
   };
-
   const removeFile = (idx: number) => {
     setFiles((prev) => {
       URL.revokeObjectURL(prev[idx].objectUrl);
       return prev.filter((_, i) => i !== idx);
     });
   };
-
   const handleComplete = async () => {
     setIsSubmitting(true);
     try {
       if (note.trim()) await incidentApi.addTimelineComment(incident.id, note.trim());
       await incidentApi.updateIncidentStatus(incident.id, "Resolved");
       toast.success("Đã hoàn thành xử lý sự cố!");
-
       // Chuyển sang base64 để persist qua đóng/mở modal
       const dataUrls = await Promise.all(files.map((f) => readFileAsDataUrl(f.file)));
       onCompleted(dataUrls);
@@ -233,7 +212,6 @@ function ProcessingModal({
       setIsSubmitting(false);
     }
   };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-[2px]">
       <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh]">
@@ -256,7 +234,6 @@ function ProcessingModal({
             </svg>
           </button>
         </div>
-
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
           <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
@@ -281,9 +258,7 @@ function ProcessingModal({
               <SeverityBadge severity={incident.severity} />
             </div>
           </div>
-
           <div className="border-t border-gray-100" />
-
           {/* Report */}
           <div>
             <div className="flex items-center gap-2 mb-3">
@@ -292,7 +267,6 @@ function ProcessingModal({
               </svg>
               <span className="font-bold text-gray-900 text-sm">Báo cáo kết quả xử lý</span>
             </div>
-
             {/* Upload */}
             <div className="mb-3">
               <div className="text-xs font-semibold text-gray-600 mb-2">Hình ảnh bằng chứng xử lý</div>
@@ -322,7 +296,6 @@ function ProcessingModal({
                 <p className="text-xs font-semibold text-gray-500 mb-0.5">Tải lên hình ảnh báo cáo kết quả xử lý</p>
                 <p className="text-xs text-gray-400">Kéo thả file hoặc nhấn để chọn (Max 10MB)</p>
               </div>
-
               {files.length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-3">
                   {files.map(({ objectUrl }, idx) => (
@@ -342,7 +315,6 @@ function ProcessingModal({
                 </div>
               )}
             </div>
-
             {/* Note */}
             <div>
               <div className="text-xs font-semibold text-gray-600 mb-2">Ghi chú xử lý</div>
@@ -356,7 +328,6 @@ function ProcessingModal({
             </div>
           </div>
         </div>
-
         {/* Footer */}
         <div className="px-6 py-4 border-t border-gray-50 flex items-center justify-end gap-3">
           <button
@@ -387,7 +358,6 @@ function ProcessingModal({
     </div>
   );
 }
-
 // ── Main Router ───────────────────────────────────────────────────────────────
 export default function IncidentDetailModal({
   incident,
@@ -398,20 +368,17 @@ export default function IncidentDetailModal({
 }: Props) {
   const shortCode = toShortCode(incident.id);
   const [justCompleted, setJustCompleted] = useState(false);
-
   const isProcessing =
     !justCompleted &&
     (incident.status === "InProgress" ||
       incident.status === "Escalated" ||
       incident.status === "Assigned");
-
   const handleCompleted = (base64Urls: string[]) => {
     // Lưu lên IncidentDashboard (persist qua đóng/mở modal)
     onEvidenceSaved(incident.id, base64Urls);
     setJustCompleted(true);
     onStatusUpdated();
   };
-
   if (isProcessing) {
     return (
       <ProcessingModal
@@ -422,7 +389,6 @@ export default function IncidentDetailModal({
       />
     );
   }
-
   return (
     <ViewModal
       incident={justCompleted ? { ...incident, status: "Resolved" } : incident}
