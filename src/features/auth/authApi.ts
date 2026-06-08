@@ -188,11 +188,15 @@ export async function loginUser(data: LoginRequest): Promise<LoginResponse> {
     const tokenEmail =
       typeof jwtPayload?.sub === "string" ? jwtPayload.sub : undefined;
     const email = results.email ?? tokenEmail ?? data.email;
+    const rawName = results.fullName;
+    const nameFromEmail = email
+      ? email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+      : "Nhân viên";
     return {
       success: true,
       data: {
         token: results.token,
-        name: results.fullName ?? email,
+        name: rawName || nameFromEmail,
         email,
         role: getPrimaryRole(results),
       },

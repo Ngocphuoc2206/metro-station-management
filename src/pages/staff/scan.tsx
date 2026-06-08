@@ -99,6 +99,10 @@ function pickGateForMode(
   );
 }
 
+function modeForGate(gate: GateResponse): TapMode {
+  return matchesMode(gateDirection(gate), "TAP-OUT") ? "TAP-OUT" : "TAP-IN";
+}
+
 function scanContent(raw: string) {
   const value = raw.trim();
   if (!value) return "";
@@ -411,24 +415,10 @@ function StaffScanPage() {
   const shouldResumeCameraRef = useRef(false);
 
   const todayLabel = useMemo(() => formatTodayVi(), []);
-  const availableGates = useMemo(() => {
-    const byStationAndMode = gates.filter(
-      (item) =>
-        (!station || item.stationId === station) &&
-        matchesMode(gateDirection(item), mode),
-    );
-    if (byStationAndMode.length > 0) return byStationAndMode;
-
-    const byStation = gates.filter(
-      (item) => !station || item.stationId === station,
-    );
-    if (byStation.length > 0) return byStation;
-
-    const byMode = gates.filter((item) =>
-      matchesMode(gateDirection(item), mode),
-    );
-    return byMode.length > 0 ? byMode : gates;
-  }, [gates, mode, station]);
+  const stationGates = useMemo(
+    () => gates.filter((item) => item.stationId === station),
+    [gates, station],
+  );
   const resultStationLabel =
     stations.find((item) => item.stationId === lastScan?.stationId)?.name ??
     lastScan?.stationId ??
@@ -441,7 +431,7 @@ function StaffScanPage() {
   const scanBlockedReason = useMemo(() => {
     if (filterLoading) return "Đang tải danh sách ga và cổng.";
     if (!station) return "Chưa chọn ga để quét vé.";
-    if (!gate) return "Chưa chọn cổng quét phù hợp.";
+    if (!gate) return "Ga này chưa có cổng quét phù hợp.";
     if (isScanning) return "Hệ thống đang xử lý lượt quét hiện tại.";
     return "";
   }, [filterLoading, gate, isScanning, station]);
@@ -450,7 +440,7 @@ function StaffScanPage() {
   const currentStationName =
     stations.find((item) => item.stationId === station)?.name ?? "Chưa chọn ga";
   const currentGateName =
-    gates.find((item) => item.gateId === gate)?.gateCode ?? "Chưa chọn cổng";
+    gates.find((item) => item.gateId === gate)?.gateCode ?? "Chưa có cổng";
   const modeLabel = mode === "TAP-IN" ? "Vào ga" : "Ra ga";
   const toneStyles =
     lastValidation.tone === "green"
@@ -552,31 +542,6 @@ function StaffScanPage() {
       // Ignore audio failures to avoid blocking scan flow.
     }
   }, []);
-
-  const refreshGates = useCallback(async () => {
-    if (gateLoading) return;
-
-    setGateLoading(true);
-    try {
-      const gateItems = await staffGateApi.getGates();
-      setGates(gateItems);
-      setGate((currentGate) => {
-        if (
-          currentGate &&
-          gateItems.some((item) => item.gateId === currentGate)
-        ) {
-          return currentGate;
-        }
-
-        return pickGateForMode(gateItems, station, mode)?.gateId ?? "";
-      });
-      setFilterError(null);
-    } catch {
-      setFilterError("Không thể tải danh sách cổng.");
-    } finally {
-      setGateLoading(false);
-    }
-  }, [gateLoading, mode, station]);
 
   const loadLogs = useCallback(async () => {
     if (!station || !gate) {
@@ -683,6 +648,17 @@ function StaffScanPage() {
     if (typeof window === "undefined") return;
     window.localStorage.setItem(STAFF_SCAN_STORAGE_KEYS.mode, mode);
   }, [mode]);
+
+  useEffect(() => {
+    if (!station || gates.length === 0) return;
+
+    const currentGate = gates.find((item) => item.gateId === gate);
+    if (currentGate && currentGate.stationId === station) return;
+
+    const nextGate = pickGateForMode(gates, station, mode);
+    setGate(nextGate?.gateId ?? "");
+    if (nextGate) setMode(modeForGate(nextGate));
+  }, [gate, gates, mode, station]);
 
   const runScan = async (rawToken: string) => {
     if (!station || !gate) {
@@ -986,7 +962,7 @@ function StaffScanPage() {
 
               <div className="rounded-[28px] border border-emerald-200 bg-emerald-50 px-5 py-4 shadow-sm">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-700">
-                  Pass
+                  Thành công
                 </div>
                 <div className="mt-3 text-3xl font-black leading-none text-emerald-700">
                   {shiftPassCount}
@@ -998,7 +974,7 @@ function StaffScanPage() {
 
               <div className="rounded-[28px] border border-rose-200 bg-rose-50 px-5 py-4 shadow-sm">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-rose-700">
-                  Fail
+                  Từ chối
                 </div>
                 <div className="mt-3 text-3xl font-black leading-none text-rose-700">
                   {shiftFailCount}
@@ -1049,51 +1025,62 @@ function StaffScanPage() {
                     </div>
                   </label>
 
-                  <label className="space-y-1.5">
+                  <div className="space-y-1.5">
                     <span className="block text-[9px] font-bold uppercase tracking-[0.16em] text-slate-500">
-                      Cổng (Gate ID)
+                      Chọn cổng
                     </span>
-                    <div className="relative">
-                      <select
-                        value={gate}
-                        onChange={(e) => {
-                          const gateId = e.target.value;
-                          setGate(gateId);
-                          const selectedGate = gates.find(
-                            (item) => item.gateId === gateId,
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {gateLoading ? (
+                        <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs font-medium text-slate-500 outline outline-1 outline-offset-[-1px] outline-slate-200 sm:col-span-2">
+                          Đang tải cổng...
+                        </div>
+                      ) : stationGates.length === 0 ? (
+                        <div className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700 outline outline-1 outline-offset-[-1px] outline-amber-200 sm:col-span-2">
+                          Ga này chưa có cổng từ BE.
+                        </div>
+                      ) : (
+                        stationGates.map((item) => {
+                          const itemMode = modeForGate(item);
+                          const isSelected = item.gateId === gate;
+                          return (
+                            <button
+                              key={item.gateId}
+                              type="button"
+                              onClick={() => {
+                                setGate(item.gateId);
+                                setMode(itemMode);
+                              }}
+                              className={`rounded-lg px-3 py-2 text-left text-xs font-semibold outline outline-1 outline-offset-[-1px] transition ${
+                                isSelected
+                                  ? itemMode === "TAP-IN"
+                                    ? "bg-blue-50 text-blue-700 outline-blue-300"
+                                    : "bg-slate-900 text-white outline-slate-900"
+                                  : "bg-slate-50 text-slate-700 outline-slate-200 hover:bg-white hover:outline-slate-300"
+                              }`}
+                            >
+                              <span className="flex items-center justify-between gap-2">
+                                <span className="min-w-0 truncate">
+                                  {item.gateCode}
+                                  {item.name ? ` - ${item.name}` : ""}
+                                </span>
+                                <span
+                                  className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                                    isSelected
+                                      ? itemMode === "TAP-IN"
+                                        ? "bg-blue-100 text-blue-700"
+                                        : "bg-white/15 text-white"
+                                      : "bg-white text-slate-500"
+                                  }`}
+                                >
+                                  {itemMode === "TAP-IN" ? "Vào" : "Ra"}
+                                </span>
+                              </span>
+                            </button>
                           );
-                          if (selectedGate?.stationId) {
-                            setStation(selectedGate.stationId);
-                          }
-                        }}
-                        onFocus={() => {
-                          void refreshGates();
-                        }}
-                        disabled={filterLoading || !station}
-                        className="h-9 w-full appearance-none rounded-lg bg-slate-50 px-3 pr-8 text-xs font-medium leading-5 text-slate-900 outline outline-1 outline-offset-[-1px] outline-slate-200"
-                      >
-                        {gateLoading && (
-                          <option value={gate}>Đang tải cổng...</option>
-                        )}
-                        {availableGates.length === 0 && (
-                          <option value="">Không có cổng</option>
-                        )}
-                        {availableGates.map((g) => (
-                          <option key={g.gateId} value={g.gateId}>
-                            {g.gateCode}
-                            {g.name ? ` - ${g.name}` : ""}
-                          </option>
-                        ))}
-                      </select>
-                      <span className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2">
-                        <span
-                          className="absolute left-[6.3px] top-[8.4px] h-1 w-2 border-b-2 border-r-2 border-gray-500"
-                          style={{ transform: "rotate(45deg)" }}
-                          aria-hidden="true"
-                        />
-                      </span>
+                        })
+                      )}
                     </div>
-                  </label>
+                  </div>
                 </div>
 
                 {filterError ? (

@@ -1,10 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
+import { adminDeviceApi } from "@features/adminDevice/adminDeviceApi";
+import { getMyProfile } from "@features/user/userApi";
+import type { GateResponse } from "@features/staffGate/staffGateTypes";
 import type { Station } from "@features/station/stationTypes";
 import type {
   AdminDeviceRequest,
   AdminDeviceResponse,
   AdminDeviceStatus,
+  AdminDeviceTypeOption,
   DeviceDetailKind,
 } from "@features/adminDevice/adminDeviceTypes";
 
@@ -14,8 +18,10 @@ type DeviceForm = {
   ipAddress: string;
   macAddress: string;
   stationId: string;
+  gateId: string;
   typeId: string;
   status: AdminDeviceStatus;
+  lastMaintenance: string;
   detailKind: DeviceDetailKind;
   directionMode: string;
   gateType: string;
@@ -25,6 +31,8 @@ type DeviceForm = {
   acceptedPaymentMethods: string;
   cashBoxFull: boolean;
   printerInkLevel: string;
+  readerFirmwareVersion: string;
+  maxTopupLimit: string;
   batteryLevel: string;
   osVersion: string;
   assignedStaffId: string;
@@ -34,6 +42,7 @@ interface Props {
   isOpen: boolean;
   device: AdminDeviceResponse | null;
   stations: Station[];
+  typeOptions: AdminDeviceTypeOption[];
   onClose: () => void;
   onSubmit: (payload: AdminDeviceRequest) => Promise<void>;
 }
@@ -44,8 +53,10 @@ const emptyForm: DeviceForm = {
   ipAddress: "",
   macAddress: "",
   stationId: "",
+  gateId: "",
   typeId: "",
   status: "ACTIVE",
+  lastMaintenance: "",
   detailKind: "GATE",
   directionMode: "IN",
   gateType: "",
@@ -55,6 +66,8 @@ const emptyForm: DeviceForm = {
   acceptedPaymentMethods: "",
   cashBoxFull: false,
   printerInkLevel: "",
+  readerFirmwareVersion: "",
+  maxTopupLimit: "",
   batteryLevel: "",
   osVersion: "",
   assignedStaffId: "",
@@ -69,18 +82,25 @@ function boolDetail(device: AdminDeviceResponse, key: string) {
   return device.additionalDetails?.[key] === true;
 }
 
-function inferDetailKind(device: AdminDeviceResponse): DeviceDetailKind {
-  const type = (device.typeName ?? "").toUpperCase();
+function inferDetailKindFromName(typeName?: string): DeviceDetailKind {
+  const type = (typeName ?? "").toUpperCase();
+  if (type.includes("TOPUP") || type.includes("NẠP") || type.includes("NAP")) return "TOPUP_MACHINE";
   if (type.includes("TICKET") || type.includes("TVM")) return "TICKET_MACHINE";
   if (type.includes("SCAN")) return "SCANNER";
   return "GATE";
 }
 
+function inferDetailKind(device: AdminDeviceResponse): DeviceDetailKind {
+  return inferDetailKindFromName(device.typeName);
+}
+
+function formatDateTimeLocal(value?: string) {
+  return value ? value.slice(0, 16) : "";
+}
+
 function optionalNumber(value: string) {
   return value.trim() ? Number(value) : undefined;
 }
-
-const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function statusLabel(status: AdminDeviceStatus) {
   if (status === "ACTIVE") return "Hoạt động";
@@ -106,12 +126,17 @@ export default function AdminDeviceFormModal({
   isOpen,
   device,
   stations,
+  typeOptions,
   onClose,
   onSubmit,
 }: Props) {
   const [form, setForm] = useState<DeviceForm>(emptyForm);
+  const [gates, setGates] = useState<GateResponse[]>([]);
+  const [isLoadingGates, setIsLoadingGates] = useState(false);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentStaffId, setCurrentStaffId] = useState("");
+  const [isLoadingStaffId, setIsLoadingStaffId] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -127,10 +152,12 @@ export default function AdminDeviceFormModal({
       ipAddress: device.ipAddress ?? "",
       macAddress: device.macAddress ?? "",
       stationId: device.stationId ?? "",
+      gateId: device.gateId ?? "",
       typeId: device.typeId ?? "",
       status: (["ACTIVE", "INACTIVE", "ERROR", "MAINTENANCE"].includes(device.status.toUpperCase())
         ? device.status.toUpperCase()
         : "INACTIVE") as AdminDeviceStatus,
+      lastMaintenance: formatDateTimeLocal(device.lastMaintenance),
       detailKind: inferDetailKind(device),
       directionMode: detailValue(device, "directionMode") || "IN",
       gateType: detailValue(device, "gateType"),
@@ -140,6 +167,8 @@ export default function AdminDeviceFormModal({
       acceptedPaymentMethods: detailValue(device, "acceptedPaymentMethods"),
       cashBoxFull: boolDetail(device, "cashBoxFull"),
       printerInkLevel: detailValue(device, "printerInkLevel"),
+      readerFirmwareVersion: detailValue(device, "readerFirmwareVersion"),
+      maxTopupLimit: detailValue(device, "maxTopupLimit"),
       batteryLevel: detailValue(device, "batteryLevel"),
       osVersion: detailValue(device, "osVersion"),
       assignedStaffId: detailValue(device, "assignedStaffId"),
@@ -147,10 +176,99 @@ export default function AdminDeviceFormModal({
     setError("");
   }, [device, isOpen]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let cancelled = false;
+    setCurrentStaffId("");
+    setIsLoadingStaffId(true);
+    getMyProfile()
+      .then((profile) => {
+        if (!cancelled) setCurrentStaffId(profile?.userId ?? "");
+      })
+      .catch(() => {
+        if (!cancelled) setCurrentStaffId("");
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingStaffId(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || form.detailKind !== "SCANNER" || !currentStaffId) return;
+    setForm((current) => {
+      if (current.detailKind !== "SCANNER" || current.assignedStaffId.trim()) {
+        return current;
+      }
+      return { ...current, assignedStaffId: currentStaffId };
+    });
+  }, [currentStaffId, form.detailKind, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !form.stationId) {
+      setGates([]);
+      setIsLoadingGates(false);
+      return;
+    }
+
+    let cancelled = false;
+    setGates([]);
+    setIsLoadingGates(true);
+    adminDeviceApi.getGatesByStation(form.stationId)
+      .then((data) => {
+        if (!cancelled) setGates(data);
+      })
+      .catch(() => {
+        if (!cancelled) setGates([]);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingGates(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [form.stationId, isOpen]);
+
   const title = device ? "Chỉnh sửa thiết bị" : "Thêm thiết bị mới";
   const selectedStationName = useMemo(
     () => stations.find((station) => station.id === form.stationId)?.name,
     [form.stationId, stations],
+  );
+  const formTypeOptions = useMemo(() => {
+    if (!device?.typeId || !device.typeName || typeOptions.some((type) => type.id === device.typeId)) {
+      return typeOptions;
+    }
+    return [...typeOptions, { id: device.typeId, name: device.typeName }];
+  }, [device?.typeId, device?.typeName, typeOptions]);
+  const selectedTypeName = useMemo(
+    () => formTypeOptions.find((type) => type.id === form.typeId)?.name ?? "",
+    [form.typeId, formTypeOptions],
+  );
+  const filteredGates = useMemo(
+    () => {
+      const stationGates = gates.filter((gate) => !gate.stationId || gate.stationId === form.stationId);
+      if (!device?.gateId || stationGates.some((gate) => gate.gateId === device.gateId)) {
+        return stationGates;
+      }
+      return [
+        ...stationGates,
+        {
+          gateId: device.gateId,
+          gateCode: device.gateName ?? device.gateId,
+          name: device.gateName ?? device.gateId,
+          stationId: device.stationId ?? "",
+          stationName: device.stationName ?? "",
+          action: "",
+          status: "",
+        },
+      ];
+    },
+    [device, form.stationId, gates],
   );
 
   if (!isOpen) return null;
@@ -159,14 +277,28 @@ export default function AdminDeviceFormModal({
     setForm((current) => ({ ...current, [key]: value }));
   };
 
+  const setTypeId = (typeId: string) => {
+    const typeName = formTypeOptions.find((type) => type.id === typeId)?.name;
+    const detailKind = inferDetailKindFromName(typeName);
+    setForm((current) => ({
+      ...current,
+      typeId,
+      detailKind,
+      assignedStaffId:
+        detailKind === "SCANNER" && !current.assignedStaffId.trim()
+          ? currentStaffId
+          : current.assignedStaffId,
+    }));
+  };
+
+  const setStationId = (stationId: string) => {
+    setForm((current) => ({ ...current, stationId, gateId: "" }));
+  };
+
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!form.deviceCode.trim() || !form.name.trim() || !form.stationId || !form.typeId.trim()) {
-      setError("Vui lòng nhập mã, tên, ga và Type ID của thiết bị.");
-      return;
-    }
-    if (!uuidPattern.test(form.stationId) || !uuidPattern.test(form.typeId.trim())) {
-      setError("Ga và Type ID phải là ID UUID hợp lệ theo backend.");
+      setError("Vui lòng nhập mã, tên, ga và loại thiết bị.");
       return;
     }
     if (form.detailKind === "GATE" && (!form.directionMode || !form.gateType.trim())) {
@@ -185,7 +317,9 @@ export default function AdminDeviceFormModal({
       macAddress: form.macAddress.trim() || undefined,
       status: form.status,
       stationId: form.stationId,
+      gateId: form.gateId || undefined,
       typeId: form.typeId.trim(),
+      lastMaintenance: form.lastMaintenance || undefined,
     };
     if (form.detailKind === "GATE") {
       payload.directionMode = form.directionMode;
@@ -197,6 +331,9 @@ export default function AdminDeviceFormModal({
       payload.acceptedPaymentMethods = form.acceptedPaymentMethods.trim() || undefined;
       payload.cashBoxFull = form.cashBoxFull;
       payload.printerInkLevel = optionalNumber(form.printerInkLevel);
+    } else if (form.detailKind === "TOPUP_MACHINE") {
+      payload.readerFirmwareVersion = form.readerFirmwareVersion.trim() || undefined;
+      payload.maxTopupLimit = optionalNumber(form.maxTopupLimit);
     } else {
       payload.batteryLevel = optionalNumber(form.batteryLevel);
       payload.osVersion = form.osVersion.trim() || undefined;
@@ -241,24 +378,49 @@ export default function AdminDeviceFormModal({
             </label>
             <label className="space-y-1.5">
               <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500">Ga *</span>
-              <select value={form.stationId} onChange={(event) => set("stationId", event.target.value)} className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-blue-400 focus:outline-none">
+              <select value={form.stationId} onChange={(event) => setStationId(event.target.value)} className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-blue-400 focus:outline-none">
                 <option value="">Chọn ga</option>
                 {stations.map((station) => <option key={station.id} value={station.id}>{station.name}</option>)}
               </select>
             </label>
-            <Field label="Type ID *" value={form.typeId} onChange={(value) => set("typeId", value)} placeholder="UUID loại thiết bị" />
+            <label className="space-y-1.5">
+              <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500">Loại thiết bị *</span>
+              <select value={form.typeId} onChange={(event) => setTypeId(event.target.value)} className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-blue-400 focus:outline-none">
+                <option value="">Chọn loại thiết bị</option>
+                {formTypeOptions.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}
+              </select>
+            </label>
+            <label className="space-y-1.5">
+              <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500">Cổng</span>
+              <select
+                value={form.gateId}
+                disabled={!form.stationId || isLoadingGates}
+                onChange={(event) => set("gateId", event.target.value)}
+                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-blue-400 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+              >
+                <option value="">
+                  {!form.stationId ? "Chọn ga trước" : isLoadingGates ? "Đang tải cổng..." : "Không gắn cổng"}
+                </option>
+                {filteredGates.map((gate) => (
+                  <option key={gate.gateId} value={gate.gateId}>
+                    {gate.name || gate.gateCode || gate.gateId}
+                  </option>
+                ))}
+              </select>
+            </label>
             <Field label="IP Address" value={form.ipAddress} onChange={(value) => set("ipAddress", value)} placeholder="192.168.1.10" />
             <Field label="MAC Address" value={form.macAddress} onChange={(value) => set("macAddress", value)} placeholder="00:1A:2B:3C:4D:5E" />
+            <Field label="Last maintenance" value={form.lastMaintenance} onChange={(value) => set("lastMaintenance", value)} type="datetime-local" />
           </div>
 
           <div className="my-6 border-t border-gray-100" />
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Thông tin chi tiết theo loại</p>
-            <select value={form.detailKind} onChange={(event) => set("detailKind", event.target.value as DeviceDetailKind)} className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm focus:border-blue-400 focus:outline-none">
-              <option value="GATE">Gate</option>
-              <option value="TICKET_MACHINE">Ticket machine</option>
-              <option value="SCANNER">Scanner</option>
-            </select>
+            {selectedTypeName ? (
+              <span className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-700">
+                {selectedTypeName}
+              </span>
+            ) : null}
           </div>
           {form.detailKind === "GATE" ? (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
@@ -281,11 +443,16 @@ export default function AdminDeviceFormModal({
               <Field label="Printer ink level" value={form.printerInkLevel} onChange={(value) => set("printerInkLevel", value)} type="number" />
               <Checkbox label="Cash box full" checked={form.cashBoxFull} onChange={(value) => set("cashBoxFull", value)} />
             </div>
+          ) : form.detailKind === "TOPUP_MACHINE" ? (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <Field label="Reader firmware version" value={form.readerFirmwareVersion} onChange={(value) => set("readerFirmwareVersion", value)} placeholder="FW-1.0.0" />
+              <Field label="Max topup limit" value={form.maxTopupLimit} onChange={(value) => set("maxTopupLimit", value)} type="number" />
+            </div>
           ) : (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <Field label="Battery level" value={form.batteryLevel} onChange={(value) => set("batteryLevel", value)} type="number" />
               <Field label="OS Version" value={form.osVersion} onChange={(value) => set("osVersion", value)} placeholder="Android 14" />
-              <Field label="Assigned staff ID" value={form.assignedStaffId} onChange={(value) => set("assignedStaffId", value)} placeholder="UUID nhân viên" />
+              <Field label="Assigned staff ID" value={form.assignedStaffId} onChange={(value) => set("assignedStaffId", value)} placeholder={isLoadingStaffId ? "Đang lấy ID nhân viên..." : "UUID nhân viên"} />
             </div>
           )}
           {error ? <p className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</p> : null}
@@ -312,7 +479,7 @@ function Field({
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
-  type?: "text" | "number";
+  type?: "text" | "number" | "datetime-local";
 }) {
   return (
     <label className="space-y-1.5">

@@ -1,6 +1,6 @@
 export type AdminDeviceStatus = "ACTIVE" | "INACTIVE" | "ERROR" | "MAINTENANCE";
 
-export type DeviceDetailKind = "GATE" | "TICKET_MACHINE" | "SCANNER";
+export type DeviceDetailKind = "GATE" | "TICKET_MACHINE" | "TOPUP_MACHINE" | "SCANNER";
 
 export interface AdminDeviceRequest {
   deviceCode: string;
@@ -8,8 +8,10 @@ export interface AdminDeviceRequest {
   ipAddress?: string;
   macAddress?: string;
   stationId: string;
+  gateId?: string;
   typeId: string;
   status: AdminDeviceStatus;
+  lastMaintenance?: string;
   directionMode?: string;
   gateType?: string;
   emergencyMode?: boolean;
@@ -18,6 +20,8 @@ export interface AdminDeviceRequest {
   acceptedPaymentMethods?: string;
   cashBoxFull?: boolean;
   printerInkLevel?: number;
+  readerFirmwareVersion?: string;
+  maxTopupLimit?: number;
   batteryLevel?: number;
   osVersion?: string;
   assignedStaffId?: string;
@@ -32,7 +36,15 @@ export interface AdminDeviceResponse {
   status: string;
   stationId?: string;
   stationName?: string;
+  gateId?: string;
+  gateName?: string;
   typeId?: string;
   typeName?: string;
+  lastMaintenance?: string;
   additionalDetails?: Record<string, unknown>;
+}
+
+export interface AdminDeviceTypeOption {
+  id: string;
+  name: string;
 }

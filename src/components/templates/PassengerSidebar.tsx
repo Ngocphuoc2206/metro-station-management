@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
-import { History, LayoutDashboard, MapPinned, QrCode, Ticket, TrainFront, UserRound } from "lucide-react";
+import { History, LayoutDashboard, MapPinned, Menu, QrCode, Ticket, TrainFront, UserRound, X } from "lucide-react";
 import PassengerLogoutButton from "@components/parts/PassengerLogoutButton/PassengerLogoutButton";
 import { PROFILE_UPDATED_EVENT, profileApi } from "@features/profile/profileApi";
 import type { MyProfileDto } from "@features/profile/profileTypes";
@@ -67,8 +67,14 @@ export default function PassengerSidebar() {
 
   const displayName = profile?.fullName?.trim() || name || "Hành khách";
   const displayEmail = profile?.email || email || "Metro";
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [router.pathname]);
 
   return (
+    <>
     <aside className="hidden w-64 shrink-0 border-r border-slate-200/80 bg-white/90 backdrop-blur lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col">
       <div className="flex items-center gap-3 p-6">
         <BrandMark className="h-8 w-8" />
@@ -99,5 +105,59 @@ export default function PassengerSidebar() {
         <PassengerLogoutButton />
       </div>
     </aside>
+
+    <div className="lg:hidden">
+      <button
+        type="button"
+        onClick={() => setIsMobileMenuOpen((current) => !current)}
+        className="fixed left-3 top-3 z-50 flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm backdrop-blur transition hover:bg-slate-50"
+        aria-label={isMobileMenuOpen ? "Đóng menu" : "Mở menu"}
+        aria-expanded={isMobileMenuOpen}
+      >
+        {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+      </button>
+
+      {isMobileMenuOpen ? (
+        <>
+          <button
+            type="button"
+            className="fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-[1px]"
+            aria-label="Đóng menu"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+          <div className="fixed left-3 right-3 top-16 z-50 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-center gap-3 border-b border-slate-100 p-4">
+              <BrandMark className="h-8 w-8" />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold text-neutral-900">{displayName}</p>
+                <p className="truncate text-xs text-slate-500">{displayEmail}</p>
+              </div>
+            </div>
+            <nav className="max-h-[70vh] space-y-1 overflow-y-auto p-3">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const active = isNavActive(router.pathname, item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`flex items-center gap-3 rounded-2xl px-3 py-3 text-left transition ${
+                      active ? "bg-blue-50 text-blue-600" : "text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    <Icon className={`h-5 w-5 ${active ? "text-blue-600" : "text-slate-500"}`} />
+                    <span className={`text-sm ${active ? "font-bold" : "font-semibold"}`}>{item.label}</span>
+                  </Link>
+                );
+              })}
+              <div className="border-t border-slate-100 pt-2">
+                <PassengerLogoutButton />
+              </div>
+            </nav>
+          </div>
+        </>
+      ) : null}
+    </div>
+    </>
   );
 }
