@@ -58,4 +58,7 @@ public class Incident {
 
     @OneToMany(mappedBy = "incident", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<IncidentComment> comments;
+
+    @Column(name = "attachment_url", length = 500)
+    private String attachmentUrl;
 }

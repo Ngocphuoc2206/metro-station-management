@@ -13,4 +13,5 @@ public class IncidentRequest {
     private String gateId;
     private String deviceId;
     private IncidentPriority priority;
+    private String attachmentUrl;
 }

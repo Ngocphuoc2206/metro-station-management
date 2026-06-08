@@ -28,4 +28,5 @@ public class IncidentResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private List<IncidentCommentResponse> comments;
+    private String attachmentUrl;
 }

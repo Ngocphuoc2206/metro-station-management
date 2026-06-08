@@ -74,6 +74,7 @@ public class IncidentService {
                 .status(IncidentStatus.OPEN)
                 .reporter(reporter)
                 .assignee(null) // Auto-assign cho Staff duy nhất
+                .attachmentUrl(request.getAttachmentUrl())
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .comments(new ArrayList<>())
@@ -358,6 +359,7 @@ public class IncidentService {
                 .status(incident.getStatus().name())
                 .reporterName(incident.getReporter().getFullName())
                 .assigneeName(incident.getAssignee() != null ? incident.getAssignee().getFullName() : "Chưa phê duyệt")
+                .attachmentUrl(incident.getAttachmentUrl())
                 .createdAt(incident.getCreatedAt())
                 .updatedAt(incident.getUpdatedAt())
                 .comments(commentDTOs)
