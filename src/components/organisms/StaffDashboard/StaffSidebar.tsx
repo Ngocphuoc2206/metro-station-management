@@ -11,16 +11,6 @@ const STAFF_NAV = [
   { label: "Sự cố", href: "/staff/incidents", icon: IncidentIcon },
   { label: "Quét vé", href: "/staff/scan", icon: ScanIcon },
   { label: "Nhật ký soát vé", href: "/staff/ticket-log", icon: TicketLogIcon },
-  {
-    label: "Nhật ký giao dịch",
-    href: "/staff/transaction-logs",
-    icon: TransactionIcon,
-  },
-  {
-    label: "Hồ sơ ca trực",
-    href: "/staff/shift-profile",
-    icon: ShiftProfileIcon,
-  },
 ];
 
 export default function StaffSidebar() {
@@ -75,42 +65,6 @@ export default function StaffSidebar() {
         </nav>
       </div>
 
-      {/* Cài đặt & User Info */}
-      <div className="space-y-2 border-t border-gray-100 px-3 py-4 sm:px-5">
-        <a
-          href="#settings"
-          className="flex items-center justify-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 sm:justify-start"
-        >
-          <SettingsIcon active={false} />
-          <span className="hidden sm:inline">Cài đặt</span>
-        </a>
-
-        <div className="flex items-center justify-between pt-2">
-          <div className="flex w-full items-center justify-center gap-3 pt-2 sm:justify-start">
-            <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
-              <span className="text-emerald-700 font-bold mb-0.5">
-                {displayName ? displayName.charAt(0).toUpperCase() : "S"}
-              </span>
-            </div>
-            <div className="hidden min-w-0 pr-2 sm:block">
-              <p className="text-sm font-bold text-gray-900 truncate">
-                {displayName || "Nhân viên"}
-              </p>
-              <p className="text-xs text-gray-400 truncate">
-                Nhân viên ga
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <button
-          onClick={handleLogout}
-          className="mt-2 w-full rounded-lg border border-transparent py-2 text-xs font-semibold text-gray-400 transition-colors hover:border-red-100 hover:bg-red-50 hover:text-red-500"
-        >
-          <span className="hidden sm:inline">Đăng xuất</span>
-          <span className="sm:hidden">Thoát</span>
-        </button>
-      </div>
     </aside>
   );
 }
