@@ -225,12 +225,12 @@ export default function MyTicketsPage() {
     <>
       <Head><title>Vé của tôi | MetroNext</title></Head>
       <PassengerShell>
-        <div className="mx-auto max-w-7xl space-y-6">
+        <div className="mx-auto w-full max-w-7xl space-y-6">
           <div>
             <p className="text-sm text-slate-500">Hành khách / Vé của tôi</p>
-            <h1 className="mt-1 text-4xl font-black text-slate-900">Vé của tôi</h1>
+            <h1 className="mt-1 text-3xl font-black leading-tight text-slate-900 sm:text-4xl">Vé của tôi</h1>
           </div>
-          <div className="grid gap-4 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
             {[
               ["Tổng số vé", stats.total, "text-slate-900"],
               ["Sẵn sàng sử dụng", stats.active, "text-green-600"],
@@ -240,16 +240,16 @@ export default function MyTicketsPage() {
             ].map(([label, value, color]) => (
               <div key={String(label)} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <p className="text-xs font-bold uppercase text-slate-500">{label}</p>
-                <p className={`mt-2 text-3xl font-black ${color}`}>{value}</p>
+                <p className={`mt-2 text-2xl font-black sm:text-3xl ${color}`}>{value}</p>
               </div>
             ))}
           </div>
-          <section className="flex flex-wrap gap-3 rounded-2xl border border-slate-200 bg-white p-4">
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm mã vé hoặc chặng đi" className="h-11 min-w-64 flex-1 rounded-xl border border-slate-200 px-3" />
-            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="h-11 rounded-xl border border-slate-200 px-3">
+          <section className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:flex-row sm:flex-wrap">
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm mã vé hoặc chặng đi" className="h-11 w-full min-w-0 flex-1 rounded-xl border border-slate-200 px-3 sm:min-w-64" />
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 px-3 sm:w-auto">
               <option value="">Tất cả trạng thái</option><option>Sẵn sàng sử dụng</option><option>Chưa dùng</option><option>Đã dùng</option><option>Hết hạn</option>
             </select>
-            <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className="h-11 rounded-xl border border-slate-200 px-3">
+            <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 px-3 sm:w-auto">
               <option value="">Tất cả loại vé</option><option>Vé lượt</option><option>Vé ngày</option><option>Vé tháng</option>
             </select>
           </section>
@@ -304,7 +304,7 @@ export default function MyTicketsPage() {
                         )}
                       </div>
                     </div>
-                    <div className="flex gap-2 bg-slate-50 p-4">
+                    <div className="flex flex-col gap-2 bg-slate-50 p-4 min-[420px]:flex-row">
                       {!isUsed && currentStatus !== "Hết hạn" ? (
                         <button type="button" onClick={() => openQr(ticket)} className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-blue-600 py-2 text-xs font-bold text-white"><QrCode className="h-4 w-4" />QR vào cổng</button>
                       ) : null}
@@ -325,7 +325,7 @@ export default function MyTicketsPage() {
           onClick={() => { setSelectedTicket(null); setDetailError(null); }}
         >
           <div
-            className="max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl"
+            className="max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl sm:p-6"
             onClick={(event) => event.stopPropagation()}
             role="dialog"
             aria-modal="true"

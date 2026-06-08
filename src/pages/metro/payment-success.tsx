@@ -49,10 +49,10 @@ const MetroPaymentSuccessPage: NextPage = () => {
 
   return (
     <PassengerShell>
-      <div className="mx-auto flex min-h-[65vh] w-full max-w-[720px] items-center justify-center">
-        <section className="w-full rounded-3xl bg-white px-6 py-12 text-center shadow-sm outline outline-1 outline-slate-200 sm:px-12">
-          <CheckCircle2 className="mx-auto h-20 w-20 text-emerald-500" />
-          <h1 className="mt-6 text-3xl font-extrabold text-slate-900">
+      <div className="mx-auto flex min-h-[60vh] w-full max-w-[720px] items-center justify-center">
+        <section className="w-full rounded-3xl bg-white px-5 py-10 text-center shadow-sm outline outline-1 outline-slate-200 sm:px-12 sm:py-12">
+          <CheckCircle2 className="mx-auto h-16 w-16 text-emerald-500 sm:h-20 sm:w-20" />
+          <h1 className="mt-6 text-2xl font-extrabold text-slate-900 sm:text-3xl">
             Giao dịch thành công!
           </h1>
           <p className="mx-auto mt-3 max-w-md text-base leading-7 text-slate-600">
@@ -62,7 +62,7 @@ const MetroPaymentSuccessPage: NextPage = () => {
           <button
             type="button"
             onClick={() => router.push("/passenger-page/my-tickets")}
-            className="mx-auto mt-8 inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-8 py-4 text-base font-bold text-white transition hover:bg-blue-700"
+            className="mx-auto mt-8 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-4 text-base font-bold text-white transition hover:bg-blue-700 sm:w-auto sm:px-8"
           >
             <Ticket className="h-5 w-5" />
             Xem vé ngay

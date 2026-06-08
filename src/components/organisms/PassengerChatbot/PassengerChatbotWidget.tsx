@@ -366,7 +366,7 @@ export default function PassengerChatbotWidget() {
   const legacyLauncherLabel = false;
 
   return (
-    <div className="fixed bottom-16 right-4 z-50 flex flex-col items-end gap-3 sm:bottom-16 sm:right-5">
+    <div className="fixed bottom-28 right-4 z-50 flex flex-col items-end gap-3 sm:bottom-16 sm:right-5">
       <style jsx global>{`
         @keyframes metroChatPop {
           from {
@@ -419,7 +419,7 @@ export default function PassengerChatbotWidget() {
         }
       `}</style>
       {isOpen ? (
-        <section className="metro-chat-panel flex h-[min(580px,calc(100vh-6rem))] w-[min(390px,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-[1.35rem] border border-blue-100 bg-white shadow-2xl shadow-blue-950/20">
+        <section className="metro-chat-panel flex h-[min(540px,calc(100vh-9rem))] w-[min(390px,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-[1.35rem] border border-blue-100 bg-white shadow-2xl shadow-blue-950/20 sm:h-[min(580px,calc(100vh-6rem))]">
           <header className="flex items-center justify-between border-b border-blue-100 bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 px-4 py-3 text-white">
             <div className="flex items-center gap-3">
               <div className="relative flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-blue-600 shadow-lg shadow-blue-900/15">
@@ -546,7 +546,7 @@ export default function PassengerChatbotWidget() {
                 setShowLauncherGreeting(false);
                 setIsOpen(true);
               }}
-              className="metro-chat-panel relative mb-1 max-w-[230px] rounded-2xl rounded-br-md border border-blue-100 bg-white px-4 py-3 text-left text-sm font-semibold leading-5 text-slate-800 shadow-xl shadow-slate-900/10 transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-blue-900/15 focus:outline-none focus:ring-4 focus:ring-blue-100 after:absolute after:-right-1.5 after:bottom-4 after:h-3 after:w-3 after:rotate-45 after:border-r after:border-t after:border-blue-100 after:bg-white"
+              className="metro-chat-panel relative mb-1 hidden max-w-[230px] rounded-2xl rounded-br-md border border-blue-100 bg-white px-4 py-3 text-left text-sm font-semibold leading-5 text-slate-800 shadow-xl shadow-slate-900/10 transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-blue-900/15 focus:outline-none focus:ring-4 focus:ring-blue-100 after:absolute after:-right-1.5 after:bottom-4 after:h-3 after:w-3 after:rotate-45 after:border-r after:border-t after:border-blue-100 after:bg-white sm:block"
             >
               Xin chào! Cần mình hỗ trợ gì?
             </button>

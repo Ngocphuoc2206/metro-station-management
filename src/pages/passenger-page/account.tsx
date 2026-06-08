@@ -26,7 +26,7 @@ const linkedPayments = [
     icon: CreditCard,
   },
   {
-    title: "VÃ­ Ä‘iá»‡n tá»­ MoMo",
+    title: "Ví điện tử MoMo",
     subtitle: "090****567",
     tone: "text-amber-600 bg-amber-50",
     icon: CreditCard,
@@ -78,7 +78,7 @@ export default function PassengerAccountPage() {
         if (cancelled) return;
         populateForm(data);
       } catch (err) {
-        const message = err instanceof Error ? err.message : "KhÃ´ng thá»ƒ táº£i profile";
+        const message = err instanceof Error ? err.message : "Không thể tải profile";
         if (!cancelled) setError(message);
       } finally {
         if (!cancelled) setIsLoading(false);
@@ -109,7 +109,7 @@ export default function PassengerAccountPage() {
       populateForm(refreshed);
       notifyProfileUpdated(refreshed);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Upload avatar tháº¥t báº¡i";
+      const message = err instanceof Error ? err.message : "Upload avatar thất bại";
       setError(message);
     } finally {
       setIsSaving(false);
@@ -156,10 +156,10 @@ export default function PassengerAccountPage() {
 
       if (wantsPasswordChange) {
         if (!currentPassword || !newPassword) {
-          throw new Error("Vui lÃ²ng nháº­p Ä‘á»§ máº­t kháº©u hiá»‡n táº¡i vÃ  máº­t kháº©u má»›i.");
+          throw new Error("Vui lòng nhập đủ mật khẩu hiện tại và mật khẩu mới.");
         }
         if (newPassword !== confirmNewPassword) {
-          throw new Error("XÃ¡c nháº­n máº­t kháº©u má»›i khÃ´ng khá»›p.");
+          throw new Error("Xác nhận mật khẩu mới không khớp.");
         }
 
         await profileApi.updateMyPassword({
@@ -177,9 +177,9 @@ export default function PassengerAccountPage() {
       populateForm(refreshed);
       notifyProfileUpdated(refreshed);
 
-      window.alert("ÄÃ£ lÆ°u thay Ä‘á»•i.");
+      window.alert("Đã lưu thay đổi.");
     } catch (err) {
-      const message = err instanceof Error ? err.message : "LÆ°u tháº¥t báº¡i";
+      const message = err instanceof Error ? err.message : "Lưu thất bại";
       setError(message);
     } finally {
       setIsSaving(false);
@@ -189,30 +189,30 @@ export default function PassengerAccountPage() {
   return (
     <>
       <Head>
-        <title>TÃ i khoáº£n | MetroNext</title>
+        <title>Tài khoản | MetroNext</title>
       </Head>
 
-      <div className="min-h-screen w-full bg-[linear-gradient(180deg,#f8fafc_0%,#eef2ff_45%,#f8fafc_100%)]">
+      <div className="passenger-page-shell min-h-screen w-full bg-[linear-gradient(180deg,#f8fafc_0%,#eef2ff_45%,#f8fafc_100%)]">
         <div className="flex min-h-screen w-full">
           <PassengerSidebar />
 
-          <main className="flex min-w-0 flex-1 flex-col">
-            <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-slate-200/80 bg-white/80 px-4 backdrop-blur sm:px-8">
-              <div className="relative w-full max-w-md">
+          <main className="flex min-w-0 flex-1 flex-col pb-20 lg:pb-0">
+            <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-slate-200/80 bg-white/80 px-3 backdrop-blur sm:px-8">
+              <div className="relative min-w-0 flex-1 sm:max-w-md">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input
                   className="w-full rounded-xl bg-slate-100 py-2.5 pl-10 pr-4 text-sm text-neutral-900 outline-none placeholder:text-slate-500"
-                  placeholder="TÃ¬m kiáº¿m ga, vÃ©, lá»‹ch trÃ¬nh..."
+                  placeholder="Tìm kiếm ga, vé, lịch trình..."
                   readOnly
                 />
               </div>
 
-              <div className="ml-4 flex items-center gap-4">
+              <div className="flex shrink-0 items-center gap-2 sm:gap-4">
                 <button className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
                   <Bell className="h-5 w-5" />
                   <span className="absolute right-2 top-2 h-2 w-2 rounded-full border-2 border-white bg-red-500" />
                 </button>
-                <button className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+                <button className="hidden h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600 min-[380px]:flex">
                   <Settings className="h-5 w-5" />
                 </button>
               </div>
@@ -228,37 +228,37 @@ export default function PassengerAccountPage() {
 
                 {isLoading ? (
                   <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700">
-                    Äang táº£i profile...
+                    Đang tải profile...
                   </div>
                 ) : null}
 
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 text-sm font-medium text-slate-500">
-                    <span>HÃ nh khÃ¡ch</span>
+                    <span>Hành khách</span>
                     <ChevronRight className="h-3.5 w-3.5" />
-                    <span className="text-slate-900">TÃ i khoáº£n</span>
+                    <span className="text-slate-900">Tài khoản</span>
                   </div>
-                  <h1 className="text-4xl font-black leading-10 text-slate-900">CÃ i Ä‘áº·t tÃ i khoáº£n</h1>
+                  <h1 className="text-3xl font-black leading-tight text-slate-900 sm:text-4xl">Cài đặt tài khoản</h1>
                   <p className="pt-1 text-sm text-slate-500">
-                    Quáº£n lÃ½ há»“ sÆ¡, báº£o máº­t vÃ  phÆ°Æ¡ng thá»©c thanh toÃ¡n cá»§a báº¡n táº¡i MetroNext.
+                    Quản lý hồ sơ, bảo mật và phương thức thanh toán của bạn tại MetroNext.
                   </p>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
                   <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.04)]">
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Há»“ sÆ¡</p>
-                    <p className="mt-1 text-sm font-bold text-slate-900">ÄÃ£ xÃ¡c thá»±c 100%</p>
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Hồ sơ</p>
+                    <p className="mt-1 text-sm font-bold text-slate-900">Đã xác thực 100%</p>
                   </div>
                   <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.04)]">
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Báº£o máº­t</p>
-                    <p className="mt-1 text-sm font-bold text-slate-900">Má»©c cao</p>
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Bảo mật</p>
+                    <p className="mt-1 text-sm font-bold text-slate-900">Mức cao</p>
                   </div>
                   <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.04)]">
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">PhÆ°Æ¡ng thá»©c</p>
-                    <p className="mt-1 text-sm font-bold text-slate-900">2 liÃªn káº¿t</p>
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Phương thức</p>
+                    <p className="mt-1 text-sm font-bold text-slate-900">2 liên kết</p>
                   </div>
                   <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.04)]">
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Háº¡ng thÃ nh viÃªn</p>
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Hạng thành viên</p>
                     <p className="mt-1 text-sm font-bold text-slate-900">Gold</p>
                   </div>
                 </div>
@@ -266,13 +266,13 @@ export default function PassengerAccountPage() {
                 <section className="space-y-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
                   <div className="flex items-center gap-2 text-slate-900">
                     <User className="h-5 w-5 text-blue-600" />
-                    <h2 className="text-lg font-bold">ThÃ´ng tin cÃ¡ nhÃ¢n</h2>
+                    <h2 className="text-lg font-bold">Thông tin cá nhân</h2>
                   </div>
 
                   <div className="space-y-5">
                     <div className="rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-50 to-white p-4 sm:p-5">
                       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex items-center gap-4">
+                        <div className="flex min-w-0 flex-col gap-4 min-[420px]:flex-row min-[420px]:items-center">
                           <div className="relative shrink-0">
                             <div className="rounded-full bg-white p-1.5 shadow-sm ring-1 ring-slate-200">
                               <img
@@ -291,14 +291,14 @@ export default function PassengerAccountPage() {
                           </div>
 
                           <div className="space-y-1">
-                            <p className="text-sm font-bold text-slate-900">áº¢nh Ä‘áº¡i diá»‡n</p>
-                            <p className="text-xs text-slate-500">JPG, PNG hoáº·c GIF. Tá»‘i Ä‘a 5MB.</p>
+                            <p className="text-sm font-bold text-slate-900">Ảnh đại diện</p>
+                            <p className="text-xs text-slate-500">JPG, PNG hoặc GIF. Tối đa 5MB.</p>
                             <div className="flex flex-wrap items-center gap-2 pt-0.5">
                               <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-600">
                                 1:1
                               </span>
                               <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-600">
-                                KhuyÃªn dÃ¹ng 512x512
+                                Khuyên dùng 512x512
                               </span>
                             </div>
                           </div>
@@ -309,7 +309,7 @@ export default function PassengerAccountPage() {
                           onClick={handlePickAvatar}
                           className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                         >
-                          Thay Ä‘á»•i áº£nh
+                          Thay đổi ảnh
                         </button>
                       </div>
                     </div>
@@ -324,7 +324,7 @@ export default function PassengerAccountPage() {
 
                     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                       <label className="space-y-2">
-                        <span className="text-sm font-bold text-slate-700">Há» tÃªn</span>
+                        <span className="text-sm font-bold text-slate-700">Họ tên</span>
                         <input
                           className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none"
                           value={fullName}
@@ -342,7 +342,7 @@ export default function PassengerAccountPage() {
                       </label>
 
                       <label className="space-y-2">
-                        <span className="text-sm font-bold text-slate-700">Sá»‘ Ä‘iá»‡n thoáº¡i</span>
+                        <span className="text-sm font-bold text-slate-700">Số điện thoại</span>
                         <input
                           className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none"
                           value={phone}
@@ -351,7 +351,7 @@ export default function PassengerAccountPage() {
                       </label>
 
                       <label className="space-y-2 sm:col-span-2">
-                        <span className="text-sm font-bold text-slate-700">Äá»‹a chá»‰</span>
+                        <span className="text-sm font-bold text-slate-700">Địa chỉ</span>
                         <input
                           className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none"
                           value={address}
@@ -360,7 +360,7 @@ export default function PassengerAccountPage() {
                       </label>
 
                       <label className="space-y-2">
-                        <span className="text-sm font-bold text-slate-700">NgÃ y sinh</span>
+                        <span className="text-sm font-bold text-slate-700">Ngày sinh</span>
                         <input
                           type="date"
                           className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none"
@@ -375,16 +375,16 @@ export default function PassengerAccountPage() {
                 <section className="space-y-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
                   <div className="flex items-center gap-2 text-slate-900">
                     <Shield className="h-5 w-5 text-blue-600" />
-                    <h2 className="text-lg font-bold">Báº£o máº­t</h2>
+                    <h2 className="text-lg font-bold">Bảo mật</h2>
                   </div>
 
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
-                    Máº­t kháº©u nÃªn cÃ³ Ã­t nháº¥t 8 kÃ½ tá»±, bao gá»“m chá»¯ hoa, chá»¯ thÆ°á»ng vÃ  sá»‘ Ä‘á»ƒ tÄƒng má»©c Ä‘á»™ an toÃ n.
+                    Mật khẩu nên có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường và số để tăng mức độ an toàn.
                   </div>
 
                   <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                     <label className="space-y-2">
-                      <span className="text-sm font-bold text-slate-700">Máº­t kháº©u hiá»‡n táº¡i</span>
+                      <span className="text-sm font-bold text-slate-700">Mật khẩu hiện tại</span>
                       <input
                         type="password"
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none"
@@ -394,7 +394,7 @@ export default function PassengerAccountPage() {
                     </label>
 
                     <label className="space-y-2">
-                      <span className="text-sm font-bold text-slate-700">Máº­t kháº©u má»›i</span>
+                      <span className="text-sm font-bold text-slate-700">Mật khẩu mới</span>
                       <input
                         type="password"
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none"
@@ -404,7 +404,7 @@ export default function PassengerAccountPage() {
                     </label>
 
                     <label className="space-y-2">
-                      <span className="text-sm font-bold text-slate-700">XÃ¡c nháº­n máº­t kháº©u má»›i</span>
+                      <span className="text-sm font-bold text-slate-700">Xác nhận mật khẩu mới</span>
                       <input
                         type="password"
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none"
@@ -422,8 +422,8 @@ export default function PassengerAccountPage() {
                     <div className="space-y-5">
                       <div className="flex items-center justify-between rounded-xl px-1">
                         <div>
-                          <p className="text-sm font-bold text-slate-700">Cháº¿ Ä‘á»™ tá»‘i</p>
-                          <p className="text-xs text-slate-500">Giao diá»‡n phÃ¹ há»£p ban Ä‘Ãªm</p>
+                          <p className="text-sm font-bold text-slate-700">Chế độ tối</p>
+                          <p className="text-xs text-slate-500">Giao diện phù hợp ban đêm</p>
                         </div>
                         <button
                           type="button"
@@ -439,8 +439,8 @@ export default function PassengerAccountPage() {
 
                       <div className="flex items-center justify-between rounded-xl px-1">
                         <div>
-                          <p className="text-sm font-bold text-slate-700">ThÃ´ng bÃ¡o email</p>
-                          <p className="text-xs text-slate-500">Nháº­n cáº­p nháº­t qua email</p>
+                          <p className="text-sm font-bold text-slate-700">Thông báo email</p>
+                          <p className="text-xs text-slate-500">Nhận cập nhật qua email</p>
                         </div>
                         <button
                           type="button"
@@ -456,8 +456,8 @@ export default function PassengerAccountPage() {
 
                       <div className="flex items-center justify-between rounded-xl px-1">
                         <div>
-                          <p className="text-sm font-bold text-slate-700">ThÃ´ng bÃ¡o SMS</p>
-                          <p className="text-xs text-slate-500">Nháº­n cáº­p nháº­t qua sá»‘ Ä‘iá»‡n thoáº¡i</p>
+                          <p className="text-sm font-bold text-slate-700">Thông báo SMS</p>
+                          <p className="text-xs text-slate-500">Nhận cập nhật qua số điện thoại</p>
                         </div>
                         <button
                           type="button"
@@ -476,7 +476,7 @@ export default function PassengerAccountPage() {
                   <section className="space-y-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
                     <div className="flex items-center gap-2 text-slate-900">
                       <CreditCard className="h-5 w-5 text-blue-600" />
-                      <h2 className="text-lg font-bold">LiÃªn káº¿t thanh toÃ¡n</h2>
+                      <h2 className="text-lg font-bold">Liên kết thanh toán</h2>
                     </div>
 
                     <div className="space-y-3">
@@ -485,15 +485,15 @@ export default function PassengerAccountPage() {
                         return (
                           <div
                             key={payment.title}
-                            className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/60 p-2.5"
+                            className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-2.5"
                           >
-                            <div className="flex items-center gap-3">
+                            <div className="flex min-w-0 items-center gap-3">
                               <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${payment.tone}`}>
                                 <PaymentIcon className="h-5 w-5" />
                               </div>
-                              <div>
-                                <p className="text-sm font-bold text-slate-900">{payment.title}</p>
-                                <p className="text-xs text-slate-500">{payment.subtitle}</p>
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-bold text-slate-900">{payment.title}</p>
+                                <p className="truncate text-xs text-slate-500">{payment.subtitle}</p>
                               </div>
                             </div>
                             <button className="text-red-500">
@@ -506,22 +506,22 @@ export default function PassengerAccountPage() {
 
                     <button className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-slate-300 py-2 text-sm font-bold text-slate-500">
                       <Plus className="h-3 w-3" />
-                      <span>ThÃªm phÆ°Æ¡ng thá»©c</span>
+                      <span>Thêm phương thức</span>
                     </button>
                   </section>
                 </div>
               </div>
             </section>
 
-            <div className="sticky bottom-0 z-10 border-t border-slate-200 bg-white/95 px-4 py-4 shadow-[0px_-4px_10px_rgba(0,0,0,0.03)] backdrop-blur sm:px-8">
-              <div className="mx-auto flex w-full max-w-[1200px] justify-end gap-3">
+            <div className="sticky bottom-20 z-10 border-t border-slate-200 bg-white/95 px-4 py-4 shadow-[0px_-4px_10px_rgba(0,0,0,0.03)] backdrop-blur sm:px-8 lg:bottom-0">
+              <div className="mx-auto flex w-full max-w-[1200px] flex-col justify-end gap-3 sm:flex-row">
                 <button
                   type="button"
                   disabled={isSaving}
                   onClick={handleCancel}
                   className="rounded-xl border border-slate-200 bg-white px-8 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-60"
                 >
-                  Há»§y
+                  Hủy
                 </button>
                 <button
                   type="button"
@@ -529,7 +529,7 @@ export default function PassengerAccountPage() {
                   onClick={handleSave}
                   className="rounded-xl bg-blue-600 px-8 py-2.5 text-sm font-bold text-white shadow-[0px_10px_15px_-3px_rgba(19,127,236,0.20)] hover:bg-blue-700 disabled:opacity-60"
                 >
-                  {isSaving ? "Äang lÆ°u..." : "LÆ°u thay Ä‘á»•i"}
+                  {isSaving ? "Đang lưu..." : "Lưu thay đổi"}
                 </button>
               </div>
             </div>
