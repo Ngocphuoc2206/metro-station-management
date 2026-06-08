@@ -38,6 +38,7 @@ interface ApiIncident {
 }
 
 const CHART_HOURS = Array.from({ length: 12 }, (_, index) => index * 2);
+type TimeWindow = "1h" | "24h" | "7d";
 
 function getGateStatus(gate: ApiGate) {
   const status = (gate.status ?? "").toUpperCase();
@@ -119,6 +120,12 @@ function filterLogsByHours(logs: GateLog[], hours: number) {
   });
 }
 
+function getTimeWindowHours(timeWindow: TimeWindow) {
+  if (timeWindow === "1h") return 1;
+  if (timeWindow === "7d") return 24 * 7;
+  return 24;
+}
+
 function groupLogsByHour(logs: GateLog[]) {
   return CHART_HOURS.map((startHour) => {
     const bucket = logs.filter((log) => {
@@ -172,6 +179,7 @@ export default function StaffDashboard() {
   const [incidentPriority, setIncidentPriority] = useState("");
   const [loading, setLoading] = useState(true);
   const [clock, setClock] = useState(getNow());
+  const [timeWindow, setTimeWindow] = useState<TimeWindow>("24h");
   const [chartRange, setChartRange] = useState<"24h" | "7d">("24h");
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -249,13 +257,13 @@ export default function StaffDashboard() {
   const stableDeviceCount = displayedDevices.filter(isOperationalDevice).length;
   const stableAssetCount = stableStationCount + stableDeviceCount;
   const displayedAssetCount = displayedLiveStatuses.length + displayedDevices.length;
-  const selectedLogs = gateLogs.filter((log) => {
+  const selectedLogs = filterLogsByHours(gateLogs.filter((log) => {
     const matchStation = !appliedStationId || log.stationId === appliedStationId;
     const matchDevice = !appliedDeviceId || log.gateId === appliedDeviceId;
     const matchDateFrom = !appliedDateFrom || (log.timestamp ?? "") >= appliedDateFrom;
     const matchDateTo = !appliedDateTo || (log.timestamp ?? "") <= appliedDateTo + "T23:59:59";
     return matchStation && matchDevice && matchDateFrom && matchDateTo;
-  });
+  }), getTimeWindowHours(timeWindow));
   const displayedLogs = selectedLogs;
   const acceptedLogs = displayedLogs.filter((log) => log.result === "ALLOW");
   const currentTraffic = Math.max(
@@ -335,19 +343,19 @@ export default function StaffDashboard() {
           />
         </div>
         <select
-          value={selectedStationId}
+          value={draftStationId}
           onChange={(event) => {
             const stationId = event.target.value;
-            setSelectedStationId(stationId);
+            setDraftStationId(stationId);
             if (
-              selectedDeviceId &&
+              draftDeviceId &&
               !devices.some(
                 (device) =>
-                  device.id === selectedDeviceId &&
+                  device.id === draftDeviceId &&
                   (!stationId || device.stationId === stationId),
               )
             ) {
-              setSelectedDeviceId("");
+              setDraftDeviceId("");
             }
           }}
           aria-label="Lọc theo ga"
@@ -361,14 +369,14 @@ export default function StaffDashboard() {
           ))}
         </select>
         <select
-          value={selectedDeviceId}
-          onChange={(event) => setSelectedDeviceId(event.target.value)}
+          value={draftDeviceId}
+          onChange={(event) => setDraftDeviceId(event.target.value)}
           aria-label="Lọc theo thiết bị"
           className="h-10 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100 sm:w-auto sm:min-w-44"
         >
           <option value="">Tất cả thiết bị</option>
           {devices
-            .filter((device) => !selectedStationId || device.stationId === selectedStationId)
+            .filter((device) => !draftStationId || device.stationId === draftStationId)
             .map((device) => (
               <option key={device.id} value={device.id}>
                 {device.name}
@@ -377,7 +385,7 @@ export default function StaffDashboard() {
         </select>
         <select
           value={timeWindow}
-          onChange={(event) => setTimeWindow(event.target.value as "1h" | "24h" | "7d")}
+          onChange={(event) => setTimeWindow(event.target.value as TimeWindow)}
           aria-label="Lọc theo khoảng thời gian"
           className="h-10 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100 sm:w-auto"
         >
