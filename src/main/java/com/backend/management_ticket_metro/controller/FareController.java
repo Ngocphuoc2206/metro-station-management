@@ -3,7 +3,6 @@ package com.backend.management_ticket_metro.controller;
 import com.backend.management_ticket_metro.common.ApiResponse;
 import com.backend.management_ticket_metro.dto.request.FareMatrixRequest;
 import com.backend.management_ticket_metro.dto.request.TicketTypeRequest;
-import com.backend.management_ticket_metro.enums.TicketName;
 import com.backend.management_ticket_metro.service.FareService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;

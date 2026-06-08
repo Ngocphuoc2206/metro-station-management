@@ -5,7 +5,6 @@ import com.backend.management_ticket_metro.constant.PredefinedRole;
 import com.backend.management_ticket_metro.entity.Role;
 import com.backend.management_ticket_metro.entity.TicketType;
 import com.backend.management_ticket_metro.entity.User;
-import com.backend.management_ticket_metro.enums.TicketName;
 import com.backend.management_ticket_metro.enums.UserStatus;
 import com.backend.management_ticket_metro.repository.PermissionRepository;
 import com.backend.management_ticket_metro.repository.RoleRepository;
@@ -61,7 +60,7 @@ public class ApplicationInitConfig {
 
                 ticketTypeRepository.save(
                         TicketType.builder()
-                                .name(TicketName.Single)
+                                .name("Single")
                                 .isActive(true)
                                 .price(5000.0)
                                 .description("Vé lượt dùng cho một chuyến đi từ ga xuất phát đến ga đích")
@@ -71,7 +70,7 @@ public class ApplicationInitConfig {
 
                 ticketTypeRepository.save(
                         TicketType.builder()
-                                .name(TicketName.Daily)
+                                .name("Daily")
                                 .isActive(true)
                                 .price(30000.0)
                                 .description("Vé ngày dùng để quét trong ngày")
@@ -81,7 +80,7 @@ public class ApplicationInitConfig {
 
                 ticketTypeRepository.save(
                         TicketType.builder()
-                                .name(TicketName.Month)
+                                .name("Month")
                                 .isActive(true)
                                 .price(100000.0)
                                 .description("Vé lượt dùng để quét trong cả tháng")
@@ -91,21 +90,21 @@ public class ApplicationInitConfig {
             }
 
 //            upsertTicketType(
-//                    TicketName.Single,
+//                    "Single",
 //                    5000.0,
 //                    "Vé lượt dùng cho một chuyến đi trong ngày",
 //                    1
 //            );
 //
 //            upsertTicketType(
-//                    TicketName.Daily,
+//                    "Daily",
 //                    50000.0,
 //                    "Vé ngày dùng để đi nhiều chuyến trong ngày",
 //                    1
 //            );
 //
 //            upsertTicketType(
-//                    TicketName.Month,
+//                    "Month",
 //                    150000.0,
 //                    "Vé tháng dùng để đi nhiều chuyến trong 30 ngày",
 //                    30
@@ -172,12 +171,12 @@ public class ApplicationInitConfig {
     }
 
     private void upsertTicketType(
-            TicketName name,
+            String name,
             Double price,
             String description,
             Integer validityDays
     ) {
-        TicketType ticketType = ticketTypeRepository.findByName(name)
+        TicketType ticketType = ticketTypeRepository.findByNameIgnoreCase(name)
                 .orElse(TicketType.builder()
                         .name(name)
                         .build());

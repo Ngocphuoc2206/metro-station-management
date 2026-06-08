@@ -5,14 +5,13 @@ import com.backend.management_ticket_metro.dto.request.FareMatrixRequest;
 import com.backend.management_ticket_metro.dto.request.TicketTypeRequest;
 import com.backend.management_ticket_metro.entity.FareMatrix;
 import com.backend.management_ticket_metro.entity.TicketType;
-import com.backend.management_ticket_metro.enums.TicketName;
 import com.backend.management_ticket_metro.exception.AppException;
 import com.backend.management_ticket_metro.repository.FareMatrixRepository;
 import com.backend.management_ticket_metro.repository.TicketTypeRepository;
+import com.backend.management_ticket_metro.util.TicketTypeNameUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 @Service
@@ -27,14 +26,13 @@ public class FareService {
     private static final double SINGLE_MAX_FARE = 20000.0;
 
     public Double calculateFare(String originId, String destinationId, String ticketTypeName, Double distance){
-        TicketName ticketName = parseTicketName(ticketTypeName);
+        String normalizedTicketTypeName = normalizeTicketTypeName(ticketTypeName);
 
-        TicketType ticketType = ticketTypeRepository.findByName(TicketName.valueOf(ticketTypeName))
-                .orElseThrow(() -> new AppException(ErrorCode.TICKET_TYPE_INVALID));
+        TicketType ticketType = findTicketTypeByNameOrAlias(normalizedTicketTypeName);
 
         double ticketPrice = ticketType.getPrice();
         // Case 1: Monthly / Daily -> lấy giá cố định trong bảng ticket_type
-        if (ticketName == TicketName.Month || ticketName == TicketName.Daily) {
+        if (TicketTypeNameUtils.isFixedPriceTicket(ticketType.getName())) {
             return ticketPrice;
         }
 
@@ -59,7 +57,7 @@ public class FareService {
 
     public TicketType createTicketType(TicketTypeRequest request) {
         TicketType ticketType = TicketType.builder()
-                .name(TicketName.valueOf(request.getName()))
+                .name(normalizeTicketTypeName(request.getName()))
                 .description(request.getDescription())
                 .price(request.getPrice())
                 .validityDays(request.getValidityDays())
@@ -73,7 +71,7 @@ public class FareService {
         TicketType ticketType = ticketTypeRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.TICKET_TYPE_INVALID));
 
-        ticketType.setName(TicketName.valueOf(request.getName()));
+        ticketType.setName(normalizeTicketTypeName(request.getName()));
         ticketType.setDescription(request.getDescription());
         ticketType.setPrice(request.getPrice());
         ticketType.setValidityDays(request.getValidityDays());
@@ -110,18 +108,21 @@ public class FareService {
         return fareMatrixRepository.save(fare);
     }
 
-    private TicketName parseTicketName(String ticketName){
+    private String normalizeTicketTypeName(String ticketName){
         if (ticketName == null || ticketName.isBlank()){
             throw new AppException(ErrorCode.TICKET_TYPE_INVALID);
         }
 
-        for (TicketName name: TicketName.values()){
-            if (name.name().equalsIgnoreCase(ticketName)){
-                return name;
-            }
-        }
+        return TicketTypeNameUtils.normalize(ticketName);
+    }
 
-        throw new AppException(ErrorCode.TICKET_TYPE_INVALID);
+    private TicketType findTicketTypeByNameOrAlias(String ticketTypeName) {
+        return ticketTypeRepository.findAll()
+                .stream()
+                .filter(ticketType -> TicketTypeNameUtils.normalize(ticketType.getName())
+                        .equalsIgnoreCase(ticketTypeName))
+                .findFirst()
+                .orElseThrow(() -> new AppException(ErrorCode.TICKET_TYPE_INVALID));
     }
 
     private void validateSingleFareInput(String originId, String destinationId, Double distance) {
