@@ -16,8 +16,10 @@ export interface GateLog {
 }
 
 export interface GateLogs {
-  timeRange: "all" | "today" | "1h" | "8h";
+  dateFrom: string;
+  dateTo: string;
   stationId: string;
   gateId: string;
+  deviceId: string;
   result: GateResult | "";
 }

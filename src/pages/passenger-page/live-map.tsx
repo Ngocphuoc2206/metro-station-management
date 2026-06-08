@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import Head from "next/head";
 import { useEffect, useMemo, useState } from "react";
 import PassengerShell from "@components/templates/PassengerShell";
@@ -8,11 +9,22 @@ import type {
 } from "@features/live/liveTypes";
 import { publicApi } from "@features/public/publicApi";
 import type { RouteDto, StationDto } from "@features/public/publicTypes";
+import { routeApi } from "@features/route/routeApi";
+import type { Route as MetroRoute } from "@features/route/routeTypes";
 import {
   scheduleApi,
   scheduleErrorMessage,
 } from "@features/schedule/scheduleApi";
 import type { ScheduleDto } from "@features/schedule/scheduleTypes";
+import {
+  buildScheduleLines,
+  etaMinutes,
+  getNowSeconds,
+  lerp,
+  normalizeDirection,
+  resolveApproachingTrainOnLine,
+  resolvePositionFromNextStation,
+} from "@/utils/metroScheduleProgress";
 import {
   Activity,
   AlertTriangle,
@@ -26,7 +38,7 @@ import {
   MapPinned,
   Navigation,
   Radio,
-  Route,
+  Route as RouteIcon,
   Search,
   Signal,
   TrainFront,
@@ -53,9 +65,12 @@ type Train = {
   id: string;
   code: string;
   direction: string;
+  previousStationId?: string;
+  previousStation?: string;
   nextStationId?: string;
   nextStation: string;
   eta: string;
+  arrivalClock?: string;
   occupancy: number;
   status: TrainStatus;
   x: number;
@@ -189,7 +204,7 @@ const fallbackTrains: Train[] = [
 const statusLabel: Record<TrainStatus, string> = {
   "on-time": "Đúng giờ",
   delayed: "Trễ chuyến",
-  arriving: "Sắp đến ga",
+  arriving: "Đang tới ga",
 };
 
 const statusClass: Record<TrainStatus, string> = {
@@ -295,11 +310,6 @@ const minutesUntil = (time: string) => {
   return Math.round((target.getTime() - now.getTime()) / 60_000);
 };
 
-const etaMinutes = (eta: string) => {
-  const match = eta.match(/(\d+)/);
-  return match ? Number(match[1]) : null;
-};
-
 const formatClock = (value: string) => {
   const match = value?.match(/(\d{1,2}):(\d{2})/);
   return match ? `${match[1].padStart(2, "0")}:${match[2]}` : value || "--:--";
@@ -318,8 +328,36 @@ const getScheduleStatus = (status: string) => {
   return status || "Theo lịch";
 };
 
+const fallbackPosition = (index: number, count: number) => {
+  if (fallbackStations.length === 0) return { x: 82 + index * 96, y: 355 };
+  if (count <= 1) return fallbackStations[0];
+
+  const scaledIndex = (index / (count - 1)) * (fallbackStations.length - 1);
+  const leftIndex = Math.floor(scaledIndex);
+  const rightIndex = Math.min(fallbackStations.length - 1, leftIndex + 1);
+  const progress = scaledIndex - leftIndex;
+  const left = fallbackStations[leftIndex];
+  const right = fallbackStations[rightIndex];
+
+  return {
+    x: lerp(left.x, right.x, progress),
+    y: lerp(left.y, right.y, progress),
+  };
+};
+
+const toRouteOption = (route: MetroRoute): RouteDto => ({
+  id: route.id,
+  name: route.name,
+  description: route.description,
+  color: route.color,
+});
+
 export default function PassengerLiveMapPage() {
   const [routes, setRoutes] = useState<RouteDto[]>([]);
+  const [routeDetails, setRouteDetails] = useState<MetroRoute[]>([]);
+  const [requestedRouteDetailIds, setRequestedRouteDetailIds] = useState<
+    string[]
+  >([]);
   const [stationsApi, setStationsApi] = useState<StationDto[]>([]);
   const [schedules, setSchedules] = useState<ScheduleDto[]>([]);
   const [stationStatuses, setStationStatuses] = useState<
@@ -336,24 +374,36 @@ export default function PassengerLiveMapPage() {
   const [liveError, setLiveError] = useState<string | null>(null);
   const [scheduleError, setScheduleError] = useState<string | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
+  const [currentTime, setCurrentTime] = useState(() => new Date());
 
   useEffect(() => {
     let cancelled = false;
 
     const loadCatalog = async () => {
-      try {
-        const [routeResult, stationResult] = await Promise.all([
-          publicApi.getRoutes(),
-          publicApi.getStations(),
-        ]);
-        if (cancelled) return;
-        setRoutes(routeResult);
-        setStationsApi(stationResult);
-      } catch {
-        if (!cancelled) {
-          setRoutes([]);
-          setStationsApi([]);
+      const [routeResult, stationResult] = await Promise.allSettled([
+        routeApi.getRoutes(),
+        publicApi.getStations(),
+      ]);
+
+      if (cancelled) return;
+
+      if (routeResult.status === "fulfilled") {
+        setRouteDetails(routeResult.value);
+        setRoutes(routeResult.value.map(toRouteOption));
+      } else {
+        setRouteDetails([]);
+        try {
+          const fallbackRoutes = await publicApi.getRoutes();
+          if (!cancelled) setRoutes(fallbackRoutes);
+        } catch {
+          if (!cancelled) setRoutes([]);
         }
+      }
+
+      if (stationResult.status === "fulfilled") {
+        setStationsApi(stationResult.value);
+      } else {
+        setStationsApi([]);
       }
     };
 
@@ -361,6 +411,14 @@ export default function PassengerLiveMapPage() {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1_000);
+
+    return () => window.clearInterval(intervalId);
   }, []);
 
   useEffect(() => {
@@ -393,6 +451,45 @@ export default function PassengerLiveMapPage() {
   useEffect(() => {
     setIsStationSchedulePinned(false);
   }, [selectedRouteId]);
+
+  useEffect(() => {
+    if (!selectedRouteId) return;
+    const currentRoute = routeDetails.find(
+      (route) => route.id === selectedRouteId,
+    );
+    if (currentRoute?.stations?.length) return;
+    if (requestedRouteDetailIds.includes(selectedRouteId)) return;
+
+    let cancelled = false;
+    setRequestedRouteDetailIds((current) =>
+      current.includes(selectedRouteId)
+        ? current
+        : [...current, selectedRouteId],
+    );
+
+    routeApi
+      .getRouteById(selectedRouteId)
+      .then((route) => {
+        if (cancelled) return;
+        setRouteDetails((current) => {
+          const others = current.filter((item) => item.id !== route.id);
+          return [...others, route];
+        });
+        setRoutes((current) => {
+          const option = toRouteOption(route);
+          return current.some((item) => item.id === option.id)
+            ? current.map((item) => (item.id === option.id ? option : item))
+            : [...current, option];
+        });
+      })
+      .catch(() => {
+        // Route detail only improves station ordering; schedule-based rendering still works without it.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [requestedRouteDetailIds, routeDetails, selectedRouteId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -447,68 +544,260 @@ export default function PassengerLiveMapPage() {
     [routes],
   );
 
-  const allDisplayStations = useMemo<Station[]>(
-    () =>
-      stationStatuses.length > 0
-        ? stationStatuses.map((station, index) => {
-            const stationId = getStationId(station);
-            const fallback = fallbackStations[index] ?? {
-              x: 82 + index * 96,
-              y: Math.max(80, 355 - index * 30),
-            };
-            const congestionLevel = Math.min(
-              100,
-              Math.max(
-                0,
-                station.congestionLevel ??
-                  fallbackStations[index]?.congestionLevel ??
-                  0,
-              ),
-            );
+  const routeStationOrder = useMemo(() => {
+    const byRoute = new Map<string, Map<string, number>>();
 
-            return {
-              id: stationId,
-              name: stationNameById.get(stationId) ?? station.name,
-              x: station.x ?? fallback.x,
-              y: station.y ?? fallback.y,
-              status: mapStationStatus(station.status, congestionLevel),
-              congestionLevel,
-              message: station.message,
-              updatedAt: station.updatedAt,
-            };
-          })
-        : fallbackStations,
-    [stationNameById, stationStatuses],
+    routeDetails.forEach((route) => {
+      const orderedStations = [...(route.stations ?? [])].sort(
+        (a, b) => a.sequenceOrder - b.sequenceOrder,
+      );
+      byRoute.set(
+        route.id,
+        new Map(
+          orderedStations.map((station, index) => [
+            station.stationId,
+            station.sequenceOrder ?? index,
+          ]),
+        ),
+      );
+    });
+
+    return byRoute;
+  }, [routeDetails]);
+
+  const routeStationNameById = useMemo(() => {
+    const names = new Map<string, string>();
+    routeDetails.forEach((route) => {
+      route.stations?.forEach((station) => {
+        if (station.stationId && station.stationName) {
+          names.set(station.stationId, station.stationName);
+        }
+      });
+    });
+    return names;
+  }, [routeDetails]);
+
+  const scheduleLines = useMemo(
+    () => buildScheduleLines(schedules, routeStationOrder),
+    [routeStationOrder, schedules],
   );
 
+  const allDisplayStations = useMemo<Station[]>(() => {
+    const pushUnique = (items: string[], stationId?: string) => {
+      if (stationId && !items.includes(stationId)) items.push(stationId);
+    };
+
+    const stationIds: string[] = [];
+    const relevantRoutes = selectedRouteId
+      ? routeDetails.filter((route) => route.id === selectedRouteId)
+      : routeDetails;
+
+    relevantRoutes.forEach((route) => {
+      [...(route.stations ?? [])]
+        .sort((a, b) => a.sequenceOrder - b.sequenceOrder)
+        .forEach((station) => pushUnique(stationIds, station.stationId));
+    });
+
+    scheduleLines.forEach((line: { routeId: string; stops: any[] }) => {
+      if (!selectedRouteId || line.routeId === selectedRouteId) {
+        line.stops.forEach((schedule: { stationId: string | undefined }) =>
+          pushUnique(stationIds, schedule.stationId),
+        );
+      }
+    });
+
+    if (!selectedRouteId || stationIds.length === 0) {
+      stationStatuses.forEach((station) =>
+        pushUnique(stationIds, getStationId(station)),
+      );
+    }
+
+    if (stationIds.length === 0 && !selectedRouteId) {
+      stationsApi.forEach((station) => pushUnique(stationIds, station.id));
+    }
+
+    if (stationIds.length === 0) return fallbackStations;
+
+    const statusById = new Map(
+      stationStatuses.map((station) => [getStationId(station), station]),
+    );
+    const catalogById = new Map(
+      stationsApi.map((station) => [station.id, station]),
+    );
+    const stationCoordinates = stationIds
+      .map((stationId) => catalogById.get(stationId))
+      .filter(
+        (station): station is StationDto =>
+          Number.isFinite(station?.latitude) &&
+          Number.isFinite(station?.longitude),
+      );
+    const latitudes = stationCoordinates.map((station) =>
+      Number(station.latitude),
+    );
+    const longitudes = stationCoordinates.map((station) =>
+      Number(station.longitude),
+    );
+    const minLat = Math.min(...latitudes);
+    const maxLat = Math.max(...latitudes);
+    const minLng = Math.min(...longitudes);
+    const maxLng = Math.max(...longitudes);
+    const hasGeoBounds =
+      stationCoordinates.length > 1 && (maxLat > minLat || maxLng > minLng);
+
+    return stationIds.map((stationId, index) => {
+      const liveStation = statusById.get(stationId);
+      const catalogStation = catalogById.get(stationId);
+      const fallback = fallbackPosition(index, stationIds.length);
+      const geoX =
+        hasGeoBounds && catalogStation?.longitude !== undefined
+          ? 82 +
+            ((Number(catalogStation.longitude) - minLng) /
+              Math.max(0.000001, maxLng - minLng)) *
+              868
+          : undefined;
+      const geoY =
+        hasGeoBounds && catalogStation?.latitude !== undefined
+          ? 100 +
+            (1 -
+              (Number(catalogStation.latitude) - minLat) /
+                Math.max(0.000001, maxLat - minLat)) *
+              255
+          : undefined;
+      const congestionLevel = Math.min(
+        100,
+        Math.max(0, liveStation?.congestionLevel ?? 0),
+      );
+
+      return {
+        id: stationId,
+        name:
+          stationNameById.get(stationId) ??
+          routeStationNameById.get(stationId) ??
+          liveStation?.name ??
+          fallbackStations[index]?.name ??
+          stationId,
+        x: liveStation?.x ?? geoX ?? fallback.x,
+        y: liveStation?.y ?? geoY ?? fallback.y,
+        status: mapStationStatus(liveStation?.status ?? "", congestionLevel),
+        congestionLevel,
+        message: liveStation?.message,
+        updatedAt: liveStation?.updatedAt,
+      };
+    });
+  }, [
+    routeDetails,
+    routeStationNameById,
+    scheduleLines,
+    selectedRouteId,
+    stationNameById,
+    stationStatuses,
+    stationsApi,
+  ]);
+
+  const stationById = useMemo(
+    () => new Map(allDisplayStations.map((station) => [station.id, station])),
+    [allDisplayStations],
+  );
+
+  const scheduledTrains = useMemo<Train[]>(() => {
+    const activeLines = scheduleLines.filter(
+      (line: { routeId: string }) =>
+        !selectedRouteId || line.routeId === selectedRouteId,
+    );
+    const nowSeconds = getNowSeconds(currentTime);
+
+    return activeLines
+      .map((line: any, index: any) =>
+        resolveApproachingTrainOnLine(line, nowSeconds, stationById, index),
+      )
+      .filter(Boolean) as Train[];
+  }, [currentTime, scheduleLines, selectedRouteId, stationById]);
+
   const displayTrains = useMemo<Train[]>(() => {
-    const mapped =
+    const mappedLive =
       trainLocations.length > 0
         ? trainLocations.map((train, index) => {
-            const stationIndex = allDisplayStations.findIndex(
-              (station) => station.id === train.nextStationId,
-            );
-            const fallback = allDisplayStations[stationIndex] ??
+            const direction = normalizeDirection(train.direction);
+            const matchingLine =
+              scheduleLines.find(
+                (line: { routeId: string; direction: any; stops: any[] }) => {
+                  const matchesRoute =
+                    !train.routeId || line.routeId === train.routeId;
+                  const matchesDirection =
+                    !direction ||
+                    normalizeDirection(line.direction) === direction;
+                  const matchesStation =
+                    !train.nextStationId ||
+                    line.stops.some(
+                      (stop: { stationId: string | undefined }) =>
+                        stop.stationId === train.nextStationId,
+                    );
+                  return matchesRoute && matchesDirection && matchesStation;
+                },
+              ) ??
+              scheduleLines.find((line: { routeId: string; stops: any[] }) => {
+                const matchesRoute =
+                  !train.routeId || line.routeId === train.routeId;
+                return (
+                  matchesRoute &&
+                  line.stops.some(
+                    (stop: { stationId: string | undefined }) =>
+                      stop.stationId === train.nextStationId,
+                  )
+                );
+              });
+            const schedulePosition = matchingLine
+              ? resolvePositionFromNextStation(
+                  matchingLine,
+                  train.nextStationId,
+                  train.nextStationName,
+                  train.eta,
+                  stationById,
+                  getNowSeconds(currentTime),
+                )
+              : null;
+            const nextStationId =
+              schedulePosition?.nextStationId ?? train.nextStationId;
+            const fallback =
+              (nextStationId ? stationById.get(nextStationId) : undefined) ??
               fallbackTrains[index] ??
-              fallbackStations[index] ?? {
-                x: 82 + index * 96,
-                y: Math.max(80, 355 - index * 30),
-              };
+              fallbackPosition(index, trainLocations.length);
+            const apiStatus = mapTrainStatus(train.status);
+            const inferredStatus =
+              schedulePosition?.status === "delayed"
+                ? "delayed"
+                : apiStatus === "on-time" &&
+                    schedulePosition?.status === "arriving"
+                  ? "arriving"
+                  : apiStatus;
+
             return {
               id: train.id,
               code: train.code,
-              direction: train.direction || "--",
-              nextStationId: train.nextStationId,
-              nextStation: train.nextStationName || train.nextStationId || "--",
-              eta: train.eta || "--",
+              direction: train.direction || matchingLine?.direction || "--",
+              previousStationId: schedulePosition?.previousStationId,
+              previousStation: schedulePosition?.previousStationName,
+              nextStationId,
+              nextStation:
+                schedulePosition?.nextStationName ||
+                train.nextStationName ||
+                train.nextStationId ||
+                "--",
+              eta: train.eta || schedulePosition?.eta || "--",
+              arrivalClock: schedulePosition?.arrivalClock,
               occupancy: Math.min(100, Math.max(0, train.occupancy)),
-              status: mapTrainStatus(train.status),
-              x: train.x ?? fallback.x + 26,
-              y: train.y ?? fallback.y - 16,
-              routeId: train.routeId,
+              status:
+                train.status || !schedulePosition
+                  ? inferredStatus
+                  : schedulePosition.status,
+              x: train.x ?? schedulePosition?.x ?? fallback.x,
+              y: train.y ?? schedulePosition?.y ?? fallback.y,
+              routeId: train.routeId ?? matchingLine?.routeId,
             };
           })
-        : fallbackTrains;
+        : [];
+
+    const mapped = mappedLive.length > 0 ? mappedLive : scheduledTrains;
 
     return mapped.filter((train) => {
       const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -520,7 +809,15 @@ export default function PassengerLiveMapPage() {
         !selectedRouteId || train.routeId === selectedRouteId || !train.routeId;
       return matchesSearch && matchesRoute;
     });
-  }, [allDisplayStations, searchTerm, selectedRouteId, trainLocations]);
+  }, [
+    currentTime,
+    scheduleLines,
+    scheduledTrains,
+    searchTerm,
+    selectedRouteId,
+    stationById,
+    trainLocations,
+  ]);
 
   const selectedTrain = useMemo(
     () =>
@@ -600,7 +897,7 @@ export default function PassengerLiveMapPage() {
           schedule.minutesUntil === null || schedule.minutesUntil >= 0,
       );
 
-    const liveStops = (trainLocations.length > 0 ? displayTrains : [])
+    const liveStops = displayTrains
       .filter(
         (train) =>
           !isStationSchedulePinned ||
@@ -637,7 +934,6 @@ export default function PassengerLiveMapPage() {
     selectedRouteId,
     selectedStation.id,
     stationNameById,
-    trainLocations.length,
   ]);
 
   const linePath =
@@ -660,6 +956,7 @@ export default function PassengerLiveMapPage() {
     : 0;
   const nextSchedule = upcomingSchedules[0];
   const hasLiveData = stationStatuses.length > 0 || trainLocations.length > 0;
+  const hasOperationalData = hasLiveData || schedules.length > 0;
 
   return (
     <>
@@ -688,7 +985,7 @@ export default function PassengerLiveMapPage() {
             <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
               <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700 sm:px-4">
                 <Wifi className="h-4 w-4" />
-                Live
+                {hasLiveData ? "Live" : schedules.length ? "Theo lịch" : "Live"}
               </span>
               <span className="inline-flex min-w-0 items-center gap-2 rounded-full bg-white px-3 py-2 text-sm font-semibold text-slate-600 shadow-sm ring-1 ring-slate-200 sm:px-4">
                 <Clock3 className="h-4 w-4 text-sky-600" />
@@ -761,9 +1058,9 @@ export default function PassengerLiveMapPage() {
               })}
             </div>
 
-            <article className="rounded-2xl border border-slate-200 bg-slate-950 p-4 text-white shadow-sm">
-              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-300">
-                <Signal className="h-4 w-4 text-emerald-300" />
+            <article className="rounded-2xl border border-sky-100 bg-sky-50 p-4 text-slate-950 shadow-sm">
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-sky-700">
+                <Signal className="h-4 w-4 text-emerald-500" />
                 Chuyến gần nhất
               </div>
               <p className="mt-3 text-2xl font-black">
@@ -774,7 +1071,7 @@ export default function PassengerLiveMapPage() {
                     : formatClock(nextSchedule.departureTime)
                   : "--:--"}
               </p>
-              <p className="mt-1 text-sm text-slate-300">
+              <p className="mt-1 text-sm font-semibold text-slate-600">
                 {nextSchedule
                   ? `${nextSchedule.stationName} · ${
                       nextSchedule.source === "live" && nextSchedule.trainCode
@@ -804,8 +1101,8 @@ export default function PassengerLiveMapPage() {
                 </div>
 
                 <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-                  <label className="relative min-w-0 sm:min-w-56">
-                    <Route className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <label className="relative min-w-56">
+                    <RouteIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     <select
                       value={selectedRouteId}
                       onChange={(event) =>
@@ -834,7 +1131,7 @@ export default function PassengerLiveMapPage() {
                 </div>
               </div>
 
-              <div className="relative min-h-[420px] overflow-x-auto overflow-y-hidden bg-slate-950 sm:min-h-150">
+              <div className="relative min-h-150 overflow-x-auto overflow-y-hidden bg-slate-950">
                 <div className="absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.10)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.10)_1px,transparent_1px)] bg-[size:48px_48px]" />
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_18%,rgba(14,165,233,0.22),transparent_30%),radial-gradient(circle_at_82%_24%,rgba(16,185,129,0.18),transparent_28%),linear-gradient(135deg,rgba(15,23,42,0),rgba(15,23,42,0.72))]" />
 
@@ -849,25 +1146,25 @@ export default function PassengerLiveMapPage() {
                       <polyline
                         points={linePath}
                         fill="none"
-                        stroke="rgba(14,165,233,0.20)"
-                        strokeWidth="42"
+                        stroke="rgba(14,116,144,0.16)"
+                        strokeWidth="38"
                         strokeLinecap="round"
                         strokeLinejoin="round"
                       />
                       <polyline
                         points={linePath}
                         fill="none"
-                        stroke="#38BDF8"
-                        strokeWidth="12"
+                        stroke="#0B6EAD"
+                        strokeWidth="13"
                         strokeLinecap="round"
                         strokeLinejoin="round"
                       />
                       <polyline
                         points={linePath}
                         fill="none"
-                        stroke="#ECFEFF"
-                        strokeWidth="3"
-                        strokeDasharray="12 16"
+                        stroke="rgba(255,255,255,0.72)"
+                        strokeWidth="2.5"
+                        strokeDasharray="10 16"
                         strokeLinecap="round"
                         strokeLinejoin="round"
                       />
@@ -901,7 +1198,7 @@ export default function PassengerLiveMapPage() {
                           cx={station.x}
                           cy={station.y}
                           r={isSelected ? 22 : 16}
-                          fill="rgba(255,255,255,0.12)"
+                          fill="rgba(14,116,144,0.12)"
                         />
                         <circle
                           cx={station.x}
@@ -914,7 +1211,7 @@ export default function PassengerLiveMapPage() {
                           x={station.x}
                           y={station.y + (station.y > 240 ? 36 : -25)}
                           textAnchor="middle"
-                          className="fill-white text-[14px] font-bold"
+                          className="fill-slate-900 text-[14px] font-bold"
                         >
                           {station.name}
                         </text>
@@ -923,7 +1220,7 @@ export default function PassengerLiveMapPage() {
                             x={station.x}
                             y={station.y + (station.y > 240 ? 53 : -41)}
                             textAnchor="middle"
-                            className="fill-slate-300 text-[11px] font-semibold"
+                            className="fill-slate-600 text-[11px] font-semibold"
                           >
                             {station.congestionLevel}%
                           </text>
@@ -951,51 +1248,66 @@ export default function PassengerLiveMapPage() {
                         <circle
                           cx={train.x}
                           cy={train.y}
-                          r={isSelected ? 34 : 27}
+                          r={isSelected ? 36 : 29}
                           fill={trainFill[train.status]}
-                          opacity="0.18"
+                          opacity="0.20"
                         />
                         <circle
                           cx={train.x}
                           cy={train.y}
-                          r={isSelected ? 19 : 15}
-                          fill={trainFill[train.status]}
+                          r={isSelected ? 21 : 17}
+                          fill="#0B6EAD"
                           stroke="white"
                           strokeWidth="4"
                         />
-                        <text
-                          x={train.x}
-                          y={train.y + 5}
-                          textAnchor="middle"
-                          className="fill-white text-[13px] font-black"
-                        >
-                          M
-                        </text>
                         <rect
-                          x={train.x - 38}
-                          y={train.y - 56}
-                          width="76"
-                          height="25"
-                          rx="12"
-                          fill="rgba(15,23,42,0.88)"
-                          stroke="rgba(255,255,255,0.16)"
+                          x={train.x - 8}
+                          y={train.y - 10}
+                          width="16"
+                          height="18"
+                          rx="4"
+                          fill="white"
                         />
-                        <text
-                          x={train.x}
-                          y={train.y - 39}
-                          textAnchor="middle"
-                          className="fill-white text-[12px] font-black"
-                        >
-                          {train.code}
-                        </text>
+                        <circle
+                          cx={train.x - 4}
+                          cy={train.y - 3}
+                          r="1.8"
+                          fill="#0B6EAD"
+                        />
+                        <circle
+                          cx={train.x + 4}
+                          cy={train.y - 3}
+                          r="1.8"
+                          fill="#0B6EAD"
+                        />
+                        <path
+                          d={`M${train.x - 5} ${train.y + 5}H${train.x + 5}M${train.x - 4} ${train.y + 10}L${train.x - 8} ${train.y + 14}M${train.x + 4} ${train.y + 10}L${train.x + 8} ${train.y + 14}`}
+                          fill="none"
+                          stroke="white"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                        />
+                        {isSelected || displayTrains.length <= 2 ? (
+                          <foreignObject
+                            x={train.x - 68}
+                            y={train.y - 62}
+                            width="136"
+                            height="36"
+                            pointerEvents="none"
+                          >
+                            <div className="truncate rounded-full border border-white bg-white/95 px-3 py-1.5 text-center text-[11px] font-black leading-4 text-sky-800 shadow-md">
+                              Đang tới {train.nextStation}
+                            </div>
+                          </foreignObject>
+                        ) : null}
                       </g>
                     );
                   })}
                 </svg>
 
-                {!isLoadingLive && !liveError && !hasLiveData ? (
+                {!isLoadingLive && !liveError && !hasOperationalData ? (
                   <div className="absolute inset-0 z-20 flex items-center justify-center p-6">
-                    <div className="max-w-sm rounded-2xl border border-slate-700 bg-slate-900/92 px-6 py-5 text-center text-sm text-slate-300 shadow-xl backdrop-blur">
+                    <div className="max-w-sm rounded-2xl border border-slate-200 bg-white/92 px-6 py-5 text-center text-sm text-slate-600 shadow-xl backdrop-blur">
                       <Radio className="mx-auto mb-2 h-6 w-6 text-sky-300" />
                       Chưa có dữ liệu live từ hệ thống vận hành. Màn hình đang
                       hiển thị sơ đồ tuyến mẫu.
@@ -1039,6 +1351,22 @@ export default function PassengerLiveMapPage() {
                 </div>
 
                 <div className="space-y-3">
+                  {selectedTrain.previousStation ? (
+                    <div className="rounded-2xl bg-sky-50 p-4 ring-1 ring-sky-100">
+                      <p className="text-xs font-bold uppercase tracking-wide text-sky-700">
+                        Trạng thái theo lịch
+                      </p>
+                      <p className="mt-1 text-sm font-black text-slate-950">
+                        {selectedTrain.previousStation} → đang tới{" "}
+                        {selectedTrain.nextStation}
+                      </p>
+                      {selectedTrain.arrivalClock ? (
+                        <p className="mt-1 text-xs font-semibold text-sky-700">
+                          Dự kiến đến lúc {selectedTrain.arrivalClock}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
                   <div className="rounded-2xl bg-slate-50 p-4">
                     <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                       Hướng đi
@@ -1050,7 +1378,7 @@ export default function PassengerLiveMapPage() {
                   <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2">
                     <div className="rounded-2xl bg-slate-50 p-4">
                       <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                        Ga kế tiếp
+                        Đang tới
                       </p>
                       <p className="mt-1 text-sm font-bold text-slate-950">
                         {selectedTrain.nextStation}
@@ -1061,7 +1389,9 @@ export default function PassengerLiveMapPage() {
                         ETA
                       </p>
                       <p className="mt-1 text-sm font-black text-sky-700">
-                        {selectedTrain.eta}
+                        {selectedTrain.arrivalClock
+                          ? `${selectedTrain.eta} · ${selectedTrain.arrivalClock}`
+                          : selectedTrain.eta}
                       </p>
                     </div>
                   </div>
@@ -1157,7 +1487,7 @@ export default function PassengerLiveMapPage() {
                           className={`flex h-11 w-14 shrink-0 items-center justify-center rounded-2xl text-sm font-black text-white ${
                             schedule.source === "live"
                               ? "bg-sky-600"
-                              : "bg-slate-950"
+                              : "bg-blue-700"
                           }`}
                         >
                           {schedule.source === "live"
@@ -1222,7 +1552,10 @@ export default function PassengerLiveMapPage() {
                           {train.code}
                         </span>
                         <span className="block truncate text-xs font-semibold text-slate-500">
-                          {train.nextStation} · {train.eta}
+                          {train.previousStation
+                            ? `${train.previousStation} → ${train.nextStation}`
+                            : train.nextStation}{" "}
+                          · {train.eta}
                         </span>
                       </span>
                     </div>
