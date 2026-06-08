@@ -1,7 +1,7 @@
 import Head from "next/head";
-import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CircleAlert, Loader2, QrCode, X } from "lucide-react";
+import PassengerTicketQrModal from "@components/organisms/PassengerTicketQrModal/PassengerTicketQrModal";
 import PassengerShell from "@components/templates/PassengerShell";
 import { myTicketApi, myTicketErrorMessage } from "@features/myTicket/myTicketApi";
 import { publicApi } from "@features/public/publicApi";
@@ -364,6 +364,22 @@ export default function MyTicketsPage() {
                 <p><span className="text-slate-500 font-normal">Thời gian hết hạn:</span> {formatDateTime(selectedTicket.expiredAt)}</p>
               </div>
 
+              {ticketStatus(selectedTicket.status) !== "Đã dùng" && ticketStatus(selectedTicket.status) !== "Hết hạn" ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const ticket = selectedTicket;
+                    setSelectedTicket(null);
+                    setDetailError(null);
+                    openQr(ticket);
+                  }}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-bold text-white"
+                >
+                  <QrCode className="h-4 w-4" />
+                  Xem QR
+                </button>
+              ) : null}
+
               <h3 className="border-t border-slate-100 pt-5 font-bold">Lịch sử sử dụng vé</h3>
               {history.map((row) => <div key={row.id} className="rounded-xl bg-slate-50 p-3"><p className="font-semibold">{row.action || row.result || "Sử dụng vé"}</p><p className="text-slate-500">{formatTime(row.time)} - {row.stationName || getStationName(row.stationId) || "--"} - {row.gateCode || "--"}</p></div>)}
               {!history.length ? <p className="text-slate-500">Chưa có lịch sử sử dụng.</p> : null}
@@ -372,18 +388,16 @@ export default function MyTicketsPage() {
         </div>
       )}
 
-      {qrTicket && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center">
-            <div className="flex justify-between"><h2 className="text-lg font-bold">Mã QR vào cổng</h2><button onClick={() => setQrTicket(null)}><X className="h-5 w-5" /></button></div>
-            <div className="my-6 flex h-56 items-center justify-center rounded-xl border border-slate-200">
-              {qrImage ? <Image src={qrImage} width={220} height={220} unoptimized alt="QR vé động" className={qrLoading ? "opacity-40" : ""} /> : qrError ? <p className="px-4 text-sm text-red-600">{qrError}</p> : <Loader2 className="h-6 w-6 animate-spin text-blue-600" />}
-            </div>
-            <p className="font-bold text-blue-600">#{qrTicket.code}</p>
-            {qr ? <p className="mt-3 rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-600">{qrLoading ? "Đang đổi mã QR..." : <>Đổi mã mới sau {String(Math.floor(seconds / 60)).padStart(2, "0")}:{String(seconds % 60).padStart(2, "0")}</>}</p> : null}
-          </div>
-        </div>
-      )}
+      {qrTicket ? (
+        <PassengerTicketQrModal
+          ticketCode={`#${qrTicket.code}`}
+          qrImageUrl={qrImage}
+          isRefreshing={qrLoading}
+          error={qrError}
+          countdown={`${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`}
+          onClose={() => setQrTicket(null)}
+        />
+      ) : null}
     </>
   );
 }

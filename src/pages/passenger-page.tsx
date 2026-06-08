@@ -1,7 +1,7 @@
-/* eslint-disable @next/next/no-img-element */
 import Head from "next/head";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import PassengerTicketQrModal from "@components/organisms/PassengerTicketQrModal/PassengerTicketQrModal";
 import PassengerShell from "@components/templates/PassengerShell";
 import { myTicketApi } from "@features/myTicket/myTicketApi";
 import type {
@@ -13,13 +13,8 @@ import type { TripDto } from "@features/trip/tripTypes";
 import {
   Bell,
   CalendarClock,
-  CircleAlert,
-  Clock3,
-  Download,
-  X,
   ChevronRight,
   CreditCard,
-  Plus,
   QrCode,
   Ticket,
   TrainFront,
@@ -191,20 +186,6 @@ const statusTone = (status?: string) => {
 };
 
 const isUsedTicketStatus = (status: TicketCard["status"]) => status === "Đã dùng";
-
-const downloadTextFile = (filename: string, content: string, mimeType: string) => {
-  if (typeof document === "undefined") return;
-
-  const blob = new Blob([content], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-};
 
 const parseQrDate = (value?: string) => {
   if (!value) return Number.NaN;
@@ -430,53 +411,6 @@ export default function PassengerPage() {
 
   const countdown = `${String(Math.floor(remainingSeconds / 60)).padStart(2, "0")}:${String(remainingSeconds % 60).padStart(2, "0")}`;
 
-  const downloadDashboardCsv = () => {
-    const rows = [
-      ["Loai", "Ma", "Trang thai", "Tuyen", "Gia tri"],
-      ...derivedRecentTickets.map((ticket) => [
-        "Ve gan day",
-        ticket.code,
-        ticket.status,
-        ticket.route,
-        ticket.type,
-      ]),
-      ...derivedTableRows.map((trip) => [
-        "Chuyen gan nhat",
-        trip.date,
-        trip.status,
-        `${trip.from} - ${trip.to}`,
-        trip.fare,
-      ]),
-    ];
-    const csv = rows
-      .map((row) =>
-        row
-          .map((cell) => `"${String(cell).replace(/"/g, '""')}"`)
-          .join(","),
-      )
-      .join("\n");
-
-    downloadTextFile(
-      `metro-passenger-dashboard-${new Date().toISOString().slice(0, 10)}.csv`,
-      `\uFEFF${csv}`,
-      "text/csv;charset=utf-8",
-    );
-  };
-
-  const downloadQrImage = () => {
-    if (!qrImageUrl || !selectedTicket) return;
-
-    const link = document.createElement("a");
-    link.href = qrImageUrl;
-    const ticketCode = selectedTicket.code.startsWith("#")
-      ? selectedTicket.code.slice(1)
-      : selectedTicket.code;
-    link.download = `metro-qr-${ticketCode}.png`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-  };
-
   return (
     <>
       <Head>
@@ -498,26 +432,6 @@ export default function PassengerPage() {
                 </h1>
               </div>
 
-              <div className="flex flex-wrap items-center gap-3">
-                <button
-                type="button"
-                onClick={downloadDashboardCsv}
-                disabled={!derivedRecentTickets.length && !derivedTableRows.length}
-                className="relative inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 shadow-[0px_8px_18px_-14px_rgba(15,23,42,0.35)] transition hover:border-blue-200 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:hidden"
-              >
-                <Download className="h-4 w-4" />
-                Tải xuống
-                <span>Táº£i xuá»‘ng</span>
-              </button>
-
-              <Link
-                href="/passenger-page/buy-tickets-step-1"
-                className="relative inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-6 py-2.5 text-sm font-bold text-white shadow-[0px_10px_15px_-3px_rgba(19,127,236,0.20)]"
-              >
-                <Plus className="h-4 w-4" />
-                <span>Mua vé ngay</span>
-              </Link>
-              </div>
             </div>
 
             {isLoading ? (
@@ -557,7 +471,7 @@ export default function PassengerPage() {
               })}
             </div>
 
-            <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_288px]">
+            <div className="space-y-8">
               <div className="space-y-8">
                 <section>
                   <div className="mb-4 flex items-center justify-between">
@@ -565,7 +479,7 @@ export default function PassengerPage() {
                       Vé gần đây
                     </h2>
                     <Link
-                      href="/passenger-page/recent-tickets"
+                      href="/passenger-page/my-tickets"
                       className="text-sm font-semibold text-blue-600"
                     >
                       Xem tất cả
@@ -698,181 +612,19 @@ export default function PassengerPage() {
                   </div>
                 </section>
               </div>
-
-              <aside className="space-y-8">
-                <section className="rounded-3xl border border-white/60 bg-white/85 p-6 shadow-[0px_10px_30px_-18px_rgba(15,23,42,0.35)] backdrop-blur">
-                  <h3 className="mb-6 text-lg font-bold text-slate-900">
-                    Thao tác nhanh
-                  </h3>
-                  <div className="space-y-3">
-                    <Link
-                      href="/passenger-page/buy-tickets-step-1"
-                      className="flex w-full items-center justify-between rounded-3xl border border-blue-600/10 bg-blue-600/5 p-4 text-blue-600"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Ticket className="h-5 w-5" />
-                        <span className="text-base font-bold">Mua vé lượt</span>
-                      </div>
-                      <ChevronRight className="h-4 w-4" />
-                    </Link>
-
-                    <Link
-                      href="/passenger-page/my-tickets"
-                      className="flex w-full items-center justify-between rounded-3xl bg-slate-100 p-4 text-slate-700"
-                    >
-                      <div className="flex items-center gap-3">
-                        <CalendarClock className="h-5 w-5" />
-                        <span className="text-base font-bold">Vé của tôi</span>
-                      </div>
-                      <ChevronRight className="h-4 w-4" />
-                    </Link>
-
-                    <Link
-                      href="/passenger-page/history"
-                      className="flex w-full items-center justify-between rounded-3xl bg-slate-100 p-4 text-slate-700"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Clock3 className="h-5 w-5" />
-                        <span className="text-base font-bold">
-                          Lịch sử chuyến
-                        </span>
-                      </div>
-                      <ChevronRight className="h-4 w-4" />
-                    </Link>
-
-                    <Link
-                      href="/passenger-page/schedule"
-                      className="flex w-full items-center justify-between rounded-3xl bg-slate-100 p-4 text-slate-700"
-                    >
-                      <div className="flex items-center gap-3">
-                        <TrainFront className="h-5 w-5" />
-                        <span className="text-base font-bold">
-                          Xem lịch tàu
-                        </span>
-                      </div>
-                      <ChevronRight className="h-4 w-4" />
-                    </Link>
-                  </div>
-                </section>
-
-                <section className="relative h-48 overflow-hidden rounded-3xl border border-white/60 shadow-[0px_10px_30px_-18px_rgba(15,23,42,0.35)]">
-                  <img
-                    src="https://placehold.co/295x190"
-                    alt="Metro map"
-                    className="h-full w-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-linear-to-r from-black/80 via-black/30 to-black/0" />
-                  <div className="absolute inset-x-4 bottom-4 text-white">
-                    <p className="text-xs font-bold uppercase tracking-wider text-white/80">
-                      Trạng thái hệ thống
-                    </p>
-                    <p className="text-lg font-bold">Đang hoạt động ổn định</p>
-                    <p className="mt-2 inline-flex items-center gap-2 text-xs font-medium">
-                      <span className="h-2 w-2 rounded-full bg-green-500" />
-                      9/9 Tuyến đang vận hành
-                    </p>
-                  </div>
-                </section>
-              </aside>
             </div>
           </div>
         </div>
 
         {selectedTicket ? (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-[2px]"
-            onClick={() => setSelectedTicket(null)}
-            role="presentation"
-          >
-            <div
-              className="w-full max-w-sm overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl"
-              onClick={(event) => event.stopPropagation()}
-              role="dialog"
-              aria-modal="true"
-              aria-label="Mã QR vào cổng"
-            >
-              <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
-                <h3 className="text-lg font-bold text-slate-900">
-                  Mã QR Vào cổng
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setSelectedTicket(null)}
-                  className="rounded-2xl p-1 text-slate-400 transition hover:bg-slate-100"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-
-              <div className="px-6 pb-6 pt-8">
-                <div className="mb-6 flex justify-center">
-                  <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
-                    <img
-                      src={
-                        qrImageUrl ??
-                        "https://placehold.co/192x192?text=QR+Loading"
-                      }
-                      alt={qrImageUrl ? "Ticket QR" : "Đang tải QR"}
-                      className={`h-48 w-48 ${qrRefreshing ? "opacity-40" : ""}`}
-                    />
-                  </div>
-                </div>
-
-                {qrError ? (
-                  <div className="mb-6 flex items-center justify-center gap-2 rounded-xl border border-red-100 bg-red-50 px-4 py-3">
-                    <CircleAlert className="h-4 w-4 text-red-500" />
-                    <p className="text-sm font-bold text-red-600">{qrError}</p>
-                  </div>
-                ) : null}
-
-                <div className="mb-6 text-center">
-                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    Mã vé của bạn
-                  </p>
-                  <p className="text-2xl font-black text-blue-600">
-                    {selectedTicket.code}
-                  </p>
-                </div>
-
-                <div className="mb-6 flex items-center justify-center gap-2 rounded-xl border border-red-100 bg-red-50 px-4 py-3">
-                  <CircleAlert className="h-4 w-4 text-red-500" />
-                  <p className="text-sm font-bold text-red-600">
-                    {qrRefreshing ? "Đang đổi mã QR..." : "Đổi mã mới sau: "}
-                    {!qrRefreshing ? (
-                      <span className="font-black">{countdown}</span>
-                    ) : null}
-                  </p>
-                </div>
-
-                <p className="text-center text-sm leading-6 text-slate-500">
-                  Đưa mã này vào máy quét tại cổng để vào
-                  <br />
-                  ga
-                </p>
-
-                <button
-                  type="button"
-                  onClick={downloadQrImage}
-                  disabled={!qrImageUrl || qrRefreshing}
-                  className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 py-3 text-sm font-bold text-blue-600 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
-                >
-                  <Download className="h-4 w-4" />
-                  Tải ảnh QR
-                </button>
-              </div>
-
-              <div className="border-t border-slate-100 bg-slate-50 px-6 py-5">
-                <button
-                  type="button"
-                  onClick={() => setSelectedTicket(null)}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-base font-bold text-white shadow-[0px_10px_15px_-3px_rgba(19,127,236,0.20)]"
-                >
-                  <Clock3 className="h-4 w-4" />
-                  Đóng
-                </button>
-              </div>
-            </div>
-          </div>
+          <PassengerTicketQrModal
+            ticketCode={selectedTicket.code}
+            qrImageUrl={qrImageUrl}
+            isRefreshing={qrRefreshing}
+            error={qrError}
+            countdown={countdown}
+            onClose={() => setSelectedTicket(null)}
+          />
         ) : null}
       </PassengerShell>
     </>

@@ -6,8 +6,6 @@ import type { LiveStationStatusDto, LiveTrainDto } from "@features/live/liveType
 import { publicApi } from "@features/public/publicApi";
 import type { RouteDto, StationDto } from "@features/public/publicTypes";
 import {
-  Activity,
-  Bell,
   ChevronRight,
   Circle,
   Clock3,
@@ -16,9 +14,7 @@ import {
   Radio,
   Route,
   TrainFront,
-  TriangleAlert,
   Wifi,
-  Wrench,
 } from "lucide-react";
 
 type TrainStatus = "on-time" | "delayed" | "arriving";
@@ -315,9 +311,6 @@ export default function PassengerLiveMapPage() {
   const onTimeTrains = displayTrains.filter(
     (train) => train.status === "on-time",
   ).length;
-  const delayedTrains = displayTrains.filter(
-    (train) => train.status === "delayed",
-  ).length;
   const onTimePercentage = displayTrains.length
     ? Math.round((onTimeTrains / displayTrains.length) * 100)
     : 0;
@@ -362,7 +355,7 @@ export default function PassengerLiveMapPage() {
             </div>
           ) : null}
 
-          <div className="grid gap-4 md:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-3">
             <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                 Tàu đang chạy
@@ -385,14 +378,6 @@ export default function PassengerLiveMapPage() {
               </p>
               <p className="mt-2 text-3xl font-black text-blue-600">
                 {isLoadingLive ? "--" : `${onTimePercentage}%`}
-              </p>
-            </article>
-            <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                Cảnh báo
-              </p>
-              <p className="mt-2 text-3xl font-black text-amber-600">
-                {isLoadingLive ? "--" : delayedTrains}
               </p>
             </article>
           </div>
@@ -712,59 +697,6 @@ export default function PassengerLiveMapPage() {
             </aside>
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-3">
-            <article className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
-                <Activity className="h-5 w-5" />
-              </div>
-              <h3 className="text-base font-black text-slate-900">
-                Trạng thái vận hành
-              </h3>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                {activeStations}/{displayStations.length} ga đang hoạt động,{" "}
-                {displayTrains.length} đoàn tàu đang được theo dõi.
-              </p>
-            </article>
-            <article className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
-                <Bell className="h-5 w-5" />
-              </div>
-              <h3 className="text-base font-black text-slate-900">
-                Ga đang được chọn
-              </h3>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                {selectedStation.name}:{" "}
-                {selectedStation.status === "busy"
-                  ? "đang đông khách."
-                  : selectedStation.status === "maintenance"
-                    ? "đang bảo trì."
-                    : "đang vận hành bình thường."}
-              </p>
-            </article>
-            <article className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-2xl bg-red-100 text-red-700">
-                <Wrench className="h-5 w-5" />
-              </div>
-              <h3 className="text-base font-black text-slate-900">
-                Cảnh báo trễ chuyến
-              </h3>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                {delayedTrains > 0
-                  ? `${delayedTrains} đoàn tàu đang báo trễ.`
-                  : "Không có đoàn tàu báo trễ ở thời điểm hiện tại."}
-              </p>
-            </article>
-          </div>
-
-          <div className="rounded-3xl border border-blue-100 bg-blue-50 p-4">
-            <div className="flex gap-3">
-              <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
-              <p className="text-sm leading-6 text-slate-700">
-                Dữ liệu được cập nhật từ API trạng thái tàu và ga trực tuyến.
-                Chọn tuyến để lọc các đoàn tàu đang hiển thị trên bản đồ.
-              </p>
-            </div>
-          </div>
         </div>
       </PassengerShell>
     </>
