@@ -30,7 +30,7 @@ type StatCard = {
 
 type TicketCard = {
   rawId?: string;
-  status: "Sẵn sàng sử dụng" | "Chưa dùng" | "Đã dùng" | "Hết hạn";
+  status: "Chưa dùng" | "Đã dùng" | "Hết hạn";
   code: string;
   type: string;
   route: string;
@@ -107,14 +107,13 @@ const mapTicketStatus = (status?: string): TicketCard["status"] => {
     v.includes("tap_in") ||
     v.includes("entered")
   )
-    return "Sẵn sàng sử dụng";
+    return "Chưa dùng";
   if (v.includes("new") || v.includes("unused") || v.includes("created"))
     return "Chưa dùng";
   return "Chưa dùng";
 };
 
 const mapTicketTone = (status: TicketCard["status"]): TicketCard["tone"] => {
-  if (status === "Sẵn sàng sử dụng") return "green";
   if (status === "Chưa dùng") return "amber";
   if (status === "Đã dùng") return "red";
   return "red";
@@ -270,7 +269,7 @@ export default function PassengerPage() {
 
   const derivedStats: StatCard[] = useMemo(() => {
     const activeCount = tickets.filter(
-      (t) => mapTicketStatus(t.status) === "Sẵn sàng sử dụng",
+      (t) => mapTicketStatus(t.status) === "Chưa dùng",
     ).length;
     const apiSpend =
       trips.reduce(
@@ -466,21 +465,21 @@ export default function PassengerPage() {
                     </Link>
                   </div>
 
-                  <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                     {derivedRecentTickets.map((ticket) => (
                       <article
                         key={ticket.code}
-                        className={`flex min-w-0 flex-col rounded-3xl border border-white/60 border-t-4 bg-white/85 p-4 shadow-[0px_10px_30px_-18px_rgba(15,23,42,0.35)] backdrop-blur sm:p-5 ${
+                        className={`flex min-w-0 flex-col rounded-3xl border border-white/60 border-t-4 bg-white/85 p-3.5 shadow-[0px_10px_30px_-18px_rgba(15,23,42,0.35)] backdrop-blur sm:p-4 ${
                           toneClass[ticket.tone].border
                         } ${ticket.disabled || isUsedTicketStatus(ticket.status) ? "opacity-75" : ""}`}
                       >
-                        <div className="mb-4 flex items-start justify-between">
+                        <div className="mb-3 flex items-start justify-between gap-3">
                           <span
                             className={`rounded-lg px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${toneClass[ticket.tone].badge}`}
                           >
                             {ticket.status}
                           </span>
-                          <span className="text-xs font-medium text-slate-400">
+                          <span className="shrink-0 text-xs font-medium text-slate-400">
                             {ticket.code}
                           </span>
                         </div>
@@ -488,24 +487,24 @@ export default function PassengerPage() {
                         <p className="text-xs font-bold uppercase tracking-tight text-slate-500">
                           {ticket.type}
                         </p>
-                        <p className="mb-3 text-base font-bold leading-6 text-slate-900">
+                        <p className="mb-2 text-base font-bold leading-6 text-slate-900">
                           {ticket.route}
                         </p>
 
-                        <div className="mb-4 space-y-2 rounded-2xl border border-slate-100 bg-slate-50/80 px-3 py-2.5 text-xs text-slate-600">
-                          <div className="flex items-start justify-between gap-3">
+                        <div className="mb-3 space-y-1.5 rounded-2xl border border-slate-100 bg-slate-50/80 px-3 py-2 text-xs text-slate-600">
+                          <div className="flex items-start justify-between gap-2">
                             <span>Ngày mua</span>
                             <span className="text-right font-semibold text-slate-800">
                               {formatDateTime(ticket.issuedAt)}
                             </span>
                           </div>
-                          <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start justify-between gap-2">
                             <span>Trạng thái</span>
                             <span className="text-right font-semibold text-blue-600">
                               {ticket.status}
                             </span>
                           </div>
-                          <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start justify-between gap-2">
                             <span>Hạn sử dụng</span>
                             <span className="text-right font-semibold text-amber-600">
                               Đến {formatDateTime(ticket.expiredAt)}
@@ -518,7 +517,7 @@ export default function PassengerPage() {
                           onClick={() => {
                             if (!ticket.disabled && !isUsedTicketStatus(ticket.status)) setSelectedTicket(ticket);
                           }}
-                          className={`${isUsedTicketStatus(ticket.status) ? "hidden" : "mt-auto inline-flex"} w-full items-center justify-center gap-1 rounded-2xl py-2 text-xs font-bold ${
+                          className={`${isUsedTicketStatus(ticket.status) ? "invisible pointer-events-none inline-flex" : "inline-flex"} mt-auto w-full items-center justify-center gap-1 rounded-2xl py-1.5 text-xs font-bold ${
                             ticket.disabled
                               ? "border border-slate-300 text-slate-500"
                               : "border border-blue-600 text-blue-600"
@@ -530,7 +529,7 @@ export default function PassengerPage() {
                       </article>
                     ))}
                     {!derivedRecentTickets.length && !isLoading ? (
-                      <div className="rounded-3xl border border-dashed border-slate-200 bg-white/70 p-6 text-sm font-medium text-slate-500 sm:col-span-2 2xl:col-span-3">
+                      <div className="rounded-3xl border border-dashed border-slate-200 bg-white/70 p-6 text-sm font-medium text-slate-500 sm:col-span-2 xl:col-span-3">
                         Bạn chưa có vé nào. Hãy mua vé để bắt đầu chuyến đi.
                       </div>
                     ) : null}

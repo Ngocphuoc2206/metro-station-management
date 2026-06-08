@@ -154,7 +154,7 @@ export default function RouteFormModal({ isOpen, onClose, route, onSubmit }: Pro
         <div className="px-6 pb-4 overflow-y-auto w-full">
           <form id="route-form" onSubmit={handleSubmit(handleFormSubmit)} className="space-y-5 pt-5">
             {/* TÊN TUYẾN + MÃ TUYẾN */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label className="block text-[11px] font-bold text-gray-500 mb-1.5 uppercase tracking-wider">Tên Tuyến</label>
                 <input
@@ -180,7 +180,7 @@ export default function RouteFormModal({ isOpen, onClose, route, onSubmit }: Pro
             </div>
 
             {/* MÀU SẮC + TRẠNG THÁI */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label className="block text-[11px] font-bold text-gray-500 mb-1.5 uppercase tracking-wider">Màu nhận diện</label>
                 <div className="flex items-center gap-2 p-2.5 border border-gray-200 rounded-xl bg-gray-50/50 flex-wrap">
@@ -268,7 +268,7 @@ export default function RouteFormModal({ isOpen, onClose, route, onSubmit }: Pro
                 <div className="mt-2 space-y-2">
                   <p className="text-xs text-gray-500 font-medium">Các ga trong tuyến ({selectedStations.length}):</p>
                   {selectedStations.map((s, idx) => (
-                    <div key={s.stationId} className="flex items-center gap-2 p-2.5 bg-blue-50 border border-blue-100 rounded-xl">
+                    <div key={s.stationId} className="flex flex-wrap items-center gap-2 rounded-xl border border-blue-100 bg-blue-50 p-2.5">
                       {/* Order badge */}
                       <span className="w-6 h-6 flex items-center justify-center bg-blue-600 text-white text-xs font-bold rounded-full shrink-0">{idx + 1}</span>
                       <span className="flex-1 text-sm font-medium text-gray-800 truncate">{s.stationName}</span>
@@ -321,7 +321,7 @@ export default function RouteFormModal({ isOpen, onClose, route, onSubmit }: Pro
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 flex justify-end gap-3 rounded-b-2xl border-t border-gray-50">
+        <div className="flex flex-col-reverse gap-3 rounded-b-2xl border-t border-gray-50 px-6 py-4 sm:flex-row sm:justify-end">
           <button
             type="button"
             onClick={onClose}

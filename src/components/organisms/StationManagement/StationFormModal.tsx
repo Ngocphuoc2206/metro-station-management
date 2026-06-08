@@ -398,7 +398,7 @@ export default function StationFormModal({
             </div>
 
             <div className="rounded-2xl border border-gray-100 bg-slate-50 p-3">
-              <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500">Tìm & chọn tọa độ</label>
                   <p className="mt-1 text-xs text-gray-500">Tìm theo tên địa điểm hoặc click trực tiếp trên bản đồ.</p>
@@ -462,7 +462,7 @@ export default function StationFormModal({
 
             <div>
               <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-gray-500">Tọa độ GPS</label>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-gray-400">LAT</span>
                   <input
@@ -499,7 +499,7 @@ export default function StationFormModal({
 
             <hr className="my-4 border-gray-100" />
 
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-bold text-gray-900">Trạng thái</p>
                 <p className="mt-0.5 text-xs text-gray-500">Kích hoạt nhà ga ngay khi thêm</p>
@@ -517,7 +517,7 @@ export default function StationFormModal({
           </form>
         </div>
 
-        <div className="flex justify-end gap-3 rounded-b-2xl px-6 py-4">
+        <div className="flex flex-col-reverse gap-3 rounded-b-2xl px-6 py-4 sm:flex-row sm:justify-end">
           <button
             type="button"
             onClick={onClose}

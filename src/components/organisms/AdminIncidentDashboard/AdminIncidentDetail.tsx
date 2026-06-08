@@ -171,7 +171,7 @@ export default function AdminIncidentDetail() {
           {/* Info card */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
             <h3 className="font-bold text-gray-900">Thông tin sự cố</h3>
-            <div className="grid grid-cols-2 gap-5 text-sm">
+            <div className="grid grid-cols-1 gap-5 text-sm sm:grid-cols-2">
               <div>
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Mã sự cố</p>
                 <p className="font-bold text-blue-600">{shortCode}</p>

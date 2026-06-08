@@ -104,7 +104,7 @@ export default function UserManagement() {
   return (
     <div className="flex flex-col gap-6">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 leading-tight mb-2 tracking-tight">
             Quản lý người dùng
@@ -123,7 +123,7 @@ export default function UserManagement() {
             setEditingUser(null);
             setIsModalOpen(true);
           }}
-          className="flex items-center gap-2 px-6 py-3 text-white bg-blue-600 hover:bg-blue-700 rounded-xl text-sm font-bold transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-md sm:w-auto"
         >
           <svg
             className="w-5 h-5"

@@ -12,9 +12,7 @@ import { incidentApi } from "../../../features/incident/incidentApi";
 import { stationApi } from "../../../features/station/stationApi";
 import { deviceApi } from "../../../features/device/deviceApi";
 import toast from "react-hot-toast";
-
 const SEVERITY_OPTIONS = ["low", "medium", "high", "critical"] as const;
-
 const formSchema = z.object({
   title: z.string().min(1, "Vui lòng nhập tiêu đề sự cố"),
   stationId: z.string().min(1, "Vui lòng chọn ga xảy ra sự cố"),
@@ -24,16 +22,14 @@ const formSchema = z.object({
   }),
   description: z.string().optional(),
 });
-
 type FormValues = z.infer<typeof formSchema>;
-
 interface CreateIncidentModalProps {
   isOpen: boolean;
   onClose: () => void;
+
   /** Gọi sau khi tạo thành công — truyền form data để Dashboard có thể optimistic update */
   onSuccess: (formData: FormValues) => void;
 }
-
 export default function CreateIncidentModal({
   isOpen,
   onClose,
@@ -109,19 +105,16 @@ export default function CreateIncidentModal({
       setIsSubmitting(false);
     }
   };
-
   const handleClose = () => {
     reset();
     setImages([]);
     onClose();
   };
-
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       handleFiles(Array.from(e.target.files));
     }
   };
-
   const handleFiles = (files: File[]) => {
     const validFiles = files.filter(
       (f) => f.type.startsWith("image/") && f.size <= 10 * 1024 * 1024,
@@ -129,7 +122,6 @@ export default function CreateIncidentModal({
     if (validFiles.length !== files.length) {
       toast.error("Vui lòng chỉ chọn ảnh (JPG, PNG) dưới 10MB");
     }
-
     const mappedFiles = validFiles.map((file) =>
       Object.assign(file, {
         preview: URL.createObjectURL(file),
@@ -137,7 +129,6 @@ export default function CreateIncidentModal({
     );
     setImages((prev) => [...prev, ...mappedFiles]);
   };
-
   const removeImage = (index: number) => {
     setImages((prev) => {
       const newImgs = [...prev];
@@ -146,7 +137,6 @@ export default function CreateIncidentModal({
       return newImgs;
     });
   };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
       <div className="bg-white rounded-2xl w-full max-w-2xl shadow-xl flex flex-col max-h-[90vh]">
@@ -172,7 +162,6 @@ export default function CreateIncidentModal({
             </svg>
           </button>
         </div>
-
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-6 py-6">
           <form
@@ -197,7 +186,6 @@ export default function CreateIncidentModal({
                 </p>
               )}
             </div>
-
             {/* Ga xảy ra sự cố (bắt buộc) */}
             <div>
               <label className="block text-sm font-semibold text-gray-900 mb-2">
@@ -224,7 +212,6 @@ export default function CreateIncidentModal({
                 </p>
               )}
             </div>
-
             {/* Thiết bị (tuỳ chọn) */}
             <div>
               <label className="block text-sm font-semibold text-gray-900 mb-2">
@@ -278,7 +265,6 @@ export default function CreateIncidentModal({
                 </p>
               )}
             </div>
-
             {/* Mức độ nghiêm trọng */}
             <div>
               <label className="block text-sm font-semibold text-gray-900 mb-2">
@@ -300,7 +286,6 @@ export default function CreateIncidentModal({
                         : level === "high"
                           ? "bg-white text-orange-600 shadow-sm"
                           : "bg-white text-red-600 shadow-sm";
-
                   return (
                     <button
                       key={level}
@@ -314,7 +299,6 @@ export default function CreateIncidentModal({
                 })}
               </div>
             </div>
-
             {/* Mô tả chi tiết */}
             <div>
               <label className="block text-sm font-semibold text-gray-900 mb-2">
@@ -327,13 +311,11 @@ export default function CreateIncidentModal({
                 className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition resize-none"
               />
             </div>
-
             {/* Hình ảnh đính kèm */}
             <div>
               <label className="block text-sm font-semibold text-gray-900 mb-2">
                 Hình ảnh đính kèm
               </label>
-
               <div className="space-y-4">
                 <input
                   type="file"
@@ -343,7 +325,6 @@ export default function CreateIncidentModal({
                   ref={fileInputRef}
                   onChange={handleFileChange}
                 />
-
                 <div
                   className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center text-center transition cursor-pointer group
                     ${isDragging ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:bg-gray-50"}`}
@@ -392,7 +373,42 @@ export default function CreateIncidentModal({
                     Hỗ trợ JPG, PNG, tối đa 10MB
                   </p>
                 </div>
+              </div>
 
+              {/* Mức độ nghiêm trọng */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
+                  Mức độ nghiêm trọng
+                </label>
+                <div className="grid grid-cols-2 gap-2 rounded-xl bg-gray-50 p-1 sm:grid-cols-4">
+                  {SEVERITY_OPTIONS.map((level: IncidentSeverity) => {
+                    const labels: Record<string, string> = {
+                      low: "Thấp",
+                      medium: "Trung bình",
+                      high: "Cao",
+                      critical: "Nghiêm trọng",
+                    };
+                    const activeClass =
+                      level === "low"
+                        ? "bg-white text-gray-900 shadow-sm"
+                        : level === "medium"
+                          ? "bg-white text-yellow-600 shadow-sm"
+                          : level === "high"
+                            ? "bg-white text-orange-600 shadow-sm"
+                            : "bg-white text-red-600 shadow-sm";
+
+                    return (
+                      <button
+                        key={level}
+                        type="button"
+                        onClick={() => setValue("severity", level)}
+                        className={`py-2 text-sm font-medium rounded-lg transition-all ${severity === level ? activeClass : "text-gray-500 hover:bg-gray-100"}`}
+                      >
+                        {labels[level]}
+                      </button>
+                    );
+                  })}
+                </div>
                 {images.length > 0 && (
                   <div className="flex flex-wrap gap-3">
                     {images.map((img: any, idx) => (
@@ -432,7 +448,6 @@ export default function CreateIncidentModal({
             </div>
           </form>
         </div>
-
         {/* Footer */}
         <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-3 rounded-b-2xl bg-gray-50/50">
           <button

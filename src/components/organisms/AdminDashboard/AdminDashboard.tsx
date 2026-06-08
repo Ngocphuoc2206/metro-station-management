@@ -14,15 +14,15 @@ export default function AdminDashboard() {
     useDashboardData(timeRange);
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen w-full overflow-x-hidden bg-gray-50">
       {/* Sidebar */}
       <AdminSidebar />
 
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar */}
-        <header className="bg-white border-b border-gray-100 px-8 py-3 flex items-center justify-between sticky top-0 z-10">
-          <div className="flex items-center gap-2">
+        <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-gray-100 bg-white py-3 pl-16 pr-3 sm:pl-16 sm:pr-5 lg:px-8">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
             <div className="relative">
               <svg
                 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
@@ -40,11 +40,11 @@ export default function AdminDashboard() {
               <input
                 type="text"
                 placeholder="Tìm kiếm hệ thống..."
-                className="pl-9 pr-4 py-2 text-sm bg-gray-50 border border-gray-200 rounded-xl w-64 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition"
+                className="w-full min-w-0 rounded-xl border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-sm transition focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100 sm:w-64 sm:pr-4"
               />
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {/* Notification bell */}
             <button className="relative text-gray-400 hover:text-gray-700 transition">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -62,7 +62,7 @@ export default function AdminDashboard() {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 px-8 py-6 space-y-6 overflow-y-auto">
+        <main className="flex-1 space-y-6 overflow-x-hidden overflow-y-auto px-3 py-4 sm:px-5 sm:py-5 lg:px-8 lg:py-6">
           {/* Breadcrumb + Title */}
           <div>
             <nav className="text-xs text-gray-400 mb-1">
@@ -74,7 +74,7 @@ export default function AdminDashboard() {
           </div>
 
           {/* KPI Cards */}
-          <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <KpiCards kpi={kpi} isLoading={kpiLoading} error={kpiError} />
           </div>
 
@@ -82,7 +82,7 @@ export default function AdminDashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
             {/* Revenue chart — wider */}
             <div className="lg:col-span-3 bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-              <div className="flex items-center justify-between mb-4">
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <h2 className="text-sm font-semibold text-gray-800">
                   Biểu đồ doanh thu 7 ngày qua
                 </h2>

@@ -155,8 +155,8 @@ export default function FareMatrix() {
     <div className="flex flex-col xl:flex-row gap-6">
       {/* Left: Matrix Area */}
       <div className="flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col min-w-0">
-        <div className="p-5 flex items-center justify-between border-b border-gray-100">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-col gap-4 border-b border-gray-100 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
             <button
               onClick={handleAddZone}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
@@ -166,7 +166,7 @@ export default function FareMatrix() {
               </svg>
               Thêm Zone
             </button>
-            <div className="w-px h-6 bg-gray-200"></div>
+            <div className="hidden h-6 w-px bg-gray-200 sm:block"></div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-gray-500 tracking-wider">CHẾ ĐỘ CHỈNH SỬA</span>
               <button
@@ -246,9 +246,9 @@ export default function FareMatrix() {
 
         {/* Edit mode floating action bar */}
         {isEditing && (
-          <div className="p-4 bg-blue-50 border-t border-blue-100 flex items-center justify-between rounded-b-2xl">
+          <div className="flex flex-col gap-3 rounded-b-2xl border-t border-blue-100 bg-blue-50 p-4 sm:flex-row sm:items-center sm:justify-between">
             <span className="text-sm text-blue-800 font-medium">Bạn đang ở chế độ chỉnh sửa. Thay đổi chưa được lưu.</span>
-            <div className="flex gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row">
               <button
                 onClick={() => { setIsEditing(false); initMatrixState(data); }}
                 disabled={saving}

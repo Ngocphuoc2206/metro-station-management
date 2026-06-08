@@ -119,7 +119,7 @@ export default function TicketTypeFormModal({
             className="space-y-6"
           >
             {/* ROW 1: Tên loại vé + Mã loại */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label className="block text-xs font-bold text-blue-900 mb-1.5">
                   Tên loại vé
@@ -168,7 +168,7 @@ export default function TicketTypeFormModal({
               <label className="block text-xs font-bold text-blue-900 mb-1.5">
                 Thời gian hiệu lực
               </label>
-              <div className="flex gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row">
                 <div className="flex-1">
                   <input
                     type="number"
@@ -186,7 +186,7 @@ export default function TicketTypeFormModal({
                     </p>
                   )}
                 </div>
-                <div className="w-1/3 relative">
+                <div className="relative w-full sm:w-1/3">
                   <select
                     {...register("validityUnit")}
                     className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium appearance-none focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-colors"
@@ -214,7 +214,7 @@ export default function TicketTypeFormModal({
             </div>
 
             {/* ROW 3: Giá niêm yết + Trạng thái */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label className="block text-xs font-bold text-blue-900 mb-1.5">
                   Giá niêm yết
@@ -289,7 +289,7 @@ export default function TicketTypeFormModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 flex justify-end gap-3 rounded-b-2xl border-t border-gray-100 bg-gray-50/50">
+        <div className="flex flex-col-reverse gap-3 rounded-b-2xl border-t border-gray-100 bg-gray-50/50 px-6 py-4 sm:flex-row sm:justify-end">
           <button
             type="button"
             onClick={onClose}
