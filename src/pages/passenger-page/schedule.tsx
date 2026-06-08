@@ -41,7 +41,12 @@ const formatCountdown = (secondsUntilArrival: number) => {
 
 type ScheduleDisplayRow = {
   schedule: ScheduleDto;
-  lineIndex: number;
+  nextArrival: {
+    time: string;
+    countdown: string;
+  };
+  sortSeconds: number;
+  arrivalState: "arrived" | "upcoming";
 };
 
 const lineKey = (schedule: ScheduleDto) =>
@@ -50,7 +55,6 @@ const lineKey = (schedule: ScheduleDto) =>
 const getNextArrival = (
   schedule: ScheduleDto,
   now: Date,
-  lineIndex = 0,
 ) => {
   const baseArrivalSeconds = parseTimeToSeconds(schedule.arrivalTime);
   if (baseArrivalSeconds === null) {
@@ -68,7 +72,7 @@ const getNextArrival = (
       baseArrivalSeconds + Math.ceil(elapsed / frequencySeconds) * frequencySeconds;
   }
 
-  const displayArrivalSeconds = nextArrivalSeconds + lineIndex * frequencySeconds;
+  const displayArrivalSeconds = nextArrivalSeconds;
   const secondsUntilArrival =
     displayArrivalSeconds >= nowSeconds
       ? displayArrivalSeconds - nowSeconds
@@ -78,6 +82,75 @@ const getNextArrival = (
     time: formatSecondsAsTime(displayArrivalSeconds),
     countdown: formatCountdown(secondsUntilArrival),
   };
+};
+
+const getScheduleSeconds = (schedule: ScheduleDto) =>
+  parseTimeToSeconds(schedule.arrivalTime || schedule.departureTime);
+
+const getForwardOffsetSeconds = (fromSeconds: number, toSeconds: number) =>
+  toSeconds >= fromSeconds ? toSeconds - fromSeconds : toSeconds + 86400 - fromSeconds;
+
+const buildLineRealtimeRows = (
+  lineSchedules: ScheduleDto[],
+  now: Date,
+): ScheduleDisplayRow[] => {
+  const sortedStops = [...lineSchedules].sort((a, b) => {
+    const aSeconds = getScheduleSeconds(a) ?? 0;
+    const bSeconds = getScheduleSeconds(b) ?? 0;
+    return aSeconds - bSeconds;
+  });
+
+  if (sortedStops.length === 0) return [];
+
+  const originSeconds = getScheduleSeconds(sortedStops[0]);
+  if (originSeconds === null) {
+    return sortedStops.map((schedule, index) => ({
+      schedule,
+      nextArrival: getNextArrival(schedule, now),
+      sortSeconds: index,
+      arrivalState: "upcoming" as const,
+    }));
+  }
+
+  const frequencySeconds =
+    Math.max(1, Number(sortedStops[0].frequencyMinutes || 0)) * 60;
+  const nowSeconds =
+    now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+  const stopOffsets = sortedStops.map((schedule) => {
+    const stopSeconds = getScheduleSeconds(schedule);
+    return stopSeconds === null
+      ? 0
+      : getForwardOffsetSeconds(originSeconds, stopSeconds);
+  });
+  const lastStopOffset = Math.max(...stopOffsets, 0);
+  const journeyCycleSeconds = Math.max(lastStopOffset + frequencySeconds, frequencySeconds);
+  const elapsedFromOrigin = getForwardOffsetSeconds(originSeconds, nowSeconds);
+  let tripStartSeconds =
+    originSeconds + Math.floor(elapsedFromOrigin / journeyCycleSeconds) * journeyCycleSeconds;
+  const currentTripLastArrival = tripStartSeconds + lastStopOffset;
+
+  if (currentTripLastArrival < nowSeconds) {
+    tripStartSeconds += journeyCycleSeconds;
+  }
+
+  return sortedStops
+    .map((schedule, index) => {
+      const arrivalSeconds = tripStartSeconds + stopOffsets[index];
+      const hasArrived = arrivalSeconds < nowSeconds;
+
+      const secondsUntilArrival = arrivalSeconds - nowSeconds;
+
+      return {
+        schedule,
+        nextArrival: {
+          time: formatSecondsAsTime(arrivalSeconds),
+          countdown: hasArrived ? "Đã đến" : formatCountdown(secondsUntilArrival),
+        },
+        sortSeconds: arrivalSeconds,
+        arrivalState: hasArrived ? "arrived" as const : "upcoming" as const,
+      };
+    })
+    .sort((a, b) => a.sortSeconds - b.sortSeconds);
 };
 
 export default function PassengerSchedulePage() {
@@ -217,14 +290,25 @@ export default function PassengerSchedulePage() {
   const delayedSchedules = schedules.filter((item) => item.status === "DELAYED");
   const routeCount = new Set(schedules.map((item) => item.routeId)).size;
   const scheduleRows = useMemo<ScheduleDisplayRow[]>(() => {
-    const lineCounts = new Map<string, number>();
-    return schedules.map((schedule) => {
+    if (selectedStationId) {
+      return schedules.map((schedule, index) => ({
+        schedule,
+        nextArrival: getNextArrival(schedule, currentTime),
+        sortSeconds: index,
+        arrivalState: "upcoming" as const,
+      }));
+    }
+
+    const groupedSchedules = new Map<string, ScheduleDto[]>();
+    schedules.forEach((schedule) => {
       const key = lineKey(schedule);
-      const lineIndex = lineCounts.get(key) ?? 0;
-      lineCounts.set(key, lineIndex + 1);
-      return { schedule, lineIndex };
+      groupedSchedules.set(key, [...(groupedSchedules.get(key) ?? []), schedule]);
     });
-  }, [schedules]);
+
+    return Array.from(groupedSchedules.values())
+      .flatMap((items) => buildLineRealtimeRows(items, currentTime))
+      .sort((a, b) => a.sortSeconds - b.sortSeconds);
+  }, [currentTime, schedules, selectedStationId]);
 
   const applyFilters = async () => {
     await loadSchedules();
@@ -397,19 +481,22 @@ export default function PassengerSchedulePage() {
                             <tr><td colSpan={5} className="px-6 py-10 text-center text-sm font-medium text-red-600">{loadError}</td></tr>
                           ) : scheduleRows.length === 0 ? (
                             <tr><td colSpan={5} className="px-6 py-10 text-center text-sm text-slate-500">Không có lịch trình phù hợp.</td></tr>
-                          ) : scheduleRows.map(({ schedule: row, lineIndex }) => {
-                            const nextArrival = getNextArrival(row, currentTime, lineIndex);
+                          ) : scheduleRows.map(({ schedule: row, nextArrival, arrivalState }) => {
                             return (
                               <tr
                                 key={row.id}
                                 className={`border-t border-slate-100 transition-colors hover:bg-blue-50/40 ${
-                                  row.status === "DELAYED" ? "bg-red-50/30" : "bg-white"
+                                  arrivalState === "arrived"
+                                    ? "bg-slate-50/70"
+                                    : row.status === "DELAYED" ? "bg-red-50/30" : "bg-white"
                                 }`}
                               >
                                 <td className="px-6 py-4 text-sm font-medium text-slate-700">{routeName(row.routeId)}</td>
                                 <td
                                   className={`px-6 py-4 text-sm font-bold ${
-                                    row.status === "DELAYED" ? "text-red-600" : "text-blue-600"
+                                    arrivalState === "arrived"
+                                      ? "text-slate-500"
+                                      : row.status === "DELAYED" ? "text-red-600" : "text-blue-600"
                                   }`}
                                 >
                                   <div>{nextArrival.time}</div>
@@ -424,17 +511,21 @@ export default function PassengerSchedulePage() {
                                 <td className="px-6 py-4 text-right">
                                   <span
                                     className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${
-                                      row.status === "DELAYED"
+                                      arrivalState === "arrived"
+                                        ? "bg-slate-100 text-slate-600"
+                                        : row.status === "DELAYED"
                                         ? "bg-red-100 text-red-700"
                                         : row.status === "ACTIVE" ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-700"
                                     }`}
                                   >
                                     <Circle
                                       className={`h-1.5 w-1.5 fill-current ${
-                                        row.status === "DELAYED" ? "text-red-500" : row.status === "ACTIVE" ? "text-green-500" : "text-slate-500"
+                                        arrivalState === "arrived"
+                                          ? "text-slate-500"
+                                          : row.status === "DELAYED" ? "text-red-500" : row.status === "ACTIVE" ? "text-green-500" : "text-slate-500"
                                       }`}
                                     />
-                                    {statusLabel(row.status)}
+                                    {arrivalState === "arrived" ? "Đã đến" : statusLabel(row.status)}
                                   </span>
                                 </td>
                               </tr>
