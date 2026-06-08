@@ -13,14 +13,14 @@ export default function AdminLayout({ children, title = "MetroNext Admin" }: Pro
       <Head>
         <title>{title}</title>
       </Head>
-      <div className="flex min-h-screen bg-gray-50">
+      <div className="flex min-h-screen w-full overflow-x-hidden bg-gray-50">
         {/* Sidebar */}
         <AdminSidebar />
 
         {/* Main content */}
         <div className="flex min-w-0 flex-1 flex-col">
           {/* Top bar */}
-          <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-gray-100 bg-white px-3 py-3 sm:px-5 lg:px-8">
+          <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-gray-100 bg-white py-3 pl-16 pr-3 sm:pl-16 sm:pr-5 lg:px-8">
             <div className="flex min-w-0 flex-1 items-center gap-2">
               <div className="relative">
                 <svg
@@ -40,7 +40,7 @@ export default function AdminLayout({ children, title = "MetroNext Admin" }: Pro
                 <input
                   type="text"
                   placeholder="Tìm kiếm hệ thống..."
-                  className="w-[10rem] rounded-xl border border-gray-200 bg-gray-50 py-2 pl-9 pr-4 text-sm transition focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100 sm:w-64"
+                  className="w-full min-w-0 rounded-xl border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-sm transition focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100 sm:w-64 sm:pr-4"
                 />
               </div>
             </div>
@@ -62,7 +62,7 @@ export default function AdminLayout({ children, title = "MetroNext Admin" }: Pro
           </header>
 
           {/* Page content */}
-          <main className="flex-1 overflow-y-auto px-3 py-4 sm:px-5 sm:py-5 lg:px-8 lg:py-6">
+          <main className="flex-1 overflow-x-hidden overflow-y-auto px-3 py-4 sm:px-5 sm:py-5 lg:px-8 lg:py-6">
             {children}
           </main>
         </div>

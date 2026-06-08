@@ -284,7 +284,7 @@ export default function CreateIncidentModal({
               <label className="block text-sm font-semibold text-gray-900 mb-2">
                 Mức độ nghiêm trọng
               </label>
-              <div className="grid grid-cols-4 gap-2 bg-gray-50 p-1 rounded-xl">
+              <div className="grid grid-cols-2 gap-2 rounded-xl bg-gray-50 p-1 sm:grid-cols-4">
                 {SEVERITY_OPTIONS.map((level: IncidentSeverity) => {
                   const labels: Record<string, string> = {
                     low: "Thấp",

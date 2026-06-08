@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { useSelector } from "react-redux";
 import { useLogout } from "@features/auth/useLogout";
 import type { RootState } from "@stores/index";
 import router from "next/router";
+import { Menu, X } from "lucide-react";
 
 const NAV_GROUPS = [
   {
@@ -36,6 +38,7 @@ const NAV_GROUPS = [
 export default function AdminSidebar() {
   const { name, email } = useSelector((s: RootState) => s.userReducer);
   const handleLogout = useLogout();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Nếu name trùng email → extract tên đọc được từ prefix
   const isNameEmail = name && name.includes("@");
@@ -44,7 +47,8 @@ export default function AdminSidebar() {
     : name;
 
   return (
-    <aside className="flex min-h-screen w-20 flex-col justify-between border-r border-gray-100 bg-white sm:w-56">
+    <>
+    <aside className="hidden min-h-screen w-56 shrink-0 flex-col justify-between border-r border-gray-100 bg-white lg:flex">
       {/* Logo */}
       <div>
         <div className="border-b border-gray-50 px-3 py-5 sm:px-5">
@@ -128,6 +132,79 @@ export default function AdminSidebar() {
         </button>
       </div>
     </aside>
+
+    <div className="lg:hidden">
+      <button
+        type="button"
+        onClick={() => setIsMobileMenuOpen((current) => !current)}
+        className="fixed left-3 top-3 z-50 flex h-10 w-10 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-700 shadow-sm backdrop-blur transition hover:bg-gray-50"
+        aria-label={isMobileMenuOpen ? "Đóng menu" : "Mở menu"}
+        aria-expanded={isMobileMenuOpen}
+      >
+        {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+      </button>
+
+      {isMobileMenuOpen ? (
+        <>
+          <button
+            type="button"
+            className="fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-[1px]"
+            aria-label="Đóng menu"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+          <div className="fixed left-3 right-3 top-16 z-50 max-h-[calc(100vh-5rem)] overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-2xl">
+            <div className="flex items-center gap-3 border-b border-gray-100 p-4">
+              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                <svg className="w-4.5 h-4.5 text-white" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                </svg>
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold text-gray-900">{displayName || "Admin User"}</p>
+                <p className="truncate text-xs text-gray-400">{email || "Super Admin"}</p>
+              </div>
+            </div>
+
+            <nav className="max-h-[70vh] space-y-5 overflow-y-auto p-3">
+              {NAV_GROUPS.map((group) => (
+                <div key={group.heading}>
+                  <p className="mb-2 px-2 text-[10px] font-semibold tracking-widest text-gray-400">{group.heading}</p>
+                  <ul className="space-y-1">
+                    {group.items.map((item) => {
+                      const active = router.pathname === item.href;
+                      const Icon = item.icon;
+                      return (
+                        <li key={item.label}>
+                          <a
+                            href={item.href}
+                            onClick={() => setIsMobileMenuOpen(false)}
+                            className={`flex items-center gap-3 rounded-2xl px-3 py-3 text-sm transition ${
+                              active ? "bg-blue-600 font-bold text-white" : "font-semibold text-gray-700 hover:bg-gray-50"
+                            }`}
+                          >
+                            <Icon active={active} />
+                            <span>{item.label}</span>
+                          </a>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ))}
+              <div className="border-t border-gray-100 pt-2">
+                <button
+                  onClick={handleLogout}
+                  className="w-full rounded-2xl px-3 py-3 text-left text-sm font-semibold text-red-600 transition hover:bg-red-50"
+                >
+                  Đăng xuất
+                </button>
+              </div>
+            </nav>
+          </div>
+        </>
+      ) : null}
+    </div>
+    </>
   );
 }
 

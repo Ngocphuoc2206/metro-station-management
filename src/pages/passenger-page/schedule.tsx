@@ -364,8 +364,8 @@ export default function PassengerSchedulePage() {
         <div className="flex min-h-screen w-full">
           <PassengerSidebar />
 
-          <main className="flex min-w-0 flex-1 flex-col pb-20 lg:pb-0">
-            <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-slate-200/80 bg-white/80 px-3 backdrop-blur sm:px-8">
+          <main className="flex min-w-0 flex-1 flex-col">
+            <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-slate-200/80 bg-white/80 pl-16 pr-3 backdrop-blur sm:px-8">
               <div className="relative min-w-0 flex-1 sm:max-w-md">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input

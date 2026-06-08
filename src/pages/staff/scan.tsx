@@ -172,9 +172,9 @@ function humanizeScanMessage(raw?: string) {
     normalized.includes("permission denied")
   ) {
     return {
-      message: "KhÃ´ng thá»ƒ má»Ÿ camera trÃªn trÃ¬nh duyá»‡t hiá»‡n táº¡i.",
+      message: "Không thể mở camera trên trình duyệt hiện tại.",
       detail:
-        "Camera chá»‰ hoáº¡t Ä‘á»™ng trÃªn HTTPS hoáº·c localhost. HÃ£y kiá»ƒm tra domain deploy, quyá»n camera vÃ  thá»­ láº¡i.",
+        "Camera chỉ hoạt động trên HTTPS hoặc localhost. Hãy kiểm tra domain deploy, quyền camera và thử lại.",
     };
   }
 
@@ -283,15 +283,15 @@ function humanizeScanMessage(raw?: string) {
 
 function getCameraSupportError() {
   if (typeof window === "undefined" || typeof navigator === "undefined") {
-    return "TrÃ¬nh duyá»‡t chÆ°a sáºµn sÃ ng Ä‘á»ƒ má»Ÿ camera.";
+    return "Trình duyệt chưa sẵn sàng để mở camera.";
   }
 
   if (!window.isSecureContext) {
-    return "Camera chá»‰ hoáº¡t Ä‘á»™ng khi website cháº¡y HTTPS hoáº·c localhost.";
+    return "Camera chỉ hoạt động khi website chạy HTTPS hoặc localhost.";
   }
 
   if (!navigator.mediaDevices?.getUserMedia) {
-    return "TrÃ¬nh duyá»‡t khÃ´ng há»— trá»£ camera hoáº·c camera API Ä‘ang bá»‹ cháº·n.";
+    return "Trình duyệt không hỗ trợ camera hoặc camera API đang bị chặn.";
   }
 
   return null;

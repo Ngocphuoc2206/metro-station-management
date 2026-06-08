@@ -92,11 +92,11 @@ export default function StationList() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Quản lý nhà ga</h1>
         <button
           onClick={handleCreate}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition flex items-center gap-2"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 sm:w-auto"
         >
           <svg
             className="w-4 h-4"
@@ -117,7 +117,7 @@ export default function StationList() {
 
       {/* Filter Bar */}
       <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-wrap gap-4 items-center">
-        <div className="relative flex-1 min-w-[200px]">
+        <div className="relative min-w-0 flex-1 basis-full sm:basis-auto">
           <svg
             className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
             fill="none"
@@ -146,7 +146,7 @@ export default function StationList() {
             setFilterLine(e.target.value);
             setPage(1);
           }}
-          className="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-100 min-w-[150px]"
+          className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100 sm:w-auto sm:min-w-[150px]"
         >
           <option value="">Tất cả tuyến</option>
           <option value="L1">Tuyến 1</option>
@@ -159,7 +159,7 @@ export default function StationList() {
             setFilterStatus(e.target.value);
             setPage(1);
           }}
-          className="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-100 min-w-[150px]"
+          className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100 sm:w-auto sm:min-w-[150px]"
         >
           <option value="">Trạng thái</option>
           <option value="active">Hoạt động</option>

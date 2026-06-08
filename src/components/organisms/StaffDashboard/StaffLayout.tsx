@@ -8,11 +8,11 @@ interface Props {
 
 export default function StaffLayout({ children, wide = false }: Props) {
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen w-full overflow-x-hidden bg-gray-50">
       <StaffSidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Top bar */}
-        <header className="sticky top-0 z-10 flex w-full items-center justify-between gap-3 border-b border-gray-100 bg-white px-3 py-3 sm:px-5 lg:px-8">
+        <header className="sticky top-0 z-10 flex w-full items-center justify-between gap-3 border-b border-gray-100 bg-white py-3 pl-16 pr-3 sm:pl-16 sm:pr-5 lg:px-8">
           <div className="flex-1" />
 
           <div className="ml-3 flex items-center gap-3 sm:gap-4">
@@ -31,7 +31,7 @@ export default function StaffLayout({ children, wide = false }: Props) {
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto bg-gray-50 p-3 sm:p-5 lg:p-6">
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-3 sm:p-5 lg:p-6">
           <div className={`mx-auto w-full ${wide ? "max-w-[1480px]" : "max-w-[1200px]"}`}>
             {children}
           </div>
