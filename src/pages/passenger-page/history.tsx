@@ -93,9 +93,6 @@ export default function PassengerHistoryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const activeFilterLabel =
-    TIME_FILTERS.find((item) => item.key === timeFilter)?.label ?? "Hôm nay";
-
   useEffect(() => {
     publicApi.getStations().then(setStations).catch(() => {
       // Trip history still works when station option labels cannot be loaded.
@@ -198,18 +195,9 @@ export default function PassengerHistoryPage() {
           ) : null}
 
           <section className="overflow-visible rounded-2xl border border-slate-200 bg-white">
-            <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <h2 className="text-base font-bold text-slate-900">
-                  Danh sách chuyến
-                </h2>
-                <p className="mt-0.5 text-xs text-slate-500">
-                  Hiển thị: {activeFilterLabel}
-                </p>
-              </div>
-
-              <div className="flex w-full flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap lg:w-auto lg:flex-1 lg:items-center lg:justify-end">
-                <div className="relative min-w-0 flex-1 sm:min-w-56 sm:max-w-72">
+            <div className="border-b border-slate-100 px-4 py-4">
+              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_13rem_3rem_9rem] lg:items-center">
+                <div className="relative min-w-0">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <input
                     value={query}
@@ -219,7 +207,7 @@ export default function PassengerHistoryPage() {
                   />
                 </div>
 
-                <div className="relative w-full sm:w-52">
+                <div className="relative w-full">
                   <button
                     type="button"
                     onClick={() => setIsStationFilterOpen((current) => !current)}
@@ -253,7 +241,7 @@ export default function PassengerHistoryPage() {
                   ) : null}
                 </div>
 
-                <div className="relative sm:w-auto">
+                <div className="relative">
                   <button
                     type="button"
                     onClick={() => setIsTimeFilterOpen((current) => !current)}
@@ -290,6 +278,11 @@ export default function PassengerHistoryPage() {
                     </div>
                   ) : null}
                 </div>
+
+                <button type="button" className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm shadow-blue-600/20">
+                  <Search className="h-4 w-4" />
+                  Tìm kiếm
+                </button>
               </div>
             </div>
 
@@ -300,13 +293,13 @@ export default function PassengerHistoryPage() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="min-w-[760px] text-left text-sm">
+                <table className="min-w-[760px] w-full table-fixed text-left text-sm">
                   <thead className="bg-slate-50 text-xs uppercase text-slate-500">
                     <tr>
                       <th className="p-4">Ngày</th>
                       <th className="p-4">Ga vào</th>
                       <th className="p-4">Ga ra</th>
-                      <th className="p-4">Vé</th>
+                      <th className="p-4">Giá vé</th>
                       <th className="p-4">Trạng thái</th>
                     </tr>
                   </thead>
@@ -334,8 +327,8 @@ export default function PassengerHistoryPage() {
                             {formatDateTime(trip.checkOutAt)}
                           </p>
                         </td>
-                        <td className="p-4 font-mono text-blue-600">
-                          {trip.ticketCode || trip.ticketId || "--"}
+                        <td className="p-4 font-semibold text-slate-900">
+                          {formatFare(trip.fare)}
                         </td>
                         <td className="p-4">{trip.status || "--"}</td>
                       </tr>
@@ -379,11 +372,16 @@ export default function PassengerHistoryPage() {
       </PassengerShell>
 
       {selected ? (
-        <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/40">
-          <aside className="h-full w-full max-w-md overflow-y-auto bg-white p-4 shadow-xl sm:p-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+          <aside className="w-full max-w-md overflow-hidden rounded-3xl bg-white p-4 shadow-2xl sm:p-6">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold">Chi tiết chuyến đi</h2>
-              <button onClick={() => setSelected(null)}>
+              <button
+                type="button"
+                onClick={() => setSelected(null)}
+                className="rounded-xl p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                aria-label="Đóng chi tiết chuyến đi"
+              >
                 <X />
               </button>
             </div>
@@ -403,20 +401,12 @@ export default function PassengerHistoryPage() {
                 {formatDateTime(selected.checkInAt)}
               </p>
               <p>
-                <span className="text-slate-500">Cổng vào:</span>{" "}
-                {selected.entryGate || "--"}
-              </p>
-              <p>
                 <span className="text-slate-500">Ga ra:</span>{" "}
                 {selected.destinationStationName || "--"}
               </p>
               <p>
                 <span className="text-slate-500">Thời gian ra:</span>{" "}
                 {formatDateTime(selected.checkOutAt)}
-              </p>
-              <p>
-                <span className="text-slate-500">Cổng ra:</span>{" "}
-                {selected.exitGate || "--"}
               </p>
               <p>
                 <span className="text-slate-500">Tổng tiền:</span>{" "}

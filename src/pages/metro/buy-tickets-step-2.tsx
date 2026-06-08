@@ -60,6 +60,13 @@ const TICKET_TYPE_LABELS: Record<string, string> = {
   monthly: "Vé tháng",
 };
 
+const TICKET_TYPE_ORDER = ["Vé lượt", "Vé ngày", "Vé tháng"];
+
+const ticketTypeOrder = (ticket: TicketTypeCard) => {
+  const index = TICKET_TYPE_ORDER.indexOf(ticket.name);
+  return index === -1 ? TICKET_TYPE_ORDER.length : index;
+};
+
 const emptyState: JourneyState = {
   originStationId: "",
   originStationName: "",
@@ -319,7 +326,8 @@ const MetroBuyTicketsStep2Page: NextPage = () => {
         const raw = await publicApi.getTicketTypes();
         const cards = raw
           .filter((ticket) => ticket.isActive !== false)
-          .map(toTicketCard);
+          .map(toTicketCard)
+          .sort((a, b) => ticketTypeOrder(a) - ticketTypeOrder(b));
         if (!cancelled) {
           setTicketTypes(cards);
           if (!selectedTicketId && cards.length > 0) {

@@ -10,7 +10,6 @@ import type { ScheduleDto } from "@features/schedule/scheduleTypes";
 import {
   Bell,
   ChevronRight,
-  Circle,
   Clock3,
   MapPinned,
   Search,
@@ -86,6 +85,9 @@ const getNextArrival = (
 
 const getScheduleSeconds = (schedule: ScheduleDto) =>
   parseTimeToSeconds(schedule.arrivalTime || schedule.departureTime);
+
+const getDisplayTimeSeconds = (value?: string) =>
+  parseTimeToSeconds(value || "") ?? Number.MAX_SAFE_INTEGER;
 
 const getForwardOffsetSeconds = (fromSeconds: number, toSeconds: number) =>
   toSeconds >= fromSeconds ? toSeconds - fromSeconds : toSeconds + 86400 - fromSeconds;
@@ -279,10 +281,13 @@ export default function PassengerSchedulePage() {
       : 0;
     const activeCount = schedules.filter((item) => item.status === "ACTIVE").length;
     const onTimeRate = schedules.length ? Math.round((activeCount / schedules.length) * 100) : 0;
+    const displayedRouteCount = new Set(schedules.map((item) => item.routeId)).size;
     return [
-      { label: "Tần suất trung bình", value: `${averageFrequency} phút/chuyến`, tone: "text-blue-600" },
-      { label: "Chuyến đúng giờ", value: `${onTimeRate}%`, tone: "text-emerald-600" },
-      { label: "Lịch trình hiển thị", value: `${schedules.length} chuyến`, tone: "text-slate-900" },
+      { label: "Tần suất trung bình", value: `${averageFrequency} phút/chuyến`, tone: "text-blue-600", icon: Clock3, iconTone: "bg-blue-50 text-blue-600" },
+      { label: "Chuyến đúng giờ", value: `${onTimeRate}%`, tone: "text-emerald-600", icon: TrainFront, iconTone: "bg-emerald-50 text-emerald-600" },
+      { label: "Lịch trình hiển thị", value: `${schedules.length} chuyến`, tone: "text-slate-900", icon: SlidersHorizontal, iconTone: "bg-slate-100 text-slate-600" },
+      { label: "Lịch trình hoạt động", value: `${activeCount} chuyến`, tone: "text-green-600", icon: TrainFront, iconTone: "bg-green-50 text-green-600" },
+      { label: "Tuyến đang hiển thị", value: `${displayedRouteCount} tuyến`, tone: "text-blue-600", icon: MapPinned, iconTone: "bg-sky-50 text-sky-600" },
     ];
   }, [schedules]);
 
@@ -291,12 +296,17 @@ export default function PassengerSchedulePage() {
   const routeCount = new Set(schedules.map((item) => item.routeId)).size;
   const scheduleRows = useMemo<ScheduleDisplayRow[]>(() => {
     if (selectedStationId) {
-      return schedules.map((schedule, index) => ({
-        schedule,
-        nextArrival: getNextArrival(schedule, currentTime),
-        sortSeconds: index,
-        arrivalState: "upcoming" as const,
-      }));
+      return schedules
+        .map((schedule) => {
+          const nextArrival = getNextArrival(schedule, currentTime);
+          return {
+            schedule,
+            nextArrival,
+            sortSeconds: getDisplayTimeSeconds(nextArrival.time),
+            arrivalState: "upcoming" as const,
+          };
+        })
+        .sort((a, b) => b.sortSeconds - a.sortSeconds);
     }
 
     const groupedSchedules = new Map<string, ScheduleDto[]>();
@@ -307,7 +317,7 @@ export default function PassengerSchedulePage() {
 
     return Array.from(groupedSchedules.values())
       .flatMap((items) => buildLineRealtimeRows(items, currentTime))
-      .sort((a, b) => a.sortSeconds - b.sortSeconds);
+      .sort((a, b) => getDisplayTimeSeconds(b.nextArrival.time) - getDisplayTimeSeconds(a.nextArrival.time));
   }, [currentTime, schedules, selectedStationId]);
 
   const applyFilters = async () => {
@@ -387,20 +397,28 @@ export default function PassengerSchedulePage() {
                   <h1 className="text-3xl font-black leading-tight text-slate-900 sm:text-4xl">Lịch tàu</h1>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
-                  {summaryCards.map((card) => (
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 xl:grid-cols-5">
+                  {summaryCards.map((card) => {
+                    const Icon = card.icon;
+                    return (
                     <article
                       key={card.label}
-                      className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm"
+                      className="grid min-h-28 grid-cols-[2.75rem_minmax(0,1fr)] items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
                     >
-                      <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{card.label}</p>
-                      <p className={`mt-2 text-2xl font-black ${card.tone}`}>{card.value}</p>
+                      <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${card.iconTone}`}>
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-[10px] font-bold uppercase leading-4 tracking-wide text-slate-500">{card.label}</p>
+                        <p className={`mt-1 whitespace-nowrap text-xl font-black leading-7 ${card.tone}`}>{card.value}</p>
+                      </div>
                     </article>
-                  ))}
+                    );
+                  })}
                 </div>
 
-                <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-                  <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="rounded-3xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+                  <div className="hidden flex-col gap-3 border-b border-slate-100 pb-4 lg:flex-row lg:items-center lg:justify-between">
                     <div className="flex items-center gap-2 text-slate-900">
                       <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-600/10 text-blue-600">
                         <SlidersHorizontal className="h-4 w-4" />
@@ -421,7 +439,7 @@ export default function PassengerSchedulePage() {
                     </div>
                   </div>
 
-                  <div className="mt-4 grid gap-3 md:grid-cols-3">
+                  <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_9rem] lg:items-end">
                     <label className="space-y-1.5">
                       <span className="px-1 text-[11px] font-bold uppercase tracking-wide text-slate-500">Chọn tuyến</span>
                       <select value={selectedRouteId} onChange={(event) => setSelectedRouteId(event.target.value)} className="h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 outline-none focus:border-blue-400">
@@ -447,10 +465,15 @@ export default function PassengerSchedulePage() {
                         <option value="INACTIVE">Tạm ngưng</option>
                       </select>
                     </label>
+
+                    <button type="button" onClick={applyFilters} disabled={isFiltering} className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm shadow-blue-600/20 disabled:opacity-50">
+                      <Search className="h-4 w-4" />
+                      {isFiltering ? "Đang tải..." : "Tìm kiếm"}
+                    </button>
                   </div>
                 </div>
 
-                <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
+                <div>
                   <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
                     <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
                       <div>
@@ -464,23 +487,22 @@ export default function PassengerSchedulePage() {
                       <span className="text-xs font-bold uppercase tracking-wide text-slate-500">{selectedStationName}</span>
                     </div>
                     <div className="overflow-x-auto">
-                      <table className="min-w-[860px] text-left">
+                      <table className="min-w-[760px] w-full table-fixed text-left">
                         <thead className="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase text-slate-500">
                           <tr>
-                            <th className="px-6 py-4">Tuyến</th>
-                            <th className="px-6 py-4">Giờ đến dự kiến</th>
-                            <th className="px-6 py-4">Giờ khởi hành</th>
-                            <th className="px-6 py-4">Hướng đi</th>
-                            <th className="px-6 py-4 text-right">Tình trạng</th>
+                            <th className="w-[46%] px-6 py-4">Tuyến / hướng đi</th>
+                            <th className="w-[18%] px-6 py-4">Giờ đến dự kiến</th>
+                            <th className="w-[18%] px-6 py-4">Giờ khởi hành</th>
+                            <th className="w-[18%] px-6 py-4 text-right">Tình trạng</th>
                           </tr>
                         </thead>
                         <tbody>
                           {isLoading ? (
-                            <tr><td colSpan={5} className="px-6 py-10 text-center text-sm text-slate-500">Đang tải lịch trình...</td></tr>
+                            <tr><td colSpan={4} className="px-6 py-10 text-center text-sm text-slate-500">Đang tải lịch trình...</td></tr>
                           ) : loadError ? (
-                            <tr><td colSpan={5} className="px-6 py-10 text-center text-sm font-medium text-red-600">{loadError}</td></tr>
+                            <tr><td colSpan={4} className="px-6 py-10 text-center text-sm font-medium text-red-600">{loadError}</td></tr>
                           ) : scheduleRows.length === 0 ? (
-                            <tr><td colSpan={5} className="px-6 py-10 text-center text-sm text-slate-500">Không có lịch trình phù hợp.</td></tr>
+                            <tr><td colSpan={4} className="px-6 py-10 text-center text-sm text-slate-500">Không có lịch trình phù hợp.</td></tr>
                           ) : scheduleRows.map(({ schedule: row, nextArrival, arrivalState }) => {
                             return (
                               <tr
@@ -491,7 +513,10 @@ export default function PassengerSchedulePage() {
                                     : row.status === "DELAYED" ? "bg-red-50/30" : "bg-white"
                                 }`}
                               >
-                                <td className="px-6 py-4 text-sm font-medium text-slate-700">{routeName(row.routeId)}</td>
+                                <td className="px-6 py-4">
+                                  <p className="text-sm font-semibold text-slate-900">{routeName(row.routeId)}</p>
+                                  <p className="mt-1 text-xs font-medium text-slate-500">{directionLabel(row)}</p>
+                                </td>
                                 <td
                                   className={`px-6 py-4 text-sm font-bold ${
                                     arrivalState === "arrived"
@@ -506,25 +531,17 @@ export default function PassengerSchedulePage() {
                                     </div>
                                   ) : null}
                                 </td>
-                                <td className="px-6 py-4 text-sm font-medium text-slate-900">{row.departureTime}</td>
-                                <td className="px-6 py-4 text-sm text-slate-900">{directionLabel(row)}</td>
+                                <td className="px-6 py-4 text-sm font-semibold text-slate-900">{row.departureTime}</td>
                                 <td className="px-6 py-4 text-right">
                                   <span
                                     className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${
                                       arrivalState === "arrived"
-                                        ? "bg-slate-100 text-slate-600"
+                                        ? "bg-blue-50 text-blue-700"
                                         : row.status === "DELAYED"
                                         ? "bg-red-100 text-red-700"
                                         : row.status === "ACTIVE" ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-700"
                                     }`}
                                   >
-                                    <Circle
-                                      className={`h-1.5 w-1.5 fill-current ${
-                                        arrivalState === "arrived"
-                                          ? "text-slate-500"
-                                          : row.status === "DELAYED" ? "text-red-500" : row.status === "ACTIVE" ? "text-green-500" : "text-slate-500"
-                                      }`}
-                                    />
                                     {arrivalState === "arrived" ? "Đã đến" : statusLabel(row.status)}
                                   </span>
                                 </td>
@@ -536,7 +553,7 @@ export default function PassengerSchedulePage() {
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-6 xl:sticky xl:top-6 xl:self-start">
+                  <div className="hidden flex-col gap-6 xl:sticky xl:top-6 xl:self-start">
                     <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
                       <div className="flex items-center justify-between bg-blue-600 px-4 py-4 text-white">
                         <div className="flex items-center gap-2 text-base font-bold">
