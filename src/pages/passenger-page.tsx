@@ -10,6 +10,7 @@ import type {
 } from "@features/myTicket/myTicketTypes";
 import { tripApi } from "@features/trip/tripApi";
 import type { TripDto } from "@features/trip/tripTypes";
+import { displayTicketTypeName } from "@utils/ticketTypeName";
 import {
   Bell,
   CalendarClock,
@@ -119,29 +120,8 @@ const mapTicketTone = (status: TicketCard["status"]): TicketCard["tone"] => {
   return "red";
 };
 
-const mapTicketTypeLabel = (ticketTypeId?: string) => {
-  const v = (ticketTypeId ?? "").toLowerCase();
-  if (v.includes("month") || v.includes("thang")) return "Vé Tháng";
-  if (v.includes("day") || v.includes("ngay")) return "Vé Ngày";
-  return "Vé Lượt";
-};
-
 const translateTicketTypeName = (ticketTypeName?: string, ticketTypeId?: string) => {
-  const rawName = (ticketTypeName ?? "").trim();
-  const normalized = rawName.toLowerCase();
-
-  if (normalized === "month" || normalized.includes("monthly")) return "Vé Tháng";
-  if (normalized === "day" || normalized.includes("daily")) return "Vé Ngày";
-  if (
-    normalized === "single" ||
-    normalized === "one-way" ||
-    normalized === "one way" ||
-    normalized.includes("single trip")
-  ) {
-    return "Vé Lượt";
-  }
-
-  return rawName || mapTicketTypeLabel(ticketTypeId);
+  return displayTicketTypeName(ticketTypeName || ticketTypeId);
 };
 
 const formatMoneyVnd = (value?: number) => {

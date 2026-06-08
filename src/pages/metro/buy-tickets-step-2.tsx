@@ -9,6 +9,7 @@ import type { OrderPreviewResult, OrderRequest } from "@features/order/orderType
 import { publicApi } from "@features/public/publicApi";
 import type { StationDto, TicketTypeDto } from "@features/public/publicTypes";
 import { calculateDistanceKm } from "@utils/geo";
+import { displayTicketTypeName } from "@utils/ticketTypeName";
 import {
   ArrowRight,
   Check,
@@ -182,7 +183,7 @@ const toTicketCard = (t: TicketTypeDto): TicketTypeCard => {
       : undefined;
   return {
     id: t.id,
-    name: TICKET_TYPE_LABELS[typeName] ?? t.name,
+    name: TICKET_TYPE_LABELS[typeName] ?? displayTicketTypeName(t.name, t.name),
     subtitle: t.code ?? t.name,
     description: [
       t.description ?? t.conditions ?? "Áp dụng theo quy định của MetroNext.",

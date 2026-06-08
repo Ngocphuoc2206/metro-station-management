@@ -7,6 +7,7 @@ import { myTicketApi, myTicketErrorMessage } from "@features/myTicket/myTicketAp
 import { publicApi } from "@features/public/publicApi";
 import type { StationDto } from "@features/public/publicTypes";
 import type { MyTicketDto, QrTokenResult, TicketHistoryRow } from "@features/myTicket/myTicketTypes";
+import { displayTicketTypeName } from "@utils/ticketTypeName";
 
 const QR_TTL_FALLBACK_SECONDS = 600;
 const VIETNAM_TIME_ZONE = "Asia/Ho_Chi_Minh";
@@ -46,14 +47,7 @@ const ticketStatus = (value: string) => {
 };
 
 const typeName = (ticket: MyTicketDto) => {
-  // Chuyển toàn bộ chuỗi tên loại vé về chữ thường, bỏ dấu để so sánh chính xác
-  const type = `${ticket.ticketTypeName || ""}`.toLowerCase();
-  
-  if (type.includes("tháng") || type.includes("month")) return "Vé tháng";
-  if (type.includes("ngày") || type.includes("daily") || type.includes("day")) return "Vé ngày";
-  if (type.includes("lượt") || type.includes("single")) return "Vé lượt";
-  
-  return ticket.ticketTypeName || "Vé lượt";
+  return displayTicketTypeName(ticket.ticketTypeName);
 };
 
 const parseQrDate = (value?: string) => {
