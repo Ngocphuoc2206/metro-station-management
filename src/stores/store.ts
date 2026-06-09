@@ -9,7 +9,7 @@ import {
   PURGE,
   REGISTER,
 } from "redux-persist";
-import storageSession from "redux-persist/lib/storage/session";
+import storage from "redux-persist/lib/storage";
 
 import userReducer from "./slices/userSlice";
 import layoutReducer from "./slices/layoutSlice";
@@ -22,7 +22,7 @@ const rootReducer = combineReducers({
 const persistConfig = {
   key: "root",
   version: 1,
-  storage: storageSession,
+  storage,
 };
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

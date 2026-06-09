@@ -44,7 +44,13 @@ export default function LoginForm() {
             token: response.data.token,
           }),
         );
-        router.push(ROLE_PATHS[response.data.role] ?? "/auth/login");
+        const redirectTo =
+          typeof router.query.redirectTo === "string" &&
+          router.query.redirectTo.startsWith("/") &&
+          !router.query.redirectTo.startsWith("//")
+            ? router.query.redirectTo
+            : undefined;
+        router.push(redirectTo ?? ROLE_PATHS[response.data.role] ?? "/auth/login");
         return;
       }
       const message =
