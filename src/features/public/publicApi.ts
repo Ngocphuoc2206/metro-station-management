@@ -5,7 +5,6 @@ import type { RouteDto, StationDto, TicketTypeDto } from "./publicTypes";
 
 const USE_MOCK_PUBLIC = process.env.NEXT_PUBLIC_USE_MOCK_PUBLIC === "true";
 const PUBLIC_REQUEST_CONFIG = {
-  skipAuth: true,
   skipAuthRedirect: true,
 };
 
