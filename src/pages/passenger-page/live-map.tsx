@@ -46,7 +46,7 @@ import {
 } from "lucide-react";
 
 type TrainStatus = "on-time" | "delayed" | "arriving";
-type StationStatus = "normal" | "busy" | "maintenance";
+type StationStatus = "normal" | "maintenance";
 
 type Station = {
   id: string;
@@ -91,7 +91,7 @@ const fallbackStations: Station[] = [
     name: "Bến Thành",
     x: 82,
     y: 355,
-    status: "busy",
+    status: "normal",
     congestionLevel: 78,
   },
   {
@@ -123,7 +123,7 @@ const fallbackStations: Station[] = [
     name: "Tân Cảng",
     x: 500,
     y: 220,
-    status: "busy",
+    status: "normal",
     congestionLevel: 72,
   },
   {
@@ -218,14 +218,12 @@ const trainFill: Record<TrainStatus, string> = {
 };
 
 const stationDotClass: Record<StationStatus, string> = {
-  normal: "fill-white stroke-sky-500",
-  busy: "fill-amber-100 stroke-amber-500",
+  normal: "fill-emerald-100 stroke-emerald-600",
   maintenance: "fill-rose-100 stroke-rose-500",
 };
 
 const stationStatusLabel: Record<StationStatus, string> = {
-  normal: "Vận hành ổn định",
-  busy: "Đông khách",
+  normal: "Bình thường",
   maintenance: "Bảo trì",
 };
 
@@ -269,10 +267,7 @@ const mapTrainStatus = (value: string): TrainStatus => {
   return "on-time";
 };
 
-const mapStationStatus = (
-  value: string,
-  congestionLevel = 0,
-): StationStatus => {
+const mapStationStatus = (value: string): StationStatus => {
   const status = value.toUpperCase();
   if (
     status.includes("MAINTENANCE") ||
@@ -280,14 +275,6 @@ const mapStationStatus = (
     status.includes("BẢO")
   ) {
     return "maintenance";
-  }
-  if (
-    status.includes("BUSY") ||
-    status.includes("CROWDED") ||
-    status.includes("ĐÔNG") ||
-    congestionLevel >= 70
-  ) {
-    return "busy";
   }
   return "normal";
 };
@@ -697,7 +684,7 @@ export default function PassengerLiveMapPage() {
           stationId,
         x: liveStation?.x ?? geoX ?? fallback.x,
         y: liveStation?.y ?? geoY ?? fallback.y,
-        status: mapStationStatus(liveStation?.status ?? "", congestionLevel),
+        status: mapStationStatus(liveStation?.status ?? ""),
         congestionLevel,
         message: liveStation?.message,
         updatedAt: liveStation?.updatedAt,
@@ -1230,11 +1217,15 @@ export default function PassengerLiveMapPage() {
                         >
                           <div className="mx-auto max-w-32 rounded-xl border border-white bg-white/92 px-2.5 py-1.5 text-center text-[11px] font-black leading-3 text-slate-900 shadow-sm">
                             <div className="truncate">{station.name}</div>
-                            {station.congestionLevel > 0 ? (
-                              <div className="mt-0.5 text-[10px] font-bold text-slate-500">
-                                {station.congestionLevel}%
-                              </div>
-                            ) : null}
+                            <div
+                              className={`mt-0.5 text-[10px] font-bold ${
+                                station.status === "maintenance"
+                                  ? "text-rose-700"
+                                  : "text-emerald-700"
+                              }`}
+                            >
+                              {stationStatusLabel[station.status]}
+                            </div>
                           </div>
                         </foreignObject>
                       </g>
@@ -1325,12 +1316,8 @@ export default function PassengerLiveMapPage() {
 
                 <div className="absolute bottom-5 left-5 z-20 flex flex-wrap gap-2 rounded-2xl bg-white/95 p-3 text-xs font-semibold text-slate-600 shadow-lg backdrop-blur">
                   <span className="inline-flex items-center gap-1.5">
-                    <Circle className="h-3 w-3 fill-sky-500 text-sky-500" />
+                    <Circle className="h-3 w-3 fill-emerald-500 text-emerald-500" />
                     Bình thường
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <Circle className="h-3 w-3 fill-amber-500 text-amber-500" />
-                    Đông khách
                   </span>
                   <span className="inline-flex items-center gap-1.5">
                     <Circle className="h-3 w-3 fill-rose-500 text-rose-500" />
@@ -1514,8 +1501,16 @@ export default function PassengerLiveMapPage() {
                         {stationStatusLabel[selectedStation.status]}
                       </p>
                     </div>
-                    <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-slate-700 ring-1 ring-slate-200">
-                      {selectedStation.congestionLevel}%
+                    <span
+                      className={`rounded-full bg-white px-3 py-1 text-xs font-black ring-1 ${
+                        selectedStation.status === "maintenance"
+                          ? "text-rose-700 ring-rose-200"
+                          : "text-emerald-700 ring-emerald-200"
+                      }`}
+                    >
+                      {selectedStation.status === "maintenance"
+                        ? "Cần chú ý"
+                        : "Đang mở"}
                     </span>
                   </div>
                   {selectedStation.message ? (
