@@ -17,14 +17,22 @@ const normalizeSchedules = (raw: unknown): ScheduleDto[] => {
   return raw.map((value) => {
     if (!value || typeof value !== "object") return null;
     const item = value as Record<string, unknown>;
+    const station =
+      item.station && typeof item.station === "object"
+        ? (item.station as Record<string, unknown>)
+        : {};
     const id = String(item.id ?? "");
     const routeId = String(item.routeId ?? "");
     const stationId = String(item.stationId ?? "");
+    const stationName = String(
+      item.stationName ?? item.station_name ?? station.name ?? "",
+    );
     if (!id || !routeId || !stationId) return null;
     return {
       id,
       routeId,
       stationId,
+      stationName: stationName || undefined,
       direction: String(item.direction ?? ""),
       departureTime: String(item.departureTime ?? ""),
       arrivalTime: String(item.arrivalTime ?? ""),
