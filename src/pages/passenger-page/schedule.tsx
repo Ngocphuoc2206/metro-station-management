@@ -268,6 +268,9 @@ export default function PassengerSchedulePage() {
   const stationName = (stationId: string) =>
     stations.find((station) => station.id === stationId)?.name ?? stationId;
 
+  const scheduleStationName = (item: ScheduleDto) =>
+    item.stationName ?? stationName(item.stationId);
+
   const selectedStationName =
     stations.find((station) => station.id === selectedStationId)?.name ?? "Tất cả ga";
 
@@ -363,7 +366,7 @@ export default function PassengerSchedulePage() {
 
   const directionLabel = (item: ScheduleDto) => {
     const direction = item.direction === "OUTBOUND" ? "Chiều đi" : item.direction === "INBOUND" ? "Chiều về" : item.direction;
-    return `${direction || "--"} - ${stationName(item.stationId)}`;
+    return `${direction || "--"} - ${scheduleStationName(item)}`;
   };
 
   return (
@@ -578,7 +581,7 @@ export default function PassengerSchedulePage() {
                               <div>
                                 <h3 className="text-sm font-bold text-slate-900">Lịch trình bị trễ</h3>
                                 <p className="mt-1 text-xs leading-4 text-slate-500">
-                                  {routeName(schedule.routeId)} - {stationName(schedule.stationId)} lúc {schedule.departureTime}.
+                                  {routeName(schedule.routeId)} - {scheduleStationName(schedule)} lúc {schedule.departureTime}.
                                 </p>
                               </div>
                             </article>
