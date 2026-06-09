@@ -35,7 +35,6 @@ import {
   Clock3,
   Gauge,
   MapPinned,
-  Navigation,
   Radio,
   Route as RouteIcon,
   Search,
@@ -47,7 +46,7 @@ import {
 } from "lucide-react";
 
 type TrainStatus = "on-time" | "delayed" | "arriving";
-type StationStatus = "normal" | "busy" | "maintenance";
+type StationStatus = "normal" | "maintenance";
 
 type Station = {
   id: string;
@@ -92,7 +91,7 @@ const fallbackStations: Station[] = [
     name: "Bến Thành",
     x: 82,
     y: 355,
-    status: "busy",
+    status: "normal",
     congestionLevel: 78,
   },
   {
@@ -124,7 +123,7 @@ const fallbackStations: Station[] = [
     name: "Tân Cảng",
     x: 500,
     y: 220,
-    status: "busy",
+    status: "normal",
     congestionLevel: 72,
   },
   {
@@ -213,20 +212,18 @@ const statusClass: Record<TrainStatus, string> = {
 };
 
 const trainFill: Record<TrainStatus, string> = {
-  "on-time": "#10B981",
-  delayed: "#F43F5E",
-  arriving: "#0EA5E9",
+  "on-time": "#16A34A",
+  delayed: "#E11D48",
+  arriving: "#F97316",
 };
 
 const stationDotClass: Record<StationStatus, string> = {
-  normal: "fill-white stroke-sky-500",
-  busy: "fill-amber-100 stroke-amber-500",
+  normal: "fill-emerald-100 stroke-emerald-600",
   maintenance: "fill-rose-100 stroke-rose-500",
 };
 
 const stationStatusLabel: Record<StationStatus, string> = {
-  normal: "Vận hành ổn định",
-  busy: "Đông khách",
+  normal: "Bình thường",
   maintenance: "Bảo trì",
 };
 
@@ -270,10 +267,7 @@ const mapTrainStatus = (value: string): TrainStatus => {
   return "on-time";
 };
 
-const mapStationStatus = (
-  value: string,
-  congestionLevel = 0,
-): StationStatus => {
+const mapStationStatus = (value: string): StationStatus => {
   const status = value.toUpperCase();
   if (
     status.includes("MAINTENANCE") ||
@@ -281,14 +275,6 @@ const mapStationStatus = (
     status.includes("BẢO")
   ) {
     return "maintenance";
-  }
-  if (
-    status.includes("BUSY") ||
-    status.includes("CROWDED") ||
-    status.includes("ĐÔNG") ||
-    congestionLevel >= 70
-  ) {
-    return "busy";
   }
   return "normal";
 };
@@ -312,6 +298,28 @@ const minutesUntil = (time: string) => {
 const formatClock = (value: string) => {
   const match = value?.match(/(\d{1,2}):(\d{2})/);
   return match ? `${match[1].padStart(2, "0")}:${match[2]}` : value || "--:--";
+};
+
+const formatMinutesUntil = (minutes: number | null) => {
+  if (minutes === null) return "--";
+  if (minutes <= 0) return "Sắp đến";
+  if (minutes < 60) return `${minutes} phút`;
+
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return remainingMinutes > 0
+    ? `${hours} giờ ${remainingMinutes} phút`
+    : `${hours} giờ`;
+};
+
+const formatCompactMinutesUntil = (minutes: number | null) => {
+  if (minutes === null) return "--";
+  if (minutes <= 0) return "0'";
+  if (minutes < 60) return `${minutes}'`;
+
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}p` : `${hours}h`;
 };
 
 const getScheduleStatus = (status: string) => {
@@ -351,11 +359,24 @@ const toRouteOption = (route: MetroRoute): RouteDto => ({
   color: route.color,
 });
 
+const stationsFromRouteDetails = (routeDetails: MetroRoute[]): StationDto[] => {
+  const byId = new Map<string, StationDto>();
+  routeDetails.forEach((route) => {
+    route.stations?.forEach((station) => {
+      if (!station.stationId || byId.has(station.stationId)) return;
+      byId.set(station.stationId, {
+        id: station.stationId,
+        name: station.stationName || station.stationId,
+      });
+    });
+  });
+  return Array.from(byId.values());
+};
+
 export default function PassengerLiveMapPage() {
   const [routes, setRoutes] = useState<RouteDto[]>([]);
   const [routeDetails, setRouteDetails] = useState<MetroRoute[]>([]);
   const [requestedRouteDetailIds, setRequestedRouteDetailIds] = useState<string[]>([]);
-  const [stationsApi, setStationsApi] = useState<StationDto[]>([]);
   const [schedules, setSchedules] = useState<ScheduleDto[]>([]);
   const [stationStatuses, setStationStatuses] = useState<
     LiveStationStatusDto[]
@@ -377,10 +398,10 @@ export default function PassengerLiveMapPage() {
     let cancelled = false;
 
     const loadCatalog = async () => {
-      const [routeResult, stationResult] = await Promise.allSettled([
-        routeApi.getRoutes(),
-        publicApi.getStations(),
-      ]);
+      const routeResult = await Promise.resolve(routeApi.getRoutes()).then(
+        (value) => ({ status: "fulfilled" as const, value }),
+        (reason) => ({ status: "rejected" as const, reason }),
+      );
 
       if (cancelled) return;
 
@@ -395,12 +416,6 @@ export default function PassengerLiveMapPage() {
         } catch {
           if (!cancelled) setRoutes([]);
         }
-      }
-
-      if (stationResult.status === "fulfilled") {
-        setStationsApi(stationResult.value);
-      } else {
-        setStationsApi([]);
       }
     };
 
@@ -527,6 +542,11 @@ export default function PassengerLiveMapPage() {
     };
   }, [selectedRouteId]);
 
+  const stationsApi = useMemo(
+    () => stationsFromRouteDetails(routeDetails),
+    [routeDetails],
+  );
+
   const stationNameById = useMemo(
     () => new Map(stationsApi.map((station) => [station.id, station.name])),
     [stationsApi],
@@ -569,6 +589,16 @@ export default function PassengerLiveMapPage() {
     });
     return names;
   }, [routeDetails]);
+
+  const scheduleStationNameById = useMemo(() => {
+    const names = new Map<string, string>();
+    schedules.forEach((schedule) => {
+      if (schedule.stationId && schedule.stationName) {
+        names.set(schedule.stationId, schedule.stationName);
+      }
+    });
+    return names;
+  }, [schedules]);
 
   const scheduleLines = useMemo(
     () => buildScheduleLines(schedules, routeStationOrder),
@@ -646,6 +676,7 @@ export default function PassengerLiveMapPage() {
       return {
         id: stationId,
         name:
+          scheduleStationNameById.get(stationId) ??
           stationNameById.get(stationId) ??
           routeStationNameById.get(stationId) ??
           liveStation?.name ??
@@ -653,7 +684,7 @@ export default function PassengerLiveMapPage() {
           stationId,
         x: liveStation?.x ?? geoX ?? fallback.x,
         y: liveStation?.y ?? geoY ?? fallback.y,
-        status: mapStationStatus(liveStation?.status ?? "", congestionLevel),
+        status: mapStationStatus(liveStation?.status ?? ""),
         congestionLevel,
         message: liveStation?.message,
         updatedAt: liveStation?.updatedAt,
@@ -662,6 +693,7 @@ export default function PassengerLiveMapPage() {
   }, [
     routeDetails,
     routeStationNameById,
+    scheduleStationNameById,
     scheduleLines,
     selectedRouteId,
     stationNameById,
@@ -751,8 +783,8 @@ export default function PassengerLiveMapPage() {
                 train.status || !schedulePosition
                   ? inferredStatus
                   : schedulePosition.status,
-              x: train.x ?? schedulePosition?.x ?? fallback.x,
-              y: train.y ?? schedulePosition?.y ?? fallback.y,
+              x: schedulePosition?.x ?? train.x ?? fallback.x,
+              y: schedulePosition?.y ?? train.y ?? fallback.y,
               routeId: train.routeId ?? matchingLine?.routeId,
             };
           })
@@ -845,7 +877,11 @@ export default function PassengerLiveMapPage() {
       .map((schedule) => ({
         ...schedule,
         stationName:
-          stationNameById.get(schedule.stationId) ?? schedule.stationId,
+          schedule.stationName ??
+          scheduleStationNameById.get(schedule.stationId) ??
+          stationNameById.get(schedule.stationId) ??
+          routeStationNameById.get(schedule.stationId) ??
+          schedule.stationId,
         routeName:
           routeNameById.get(schedule.routeId) ?? `Tuyến ${schedule.routeId}`,
         minutesUntil: minutesUntil(
@@ -891,7 +927,9 @@ export default function PassengerLiveMapPage() {
     isStationSchedulePinned,
     resolvedRouteName,
     routeNameById,
+    routeStationNameById,
     schedules,
+    scheduleStationNameById,
     selectedRouteId,
     selectedStation.id,
     stationNameById,
@@ -1028,7 +1066,7 @@ export default function PassengerLiveMapPage() {
                 {nextSchedule
                   ? nextSchedule.source === "live"
                     ? nextSchedule.etaText ||
-                      `${nextSchedule.minutesUntil ?? "--"}'`
+                      formatMinutesUntil(nextSchedule.minutesUntil)
                     : formatClock(nextSchedule.departureTime)
                   : "--:--"}
               </p>
@@ -1044,7 +1082,7 @@ export default function PassengerLiveMapPage() {
             </article>
           </section>
 
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,54rem)_22rem] xl:justify-center">
             <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
                 <div className="flex items-center gap-3">
@@ -1062,14 +1100,14 @@ export default function PassengerLiveMapPage() {
                 </div>
 
                 <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-                  <label className="relative min-w-56">
+                  <label className="relative min-w-48">
                     <RouteIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     <select
                       value={selectedRouteId}
                       onChange={(event) =>
                         setSelectedRouteId(event.target.value)
                       }
-                      className="h-11 w-full appearance-none rounded-2xl border border-slate-200 bg-slate-50 pl-9 pr-4 text-sm font-semibold text-slate-800 outline-none transition focus:border-sky-300 focus:bg-white focus:ring-4 focus:ring-sky-100"
+                      className="h-10 w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-4 text-sm font-semibold text-slate-800 outline-none transition focus:border-sky-300 focus:bg-white focus:ring-4 focus:ring-sky-100"
                     >
                       <option value="">Tất cả tuyến</option>
                       {availableRoutes.map((route) => (
@@ -1080,24 +1118,24 @@ export default function PassengerLiveMapPage() {
                     </select>
                   </label>
 
-                  <label className="relative min-w-56">
+                  <label className="relative min-w-48">
                     <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     <input
                       value={searchTerm}
                       onChange={(event) => setSearchTerm(event.target.value)}
                       placeholder="Tìm ga hoặc mã tàu"
-                      className="h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-9 pr-4 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-sky-300 focus:bg-white focus:ring-4 focus:ring-sky-100"
+                      className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-4 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-sky-300 focus:bg-white focus:ring-4 focus:ring-sky-100"
                     />
                   </label>
                 </div>
               </div>
 
-              <div className="relative min-h-150 overflow-x-auto overflow-y-hidden bg-[#eef4e8]">
-                <div className="absolute inset-0 bg-[linear-gradient(28deg,transparent_0_42%,rgba(245,158,11,0.32)_42%_44%,transparent_44%_100%),linear-gradient(118deg,transparent_0_54%,rgba(248,113,113,0.26)_54%_56%,transparent_56%_100%),linear-gradient(154deg,transparent_0_64%,rgba(59,130,246,0.18)_64%_67%,transparent_67%_100%),linear-gradient(rgba(148,163,184,0.16)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.14)_1px,transparent_1px)] bg-[size:360px_260px,430px_300px,520px_360px,64px_64px,64px_64px]" />
-                <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.62),rgba(255,255,255,0.20))]" />
+              <div className="relative min-h-120 overflow-x-auto overflow-y-hidden bg-[#f7fbf8]">
+                <div className="absolute inset-0 bg-[linear-gradient(28deg,transparent_0_42%,rgba(245,158,11,0.16)_42%_44%,transparent_44%_100%),linear-gradient(118deg,transparent_0_54%,rgba(248,113,113,0.13)_54%_56%,transparent_56%_100%),linear-gradient(154deg,transparent_0_64%,rgba(59,130,246,0.12)_64%_67%,transparent_67%_100%),linear-gradient(rgba(148,163,184,0.12)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.10)_1px,transparent_1px)] bg-[size:360px_260px,430px_300px,520px_360px,64px_64px,64px_64px]" />
+                <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.78),rgba(255,255,255,0.34))]" />
 
                 <svg
-                  className="relative z-10 h-150 w-full min-w-240"
+                  className="relative z-10 h-120 w-full min-w-200"
                   viewBox="0 0 1040 500"
                   role="img"
                   aria-label="Bản đồ trực tuyến tuyến metro"
@@ -1107,16 +1145,16 @@ export default function PassengerLiveMapPage() {
                       <polyline
                         points={linePath}
                         fill="none"
-                        stroke="rgba(14,116,144,0.16)"
-                        strokeWidth="38"
+                        stroke="rgba(3,105,161,0.15)"
+                        strokeWidth="34"
                         strokeLinecap="round"
                         strokeLinejoin="round"
                       />
                       <polyline
                         points={linePath}
                         fill="none"
-                        stroke="#0B6EAD"
-                        strokeWidth="13"
+                        stroke="#0284C7"
+                        strokeWidth="11"
                         strokeLinecap="round"
                         strokeLinejoin="round"
                       />
@@ -1132,13 +1170,15 @@ export default function PassengerLiveMapPage() {
                     </>
                   ) : null}
 
-                  {allDisplayStations.map((station) => {
+                  {allDisplayStations.map((station, index) => {
                     const isSelected = selectedStation.id === station.id;
                     const isDimmed =
                       searchTerm.trim() &&
                       !station.name
                         .toLowerCase()
                         .includes(searchTerm.trim().toLowerCase());
+                    const labelAbove = index % 2 === 1;
+                    const labelY = labelAbove ? station.y - 48 : station.y + 24;
 
                     return (
                       <g
@@ -1168,24 +1208,26 @@ export default function PassengerLiveMapPage() {
                           className={stationDotClass[station.status]}
                           strokeWidth="4"
                         />
-                        <text
-                          x={station.x}
-                          y={station.y + (station.y > 240 ? 36 : -25)}
-                          textAnchor="middle"
-                          className="fill-slate-900 text-[14px] font-bold"
+                        <foreignObject
+                          x={station.x - 68}
+                          y={labelY}
+                          width="136"
+                          height="42"
+                          pointerEvents="none"
                         >
-                          {station.name}
-                        </text>
-                        {station.congestionLevel > 0 ? (
-                          <text
-                            x={station.x}
-                            y={station.y + (station.y > 240 ? 53 : -41)}
-                            textAnchor="middle"
-                            className="fill-slate-600 text-[11px] font-semibold"
-                          >
-                            {station.congestionLevel}%
-                          </text>
-                        ) : null}
+                          <div className="mx-auto max-w-32 rounded-xl border border-white bg-white/92 px-2.5 py-1.5 text-center text-[11px] font-black leading-3 text-slate-900 shadow-sm">
+                            <div className="truncate">{station.name}</div>
+                            <div
+                              className={`mt-0.5 text-[10px] font-bold ${
+                                station.status === "maintenance"
+                                  ? "text-rose-700"
+                                  : "text-emerald-700"
+                              }`}
+                            >
+                              {stationStatusLabel[station.status]}
+                            </div>
+                          </div>
+                        </foreignObject>
                       </g>
                     );
                   })}
@@ -1209,17 +1251,23 @@ export default function PassengerLiveMapPage() {
                         <circle
                           cx={train.x}
                           cy={train.y}
-                          r={isSelected ? 36 : 29}
-                          fill={trainFill[train.status]}
-                          opacity="0.20"
+                          r={isSelected ? 38 : 31}
+                          fill="rgba(15,23,42,0.18)"
+                          transform={`translate(3 5)`}
                         />
                         <circle
                           cx={train.x}
                           cy={train.y}
-                          r={isSelected ? 21 : 17}
-                          fill="#0B6EAD"
-                          stroke="white"
+                          r={isSelected ? 34 : 27}
+                          fill="white"
+                          stroke={trainFill[train.status]}
                           strokeWidth="4"
+                        />
+                        <circle
+                          cx={train.x}
+                          cy={train.y}
+                          r={isSelected ? 22 : 18}
+                          fill={trainFill[train.status]}
                         />
                         <rect
                           x={train.x - 8}
@@ -1229,8 +1277,8 @@ export default function PassengerLiveMapPage() {
                           rx="4"
                           fill="white"
                         />
-                        <circle cx={train.x - 4} cy={train.y - 3} r="1.8" fill="#0B6EAD" />
-                        <circle cx={train.x + 4} cy={train.y - 3} r="1.8" fill="#0B6EAD" />
+                        <circle cx={train.x - 4} cy={train.y - 3} r="1.8" fill={trainFill[train.status]} />
+                        <circle cx={train.x + 4} cy={train.y - 3} r="1.8" fill={trainFill[train.status]} />
                         <path
                           d={`M${train.x - 5} ${train.y + 5}H${train.x + 5}M${train.x - 4} ${train.y + 10}L${train.x - 8} ${train.y + 14}M${train.x + 4} ${train.y + 10}L${train.x + 8} ${train.y + 14}`}
                           fill="none"
@@ -1268,12 +1316,8 @@ export default function PassengerLiveMapPage() {
 
                 <div className="absolute bottom-5 left-5 z-20 flex flex-wrap gap-2 rounded-2xl bg-white/95 p-3 text-xs font-semibold text-slate-600 shadow-lg backdrop-blur">
                   <span className="inline-flex items-center gap-1.5">
-                    <Circle className="h-3 w-3 fill-sky-500 text-sky-500" />
+                    <Circle className="h-3 w-3 fill-emerald-500 text-emerald-500" />
                     Bình thường
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <Circle className="h-3 w-3 fill-amber-500 text-amber-500" />
-                    Đông khách
                   </span>
                   <span className="inline-flex items-center gap-1.5">
                     <Circle className="h-3 w-3 fill-rose-500 text-rose-500" />
@@ -1284,6 +1328,80 @@ export default function PassengerLiveMapPage() {
             </section>
 
             <aside className="space-y-6">
+              <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-sky-50 text-sky-600">
+                      <Radio className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <h2 className="text-lg font-black text-slate-950">
+                        Đoàn tàu trên tuyến
+                      </h2>
+                      <p className="mt-0.5 text-xs font-semibold text-slate-500">
+                        {resolvedRouteName}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700">
+                    {displayTrains.length} tàu
+                  </span>
+                </div>
+
+                <div className="space-y-3">
+                  {displayTrains.length === 0 ? (
+                    <div className="rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-500">
+                      Chưa có đoàn tàu đang hiển thị trên tuyến.
+                    </div>
+                  ) : (
+                    displayTrains.slice(0, 5).map((train) => (
+                      <button
+                        key={train.id}
+                        type="button"
+                        onClick={() => setSelectedTrainId(train.id)}
+                        className={`w-full rounded-2xl border p-3 text-left transition ${
+                          selectedTrain.id === train.id
+                            ? "border-sky-200 bg-sky-50 shadow-sm"
+                            : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <span
+                            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-white"
+                            style={{ backgroundColor: trainFill[train.status] }}
+                          >
+                            <TrainFront className="h-5 w-5" />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="flex items-center justify-between gap-3">
+                              <span className="truncate text-sm font-black text-slate-950">
+                                {train.code}
+                              </span>
+                              <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-black ring-1 ${statusClass[train.status]}`}>
+                                {statusLabel[train.status]}
+                              </span>
+                            </span>
+                            <span className="mt-1 block truncate text-xs font-semibold text-slate-500">
+                              {train.previousStation
+                                ? `${train.previousStation} → ${train.nextStation}`
+                                : `Đang tới ${train.nextStation}`}
+                            </span>
+                            <span className="mt-2 flex items-center justify-between gap-3 text-xs font-bold">
+                              <span className="text-sky-700">
+                                ETA {train.arrivalClock ? `${train.eta} · ${train.arrivalClock}` : train.eta}
+                              </span>
+                              <span className="text-slate-500">
+                                {train.occupancy}% tải
+                              </span>
+                            </span>
+                          </span>
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </section>
+
               <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <div>
@@ -1383,8 +1501,16 @@ export default function PassengerLiveMapPage() {
                         {stationStatusLabel[selectedStation.status]}
                       </p>
                     </div>
-                    <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-slate-700 ring-1 ring-slate-200">
-                      {selectedStation.congestionLevel}%
+                    <span
+                      className={`rounded-full bg-white px-3 py-1 text-xs font-black ring-1 ${
+                        selectedStation.status === "maintenance"
+                          ? "text-rose-700 ring-rose-200"
+                          : "text-emerald-700 ring-emerald-200"
+                      }`}
+                    >
+                      {selectedStation.status === "maintenance"
+                        ? "Cần chú ý"
+                        : "Đang mở"}
                     </span>
                   </div>
                   {selectedStation.message ? (
@@ -1395,148 +1521,117 @@ export default function PassengerLiveMapPage() {
                 </div>
               </section>
 
-              <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="mb-4 flex items-center justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <Clock3 className="h-5 w-5 text-sky-600" />
-                      <h2 className="text-lg font-black text-slate-950">
-                        Lịch sắp đến
-                      </h2>
-                    </div>
-                    <p className="mt-1 text-xs font-semibold text-slate-500">
-                      {isStationSchedulePinned
-                        ? selectedStation.name
-                        : "Toàn tuyến realtime"}
-                    </p>
-                  </div>
-                  {isLoadingSchedule ? (
-                    <span className="text-xs font-bold text-slate-400">
-                      Đang tải
-                    </span>
-                  ) : null}
-                </div>
-
-                <div className="space-y-3">
-                  {upcomingSchedules.length === 0 ? (
-                    <div className="rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-500">
-                      Chưa có lịch trình cho ga hoặc tuyến đang chọn.
-                    </div>
-                  ) : (
-                    upcomingSchedules.map((schedule) => (
-                      <button
-                        key={schedule.id}
-                        type="button"
-                        onClick={() => {
-                          if (schedule.stationId)
-                            selectStation(schedule.stationId);
-                        }}
-                        className="flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 text-left transition hover:border-sky-200 hover:bg-sky-50"
-                      >
-                        <span
-                          className={`flex h-11 w-14 shrink-0 items-center justify-center rounded-2xl text-sm font-black text-white ${
-                            schedule.source === "live"
-                              ? "bg-sky-600"
-                              : "bg-blue-700"
-                          }`}
-                        >
-                          {schedule.source === "live"
-                            ? schedule.etaText ||
-                              `${schedule.minutesUntil ?? "--"}'`
-                            : formatClock(schedule.departureTime)}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-black text-slate-950">
-                            {schedule.stationName}
-                          </span>
-                          <span className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-slate-500">
-                            {schedule.source === "live" && schedule.trainCode
-                              ? schedule.trainCode
-                              : schedule.routeName}
-                            <ArrowRight className="h-3 w-3" />
-                            {getScheduleStatus(schedule.status)}
-                          </span>
-                        </span>
-                        <span className="text-xs font-black text-sky-700">
-                          {schedule.minutesUntil === null
-                            ? "--"
-                            : `${schedule.minutesUntil}'`}
-                        </span>
-                      </button>
-                    ))
-                  )}
-                </div>
-              </section>
             </aside>
           </div>
 
-          <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="mb-4 flex items-center gap-2">
-                <Radio className="h-5 w-5 text-sky-600" />
-                <h2 className="text-lg font-black text-slate-950">
-                  Đoàn tàu trên tuyến
-                </h2>
+          <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-sky-50 text-sky-600">
+                  <Clock3 className="h-5 w-5" />
+                </span>
+                <div>
+                  <h2 className="text-lg font-black text-slate-950">
+                    Lịch sắp đến
+                  </h2>
+                  <p className="mt-0.5 text-xs font-semibold text-slate-500">
+                    {isStationSchedulePinned
+                      ? selectedStation.name
+                      : "Toàn tuyến realtime"}
+                  </p>
+                </div>
               </div>
-              <div className="grid gap-3 md:grid-cols-2">
-                {displayTrains.map((train) => (
+              {isLoadingSchedule ? (
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500">
+                  Đang tải
+                </span>
+              ) : null}
+            </div>
+
+            {upcomingSchedules.length === 0 ? (
+              <div className="rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-500">
+                Chưa có lịch trình cho ga hoặc tuyến đang chọn.
+              </div>
+            ) : (
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                {upcomingSchedules.map((schedule) => (
                   <button
-                    key={train.id}
+                    key={schedule.id}
                     type="button"
-                    onClick={() => setSelectedTrainId(train.id)}
-                    className={`flex items-center justify-between rounded-2xl border p-3 text-left transition ${
-                      selectedTrain.id === train.id
-                        ? "border-sky-200 bg-sky-50"
-                        : "border-slate-200 bg-white hover:bg-slate-50"
-                    }`}
+                    onClick={() => {
+                      if (schedule.stationId) selectStation(schedule.stationId);
+                    }}
+                    className="rounded-2xl border border-slate-200 bg-white p-3 text-left transition hover:border-sky-200 hover:bg-sky-50"
                   >
-                    <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex items-start gap-3">
                       <span
-                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-white"
-                        style={{ backgroundColor: trainFill[train.status] }}
+                        className={`flex h-12 w-16 shrink-0 flex-col items-center justify-center rounded-2xl text-white ${
+                          schedule.source === "live" ? "bg-sky-600" : "bg-blue-700"
+                        }`}
                       >
-                        <TrainFront className="h-5 w-5" />
+                        <span className="text-sm font-black leading-4">
+                          {schedule.source === "live"
+                            ? formatCompactMinutesUntil(schedule.minutesUntil)
+                            : formatClock(schedule.departureTime)}
+                        </span>
+                        <span className="mt-0.5 text-[10px] font-bold uppercase leading-3 opacity-80">
+                          {schedule.source === "live" ? "ETA" : "Giờ đi"}
+                        </span>
                       </span>
-                      <span className="min-w-0">
+                      <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-black text-slate-950">
-                          {train.code}
+                          {schedule.stationName}
                         </span>
-                        <span className="block truncate text-xs font-semibold text-slate-500">
-                          {train.previousStation
-                            ? `${train.previousStation} → ${train.nextStation}`
-                            : train.nextStation} · {train.eta}
+                        <span className="mt-1 block truncate text-xs font-semibold text-slate-500">
+                          {schedule.source === "live" && schedule.trainCode
+                            ? schedule.trainCode
+                            : schedule.routeName}
+                        </span>
+                        <span className="mt-2 flex items-center justify-between gap-2 text-xs font-semibold text-slate-500">
+                          <span className="inline-flex min-w-0 items-center gap-1.5 truncate">
+                            <ArrowRight className="h-3 w-3 shrink-0 text-slate-400" />
+                            <span className="truncate">{getScheduleStatus(schedule.status)}</span>
+                          </span>
+                          <span className="shrink-0 rounded-full bg-sky-50 px-2.5 py-1 text-[11px] font-black text-sky-700">
+                            {formatMinutesUntil(schedule.minutesUntil)}
+                          </span>
                         </span>
                       </span>
-                    </div>
-                    <Navigation className="h-4 w-4 shrink-0 text-slate-400" />
+                    </span>
                   </button>
                 ))}
               </div>
-            </div>
+            )}
+          </section>
 
-            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="mb-4 flex items-center gap-2">
+          <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="grid gap-3 md:grid-cols-[13rem_1fr]">
+              <div className="flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-3">
                 <Activity className="h-5 w-5 text-sky-600" />
-                <h2 className="text-lg font-black text-slate-950">
-                  Tình hình vận hành
-                </h2>
+                <div>
+                  <h2 className="text-sm font-black text-slate-950">
+                    Tình hình vận hành
+                  </h2>
+                  <p className="text-xs font-semibold text-slate-500">
+                    Tóm tắt hiện tại
+                  </p>
+                </div>
               </div>
-              <div className="space-y-3">
+              <div className="grid gap-3 sm:grid-cols-3">
                 {[
                   {
                     icon: Gauge,
-                    label: "Mật độ hệ thống",
+                    label: "Mật độ",
                     value: `${averageOccupancy}%`,
-                    text: "Dựa trên các đoàn tàu đang hiển thị.",
+                    tone: "text-violet-700 bg-violet-50",
                   },
                   {
                     icon: AlertTriangle,
-                    label: "Tàu cần chú ý",
+                    label: "Tàu chú ý",
                     value: delayedTrains,
-                    text:
-                      delayedTrains > 0
-                        ? "Có tàu đang báo trễ."
-                        : "Không có cảnh báo trễ.",
+                    tone: delayedTrains > 0
+                      ? "text-rose-700 bg-rose-50"
+                      : "text-emerald-700 bg-emerald-50",
                   },
                   {
                     icon: Wrench,
@@ -1544,27 +1639,26 @@ export default function PassengerLiveMapPage() {
                     value: allDisplayStations.filter(
                       (station) => station.status === "maintenance",
                     ).length,
-                    text: "Theo trạng thái live của từng ga.",
+                    tone: "text-slate-700 bg-slate-50",
                   },
                 ].map((item) => {
                   const Icon = item.icon;
                   return (
                     <div
                       key={item.label}
-                      className="rounded-2xl bg-slate-50 p-4"
+                      className="flex items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-white px-4 py-3"
                     >
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2 text-sm font-black text-slate-950">
-                          <Icon className="h-4 w-4 text-sky-600" />
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${item.tone}`}>
+                          <Icon className="h-4 w-4" />
+                        </span>
+                        <span className="truncate text-sm font-bold text-slate-600">
                           {item.label}
-                        </div>
-                        <span className="text-sm font-black text-slate-950">
-                          {item.value}
                         </span>
                       </div>
-                      <p className="mt-1 text-xs font-semibold text-slate-500">
-                        {item.text}
-                      </p>
+                      <span className="text-lg font-black text-slate-950">
+                        {item.value}
+                      </span>
                     </div>
                   );
                 })}
