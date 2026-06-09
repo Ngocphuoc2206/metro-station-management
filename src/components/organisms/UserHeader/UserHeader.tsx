@@ -69,16 +69,32 @@ export const UserHeader = () => {
           </ul>
         </nav>
 
-        <Link
-          href="/auth/login"
-          className="inline-flex h-10 min-w-24 items-center justify-center overflow-hidden rounded-3xl bg-blue-600 px-4 transition-colors hover:bg-blue-700"
-        >
-          <span className="inline-flex flex-col items-center justify-start overflow-hidden">
-            <span className="h-5 w-20 text-center text-sm font-bold leading-5 tracking-tight text-white">
-              Đăng nhập
-            </span>
-          </span>
-        </Link>
+        <div className="flex items-center gap-3">
+          {!isLoggedIn ? (
+            <>
+              <Link
+                href="/auth/signup"
+                className="inline-flex h-10 min-w-24 items-center justify-center rounded-3xl border border-blue-600 px-4 text-sm font-bold leading-5 tracking-tight text-blue-600 transition-colors hover:bg-blue-50"
+              >
+                Đăng ký
+              </Link>
+
+              <Link
+                href="/auth/login"
+                className="inline-flex h-10 min-w-24 items-center justify-center rounded-3xl bg-blue-600 px-4 text-sm font-bold leading-5 tracking-tight text-white transition-colors hover:bg-blue-700"
+              >
+                Đăng nhập
+              </Link>
+            </>
+          ) : (
+            <Link
+              href={BUY_TICKET_PATH}
+              className="inline-flex h-10 min-w-24 items-center justify-center rounded-3xl bg-blue-600 px-4 text-sm font-bold leading-5 tracking-tight text-white transition-colors hover:bg-blue-700"
+            >
+              Mua vé
+            </Link>
+          )}
+        </div>
       </div>
     </header>
   );
