@@ -179,7 +179,7 @@ export default function StaffDashboard() {
   const [incidentPriority, setIncidentPriority] = useState("");
   const [loading, setLoading] = useState(true);
   const [clock, setClock] = useState(getNow());
-  const [timeWindow, setTimeWindow] = useState<TimeWindow>("24h");
+  const timeWindow: TimeWindow = "24h";
   const [chartRange, setChartRange] = useState<"24h" | "7d">("24h");
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -315,9 +315,9 @@ export default function StaffDashboard() {
         <div />
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4 flex items-end gap-4">
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4 flex flex-wrap items-end gap-4">
         {/* Từ ngày */}
-        <div className="flex flex-col gap-1 flex-1">
+        <div className="flex flex-col gap-1 flex-1 min-w-[140px] md:min-w-[180px]">
           <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Từ ngày</span>
           <input
             type="date"
@@ -325,13 +325,12 @@ export default function StaffDashboard() {
             max={draftDateTo}
             onChange={(e) => setDraftDateFrom(e.target.value)}
             aria-label="Từ ngày"
-            className="w-full text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 bg-gray-50 text-gray-700 focus:outline-none"
+            className="w-full h-10 text-sm border border-gray-200 rounded-xl px-3 bg-gray-50 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100"
           />
         </div>
-        <div className="relative min-w-0 flex-1 basis-full sm:basis-auto">
-          <svg className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
+        {/* Đến ngày */}
+        <div className="flex flex-col gap-1 flex-1 min-w-[140px] md:min-w-[180px]">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Đến ngày</span>
           <input
             type="date"
             value={draftDateTo}
@@ -339,7 +338,7 @@ export default function StaffDashboard() {
             max={new Date().toISOString().split("T")[0]}
             onChange={(e) => setDraftDateTo(e.target.value)}
             aria-label="Đến ngày"
-            className="w-full text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 bg-gray-50 text-gray-700 focus:outline-none"
+            className="w-full h-10 text-sm border border-gray-200 rounded-xl px-3 bg-gray-50 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100"
           />
         </div>
         <select
@@ -359,7 +358,7 @@ export default function StaffDashboard() {
             }
           }}
           aria-label="Lọc theo ga"
-          className="h-10 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100 sm:w-auto sm:min-w-40"
+          className="h-10 flex-1 min-w-[160px] md:min-w-[200px] rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100"
         >
           <option value="">Tất cả ga</option>
           {stations.map((station) => (
@@ -372,7 +371,7 @@ export default function StaffDashboard() {
           value={draftDeviceId}
           onChange={(event) => setDraftDeviceId(event.target.value)}
           aria-label="Lọc theo thiết bị"
-          className="h-10 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100 sm:w-auto sm:min-w-44"
+          className="h-10 flex-1 min-w-[180px] md:min-w-[220px] rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100"
         >
           <option value="">Tất cả thiết bị</option>
           {devices
@@ -383,27 +382,13 @@ export default function StaffDashboard() {
               </option>
             ))}
         </select>
-        <select
-          value={timeWindow}
-          onChange={(event) => setTimeWindow(event.target.value as TimeWindow)}
-          aria-label="Lọc theo khoảng thời gian"
-          className="h-10 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100 sm:w-auto"
-        >
-          <option value="1h">1 giờ</option>
-          <option value="24h">24 giờ</option>
-          <option value="7d">7 ngày</option>
-        </select>
-
-        <div className="flex h-10 w-full items-center rounded-xl bg-gray-50 px-3 sm:ml-auto sm:w-auto">
-          <span className="text-xs text-gray-400 font-mono">Cập nhật: {clock}</span>
-        </div>
 
         {/* Nút Tìm kiếm */}
-        <div className="flex-shrink-0">
+        <div className="flex-1 min-w-[120px] md:min-w-[150px]">
           <button
             type="button"
             onClick={handleSearch}
-            className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-blue-700 transition"
+            className="w-full h-10 flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 transition"
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />

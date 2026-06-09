@@ -4,7 +4,6 @@ import { routeApi } from "@features/route/routeApi";
 import { Route } from "@features/route/routeTypes";
 import RouteList from "./RouteList";
 import StationSequence from "./StationSequence";
-import RouteOperatingParams from "./RouteOperatingParams";
 import RouteFormModal from "./RouteFormModal";
 
 export default function RouteManagement() {
@@ -136,18 +135,7 @@ export default function RouteManagement() {
     }
   };
 
-  const handleUpdateParams = async (updates: Partial<Route>) => {
-    if (!selectedRouteId) return;
-    try {
-      const updated = await routeApi.updateRoute(selectedRouteId, updates);
-      setRoutes((prev) =>
-        prev.map((r) => (r.id === selectedRouteId ? updated : r)),
-      );
-    } catch (e) {
-      console.error(e);
-      alert("Lỗi cập nhật thông số");
-    }
-  };
+  // Removed handleUpdateParams
 
   if (loading) {
     return (
@@ -234,13 +222,7 @@ export default function RouteManagement() {
               />
             )}
 
-            {/* Right: Params */}
-            <div className="w-full shrink-0 overflow-y-auto px-1 xl:h-full xl:w-auto">
-              <RouteOperatingParams
-                route={selectedRoute}
-                onUpdate={handleUpdateParams}
-              />
-            </div>
+            {/* Params removed per request */}
           </div>
         ) : (
           <div className="flex-1 flex items-center justify-center bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl h-full">

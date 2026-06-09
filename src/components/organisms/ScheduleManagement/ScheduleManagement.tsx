@@ -53,6 +53,7 @@ export default function ScheduleManagement() {
   const [editingScheduleId, setEditingScheduleId] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedRouteFilter, setSelectedRouteFilter] = useState("");
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,13 +68,21 @@ export default function ScheduleManagement() {
     [stations],
   );
 
-  const displayedSchedules = useMemo(
-    () =>
-      selectedRouteFilter
-        ? schedules.filter((schedule) => schedule.routeId === selectedRouteFilter)
-        : schedules,
-    [schedules, selectedRouteFilter],
-  );
+  const displayedSchedules = useMemo(() => {
+    let result = schedules;
+    if (selectedRouteFilter) {
+      result = result.filter((schedule) => schedule.routeId === selectedRouteFilter);
+    }
+    if (search) {
+      const s = search.toLowerCase();
+      result = result.filter(
+        (schedule) =>
+          (routeNameById.get(schedule.routeId) || "").toLowerCase().includes(s) ||
+          (stationNameById.get(schedule.stationId) || "").toLowerCase().includes(s)
+      );
+    }
+    return result;
+  }, [schedules, selectedRouteFilter, search, routeNameById, stationNameById]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -145,6 +154,17 @@ export default function ScheduleManagement() {
     setIsFormOpen(true);
   };
 
+  const deleteSchedule = async (id: string) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa lịch tàu này?")) return;
+    try {
+      await adminScheduleApi.delete(id);
+      setSchedules((current) => current.filter((s) => s.id !== id));
+      setSuccessMessage("Đã xóa lịch tàu.");
+    } catch (err) {
+      setError(adminScheduleErrorMessage(err));
+    }
+  };
+
   const submitForm = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSaving(true);
@@ -183,7 +203,7 @@ export default function ScheduleManagement() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="mb-1 text-2xl font-bold leading-tight text-gray-900">
             Quản lý lịch tàu chạy
@@ -194,36 +214,79 @@ export default function ScheduleManagement() {
             <span className="font-medium text-gray-600">Lịch tàu</span>
           </nav>
         </div>
+      </div>
 
-        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
-          <select
-            value={selectedRouteFilter}
-            onChange={(event) => setSelectedRouteFilter(event.target.value)}
-            className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 sm:w-auto"
+      <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[200px]">
+          <svg
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
           >
-            <option value="">Tất cả tuyến</option>
-            {routes.map((route) => (
-              <option key={route.id} value={route.id}>
-                {route.name}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            onClick={loadData}
-            disabled={loading}
-            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50 sm:w-auto"
-          >
-            Tải lại
-          </button>
-          <button
-            type="button"
-            onClick={openCreateModal}
-            className="w-full rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 sm:w-auto"
-          >
-            Thêm lịch tàu
-          </button>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Tìm kiếm tuyến, ga..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+          />
         </div>
+
+        <select
+          value={selectedRouteFilter}
+          onChange={(event) => setSelectedRouteFilter(event.target.value)}
+          className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100 w-auto min-w-[140px]"
+        >
+          <option value="">Tất cả tuyến</option>
+          {routes.map((route) => (
+            <option key={route.id} value={route.id}>
+              {route.name}
+            </option>
+          ))}
+        </select>
+
+        <select
+          className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100 w-auto min-w-[130px]"
+          defaultValue=""
+        >
+          <option value="">Hướng chạy</option>
+          <option value="OUTBOUND">Chiều đi</option>
+          <option value="INBOUND">Chiều về</option>
+        </select>
+
+        <select
+          className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100 w-auto min-w-[130px]"
+          defaultValue=""
+        >
+          <option value="">Trạng thái</option>
+          <option value="ACTIVE">Đang chạy</option>
+          <option value="DELAYED">Trễ</option>
+          <option value="INACTIVE">Tạm ngưng</option>
+        </select>
+
+        <button
+          type="button"
+          className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 whitespace-nowrap"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          Tìm kiếm
+        </button>
+
+        <button
+          type="button"
+          onClick={openCreateModal}
+          className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 whitespace-nowrap"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Thêm lịch tàu
+        </button>
       </div>
 
       {error ? (
@@ -239,19 +302,6 @@ export default function ScheduleManagement() {
 
       <div>
         <section className="app-table-shell">
-          <div className="flex flex-col gap-2 border-b border-gray-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-base font-bold text-gray-900">
-                Danh sách lịch tàu
-              </h2>
-              <p className="mt-0.5 text-xs text-gray-500">
-                Dữ liệu lấy từ GET /schedules.
-              </p>
-            </div>
-            <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
-              {displayedSchedules.length} lịch
-            </span>
-          </div>
 
           <div className="app-table-scroll">
             <table className="app-table min-w-[900px] text-left text-sm">
@@ -264,7 +314,7 @@ export default function ScheduleManagement() {
                   <th className="px-5 py-3">Đến</th>
                   <th className="px-5 py-3">Tần suất</th>
                   <th className="px-5 py-3">Trạng thái</th>
-                  <th className="px-5 py-3 text-right">Thao tác</th>
+                  <th className="px-5 py-3 text-center w-[120px]">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -314,14 +364,29 @@ export default function ScheduleManagement() {
                           {statusLabel[schedule.status] ?? schedule.status}
                         </span>
                       </td>
-                      <td className="px-5 py-4 text-right">
-                        <button
-                          type="button"
-                          onClick={() => editSchedule(schedule)}
-                          className="rounded-lg px-3 py-1.5 text-xs font-bold text-blue-600 transition hover:bg-blue-50"
-                        >
-                          Sửa
-                        </button>
+                      <td className="px-5 py-4 text-center">
+                        <div className="flex justify-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => editSchedule(schedule)}
+                            className="text-gray-400 hover:text-blue-600 transition"
+                            title="Sửa"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => deleteSchedule(schedule.id)}
+                            className="text-gray-400 hover:text-red-600 transition"
+                            title="Xóa"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))

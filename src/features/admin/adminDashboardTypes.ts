@@ -24,10 +24,12 @@ export interface GateActivity {
 export type AlertSeverity = "critical" | "warning" | "info";
 
 export interface Alert {
-  id: string;       // "#ERR-0941"
+  id: string;       // "#ERR-0941" or "SC001"
+  rawId?: string;   // actual UUID of the incident
   station: string;
   device: string;
   content: string;
   severity: AlertSeverity;
   time: string;     // "HH:mm:ss"
+  isIncident?: boolean;
 }

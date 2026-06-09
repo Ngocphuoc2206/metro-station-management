@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import ReportHeader from "./ReportHeader";
 import ReportFilter from "./ReportFilter";
 import ReportDashboardCharts from "./ReportDashboardCharts";
@@ -6,12 +6,19 @@ import ReportDataTable from "./ReportDataTable";
 import { useReportData } from "@features/admin/useReportData";
 
 export default function ReportManagement() {
-  const reportData = useReportData();
+  const [dateRange, setDateRange] = useState<"today" | "7d" | "30d">("30d");
+  const reportData = useReportData(dateRange);
+
+  const handleFilterSearch = (filters: { date: string; station: string; channel: string }) => {
+    if (filters.date === "today" || filters.date === "7d" || filters.date === "30d") {
+      setDateRange(filters.date);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-6 relative pb-10">
       <ReportHeader />
-      <ReportFilter />
+      <ReportFilter onSearch={handleFilterSearch} />
 
       {reportData.loading && (
         <div className="flex items-center justify-center py-16 text-gray-400">

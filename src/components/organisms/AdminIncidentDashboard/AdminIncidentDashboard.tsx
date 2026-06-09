@@ -1,602 +1,503 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useMemo, useEffect } from "react";
+/* eslint-disable @typescript-eslint/no-explicit-any, @next/next/no-img-element */
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { incidentApi } from "@features/incident/incidentApi";
 import type { IncidentRecord } from "@features/incident/incidentTypes";
+import { userApi } from "@features/user/userApi";
+import type { User } from "@features/user/userTypes";
+import { toast } from "react-hot-toast";
 
-// ── Mock Data ─────────────────────────────────────────────────────────────────
-const MOCK_INCIDENTS: IncidentRecord[] = [
-  {
-    id: "INC-001",
-    title: "Hỏng màn hình quét vé",
-    stationId: "Ga Bến Thành",
-    deviceId: "GATE-BT-01",
-    deviceType: "gate",
-    severity: "high",
-    status: "Open",
-    assigneeName: undefined,
-    description:
-      "Màn hình cảm ứng tại máy bán vé số 4 không phản hồi thao tác của người dùng, cần kiểm tra kết nối và phần cứng.",
-    createdAt: "2026-06-06T01:00:00Z",
-    updatedAt: "2026-06-06T01:00:00Z",
-  },
-  {
-    id: "INC-002",
-    title: "Lỗi thẻ nhớ và màn hình",
-    stationId: "Ga Suối Tiên",
-    deviceId: "GATE-ST-03",
-    deviceType: "gate",
-    severity: "medium",
-    status: "Assigned",
-    assigneeName: "Nguyễn Văn An",
-    description: "Thẻ nhớ bị hỏng, màn hình hiển thị nhiễu.",
-    createdAt: "2026-06-06T01:30:00Z",
-    updatedAt: "2026-06-06T02:00:00Z",
-  },
-  {
-    id: "INC-003",
-    title: "Hỏng thẻ nhớ thiết bị",
-    stationId: "Ga Tân Cảng",
-    deviceId: "DEV-TC-07",
-    deviceType: "device",
-    severity: "low",
-    status: "InProgress",
-    assigneeName: "Lê Văn Tuấn",
-    description: "Thẻ nhớ cần thay mới, thiết bị không khởi động được.",
-    createdAt: "2026-06-06T00:00:00Z",
-    updatedAt: "2026-06-06T02:10:00Z",
-  },
-  {
-    id: "INC-004",
-    title: "Hỏng màn hình tiền sảnh",
-    stationId: "Ga Nhà hát TP",
-    deviceId: "DISP-NH-02",
-    deviceType: "display",
-    severity: "critical",
-    status: "InProgress",
-    assigneeName: "Trần Minh",
-    description: "Màn hình tắt đột ngột, không hiển thị thông tin tàu.",
-    createdAt: "2026-06-05T22:00:00Z",
-    updatedAt: "2026-06-06T01:55:00Z",
-  },
-  {
-    id: "INC-005",
-    title: "Lỗi quét thẻ thanh toán",
-    stationId: "Ga Bình Thái",
-    deviceId: "GATE-BT-09",
-    deviceType: "gate",
-    severity: "high",
-    status: "Resolved",
-    assigneeName: "Nguyễn Văn An",
-    description: "Cổng quét không nhận thẻ từ, hành khách không qua được.",
-    createdAt: "2026-06-05T18:00:00Z",
-    updatedAt: "2026-06-06T00:30:00Z",
-  },
-  {
-    id: "INC-006",
-    title: "Hỏng máy in vé tự động",
-    stationId: "Ga Bà Chiểu",
-    deviceId: "PRINT-BC-01",
-    deviceType: "printer",
-    severity: "medium",
-    status: "Resolved",
-    assigneeName: "Lê Văn Tuấn",
-    description: "Máy in hết giấy và bị kẹt giấy, không in được vé.",
-    createdAt: "2026-06-05T16:00:00Z",
-    updatedAt: "2026-06-05T20:00:00Z",
-  },
-  {
-    id: "INC-007",
-    title: "Camera an ninh offline",
-    stationId: "Ga Phước Long",
-    deviceId: "CAM-PL-04",
-    deviceType: "camera",
-    severity: "high",
-    status: "Open",
-    assigneeName: undefined,
-    description: "Camera không kết nối được tới server ghi hình trung tâm.",
-    createdAt: "2026-06-06T02:00:00Z",
-    updatedAt: "2026-06-06T02:00:00Z",
-  },
-  {
-    id: "INC-008",
-    title: "Thang cuốn dừng hoạt động",
-    stationId: "Ga An Phú",
-    deviceId: "ESC-AP-02",
-    deviceType: "elevator",
-    severity: "critical",
-    status: "Open",
-    assigneeName: undefined,
-    description:
-      "Thang cuốn B2 bị kẹt cơ học, cần kỹ thuật viên kiểm tra ngay.",
-    createdAt: "2026-06-06T01:45:00Z",
-    updatedAt: "2026-06-06T01:45:00Z",
-  },
-  {
-    id: "INC-009",
-    title: "Lỗi hệ thống bảng giờ",
-    stationId: "Ga Rạch Chiếc",
-    deviceId: "SYS-RC-01",
-    deviceType: "system",
-    severity: "low",
-    status: "Resolved",
-    assigneeName: "Trần Minh",
-    description: "Bảng giờ tàu hiển thị sai lệch 10 phút, cần đồng bộ lại.",
-    createdAt: "2026-06-05T14:00:00Z",
-    updatedAt: "2026-06-05T17:00:00Z",
-  },
-  {
-    id: "INC-010",
-    title: "Mất điện tạm thời khu vực A",
-    stationId: "Ga Thủ Đức",
-    deviceId: "ELEC-TD-01",
-    deviceType: "electric",
-    severity: "critical",
-    status: "InProgress",
-    assigneeName: "Nguyễn Văn An",
-    description:
-      "Mất điện khu A, hệ thống UPS đang hoạt động, cần khôi phục điện lưới.",
-    createdAt: "2026-06-06T00:30:00Z",
-    updatedAt: "2026-06-06T01:30:00Z",
-  },
-];
-
-const MOCK_STAFF = [
-  { id: "s1", name: "Nguyễn Văn An", email: "an@metro.com" },
-  { id: "s2", name: "Lê Văn Tuấn", email: "tuan@metro.com" },
-  { id: "s3", name: "Trần Minh", email: "minh@metro.com" },
-  { id: "s4", name: "Phạm Thị Hoa", email: "hoa@metro.com" },
-  { id: "s5", name: "Nguyễn Thị Lan", email: "lan@metro.com" },
-];
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function toShortCode(id: string) {
-  const match = id.match(/\d+/);
-  return match
-    ? `SC${String(parseInt(match[0], 10)).padStart(3, "0")}`
-    : id.slice(0, 6).toUpperCase();
-}
-
-// ── Badges ────────────────────────────────────────────────────────────────────
+// ── Badges ─────────────────────────────────────────────────────────────────────
 function SeverityBadge({ severity }: { severity: string }) {
-  const map: Record<string, { label: string; cls: string; icon?: boolean }> = {
-    critical: { label: "Nguy cấp", cls: "bg-red-600 text-white", icon: true },
-    high: { label: "Cao", cls: "bg-red-600 text-white", icon: true },
-    medium: {
-      label: "Trung bình",
-      cls: "bg-yellow-100 text-yellow-700 border border-yellow-200",
-    },
-    low: {
-      label: "Thấp",
-      cls: "bg-gray-100 text-gray-600 border border-gray-200",
-    },
+  const map: Record<string, { label: string; cls: string }> = {
+    critical: { label: "Nguy cấp",  cls: "bg-red-100 text-red-700 border border-red-200" },
+    high:     { label: "Cao",        cls: "bg-orange-100 text-orange-700 border border-orange-200" },
+    medium:   { label: "Trung bình", cls: "bg-yellow-100 text-yellow-700 border border-yellow-200" },
+    low:      { label: "Thấp",       cls: "bg-gray-100 text-gray-600 border border-gray-200" },
   };
   const v = map[severity] ?? map.low;
   return (
-    <span
-      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold ${v.cls}`}
-    >
-      {v.icon && (
-        <svg
-          className="w-3 h-3"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2.5}
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M12 9v2m0 4h.01M21 19H3L12 3l9 16z"
-          />
-        </svg>
-      )}
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-semibold ${v.cls}`}>
       {v.label}
     </span>
   );
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { label: string; dot: string; bg: string }> = {
-    Open: {
-      label: "Tạo mới",
-      dot: "bg-gray-400",
-      bg: "bg-gray-100 text-gray-600 border border-gray-200",
-    },
-    Assigned: {
-      label: "Đã phân công",
-      dot: "bg-blue-500",
-      bg: "bg-blue-50 text-blue-700 border border-blue-200",
-    },
-    InProgress: {
-      label: "Đang xử lý",
-      dot: "bg-orange-500",
-      bg: "bg-orange-50 text-orange-700 border border-orange-200",
-    },
-    Escalated: {
-      label: "Đang xử lý",
-      dot: "bg-orange-500",
-      bg: "bg-orange-50 text-orange-700 border border-orange-200",
-    },
-    Resolved: {
-      label: "Đã hoàn thành",
-      dot: "bg-green-500",
-      bg: "bg-green-50 text-green-700 border border-green-200",
-    },
-    Closed: {
-      label: "Đã đóng",
-      dot: "bg-slate-500",
-      bg: "bg-slate-100 text-slate-600 border border-slate-200",
-    },
+  const map: Record<string, { label: string; dot: string; cls: string }> = {
+    Open:       { label: "Mới tạo",      dot: "bg-gray-400",   cls: "text-gray-600" },
+    Approved:   { label: "Đã phê duyệt", dot: "bg-blue-400",   cls: "text-blue-700" },
+    Assigned:   { label: "Đã phân công", dot: "bg-blue-500",   cls: "text-blue-700" },
+    InProgress: { label: "Đang xử lý",  dot: "bg-orange-500", cls: "text-orange-700" },
+    Escalated:  { label: "Đang xử lý",  dot: "bg-orange-500", cls: "text-orange-700" },
+    Resolved:   { label: "Đã hoàn thành", dot: "bg-green-500", cls: "text-green-700" },
+    Closed:     { label: "Đã đóng",      dot: "bg-slate-500",  cls: "text-slate-600" },
   };
   const v = map[status] ?? map.Open;
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${v.bg}`}
-    >
+    <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${v.cls}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${v.dot}`} />
       {v.label}
     </span>
   );
 }
 
-// ── Detail Modal ──────────────────────────────────────────────────────────────
+function toShortCode(id: string) {
+  const match = id.match(/\d+/);
+  return match ? `SC${String(parseInt(match[0], 10)).padStart(3, "0")}` : id.slice(0, 6).toUpperCase();
+}
+
+// ── Incident Detail Modal ───────────────────────────────────────────────────────
 function IncidentDetailModal({
   incident,
+  staffList,
   onClose,
-  onSaved,
+  onSave,
+  onCloseIncident,
+  onReopenIncident,
+  actionLoading,
 }: {
   incident: IncidentRecord;
+  staffList: User[];
   onClose: () => void;
-  onSaved: (id: string, assigneeName: string, status: string) => void;
+  onSave: (incidentId: string, staffId: string) => Promise<void>;
+  onCloseIncident: (incidentId: string) => Promise<void>;
+  onReopenIncident: (incidentId: string) => Promise<void>;
+  actionLoading: boolean;
 }) {
+  const [selectedStaffId, setSelectedStaffId] = useState("");
+  const [detail, setDetail] = useState<any>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
   const shortCode = toShortCode(incident.id);
-  const currentStaff = MOCK_STAFF.find((s) => s.name === incident.assigneeName);
-  const [selectedStaffId, setSelectedStaffId] = useState(
-    currentStaff?.id ?? "",
-  );
-  const [saving, setSaving] = useState(false);
 
-  // Đọc ảnh bằng chứng từ localStorage (staff đã lưu khi hoàn thành sự cố)
-  const evidenceImages: string[] = (() => {
-    if (typeof window === "undefined") return [];
-    try {
-      const raw = localStorage.getItem("incident_evidence_v1");
-      const store = raw ? (JSON.parse(raw) as Record<string, string[]>) : {};
-      return store[incident.id] ?? [];
-    } catch {
-      return [];
+  useEffect(() => {
+    let active = true;
+    async function fetchDetail() {
+      setLoadingDetail(true);
+      try {
+        const d = await incidentApi.getIncidentById(incident.id);
+        if (active) setDetail(d);
+      } catch (err1) {
+        console.warn("Failed to get incident detail via staff endpoint, trying admin endpoint:", err1);
+        try {
+          const d = await incidentApi.getIncidentByIdAdmin(incident.id);
+          if (active) setDetail(d);
+        } catch (err2) {
+          console.error("Lỗi lấy chi tiết sự cố:", err2);
+          if (active) setDetail(incident);
+        }
+      } finally {
+        if (active) setLoadingDetail(false);
+      }
     }
-  })();
+    fetchDetail();
+    return () => {
+      active = false;
+    };
+  }, [incident]);
 
-  const isResolved =
-    incident.status === "Resolved" || incident.status === "Closed";
+  const staffReport = useMemo(() => {
+    if (!detail || !detail.comments) return { note: "Không có ghi chú.", images: [] as string[] };
+    
+    // Tìm các bình luận từ comments list
+    const comments = detail.comments || [];
+    if (comments.length === 0) return { note: "Không có ghi chú.", images: [] as string[] };
+    
+    // Tìm bình luận chứa thông tin báo cáo khắc phục của nhân viên
+    // (Bỏ qua các bình luận hệ thống bắt đầu bằng "[")
+    let reportComment = "";
+    const foundWithImages = [...comments].reverse().find((c: any) => c.content?.includes("Hình ảnh bằng chứng xử lý:"));
+    if (foundWithImages) {
+      reportComment = foundWithImages.content || "";
+    } else {
+      const userComments = comments.filter((c: any) => c.content && !c.content.trim().startsWith("["));
+      if (userComments.length > 0) {
+        reportComment = userComments[userComments.length - 1].content || "";
+      } else {
+        reportComment = comments[comments.length - 1].content || "";
+      }
+    }
 
-  const handleSave = async () => {
-    setSaving(true);
-    await new Promise((r) => setTimeout(r, 500)); // simulate API
-    const staff = MOCK_STAFF.find((s) => s.id === selectedStaffId);
-    const newStatus = staff ? "Assigned" : incident.status;
-    onSaved(incident.id, staff?.name ?? "", newStatus);
-    setSaving(false);
-    onClose();
-  };
+    const lines = reportComment.split("\n");
+    const imageUrls: string[] = [];
+    const noteLines: string[] = [];
+    
+    let parsingImages = false;
+    for (const line of lines) {
+      if (line.includes("Hình ảnh bằng chứng xử lý:")) {
+        parsingImages = true;
+        continue;
+      }
+      if (parsingImages) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith("http") || trimmed.startsWith("data:")) {
+          imageUrls.push(trimmed);
+        } else if (trimmed) {
+          noteLines.push(line);
+        }
+      } else {
+        noteLines.push(line);
+      }
+    }
+    
+    return {
+      note: noteLines.join("\n").trim() || "Không có ghi chú.",
+      images: imageUrls,
+    };
+  }, [detail]);
+
+  const isResolvedOrClosed = incident.status === "Resolved" || incident.status === "Closed";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-[2px]">
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+
+      {/* Modal */}
+      <div className={`relative bg-white rounded-2xl shadow-2xl w-full mx-auto overflow-hidden transition-all ${isResolvedOrClosed ? "max-w-2xl" : "max-w-lg"}`}>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center">
-              <svg
-                className="w-4 h-4 text-blue-500"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
+          {isResolvedOrClosed ? (
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
+                <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="font-bold text-gray-900 text-base">
+                  {incident.status === "Closed" ? "Chi tiết sự cố đã đóng" : "Chi tiết sự cố đã hoàn thành"} - {shortCode}
+                </h2>
+                <p className="text-[10px] text-gray-400">
+                  Hoàn thành lúc {incident.updatedAt ? new Date(incident.updatedAt).toLocaleString("vi-VN") : "14:30, 25/10/2023"}
+                </p>
+              </div>
             </div>
-            <h2 className="text-base font-bold text-gray-900">
-              Chi tiết sự cố {shortCode}
-            </h2>
-          </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <h2 className="font-bold text-gray-900 text-base">Chi tiết sự cố {shortCode}</h2>
+            </div>
+          )}
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition"
+            className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition"
           >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M6 18L18 6M6 6l12 12"
-              />
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
         {/* Body */}
         <div className="px-6 py-5 space-y-4 max-h-[65vh] overflow-y-auto">
-          {/* Info grid */}
-          <div className="grid grid-cols-1 gap-x-6 gap-y-4 text-sm sm:grid-cols-2">
-            <div>
-              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">
-                Mã sự cố
-              </p>
-              <p className="font-bold text-blue-600">{shortCode}</p>
-            </div>
-            <div>
-              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">
-                Trạng thái hiện tại
-              </p>
-              <StatusBadge status={incident.status} />
-            </div>
-            <div className="col-span-2">
-              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">
-                Tên sự cố
-              </p>
-              <p className="font-semibold text-gray-900">{incident.title}</p>
-            </div>
-            <div className="col-span-2">
-              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">
-                Mô tả chi tiết
-              </p>
-              <p className="text-gray-700 text-sm leading-relaxed">
-                {incident.description || "Không có mô tả"}
-              </p>
-            </div>
-            <div>
-              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">
-                Mức độ
-              </p>
-              <SeverityBadge severity={incident.severity} />
-            </div>
-            <div>
-              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">
-                Nhà ga
-              </p>
-              <p className="font-semibold text-gray-900">
-                {incident.stationId || "—"}
-              </p>
-            </div>
-          </div>
-          <div className="border-t border-gray-100" />
-          {/* Assign staff */}
-          {!isResolved && (
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Nhân viên xử lý
-              </label>
-              <div className="relative">
+          {isResolvedOrClosed ? (
+            <>
+              {/* Completed Layout Grid (like Image 1) */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="border border-gray-100 rounded-xl p-4 bg-white shadow-sm">
+                  <p className="text-xs text-gray-400 font-semibold mb-1">Tiêu đề</p>
+                  <p className="font-semibold text-gray-900 text-sm leading-snug">{incident.title}</p>
+                </div>
+                <div className="border border-gray-100 rounded-xl p-4 bg-white shadow-sm">
+                  <p className="text-xs text-gray-400 font-semibold mb-1">Vị trí & Thiết bị</p>
+                  <p className="font-semibold text-gray-900 text-sm leading-snug">
+                    {incident.stationName || incident.stationId || "Ga Bến Thành"}
+                    {incident.deviceId ? ` - Thiết bị: ${incident.deviceId}` : ""}
+                  </p>
+                </div>
+                <div className="border border-gray-100 rounded-xl p-4 bg-white shadow-sm">
+                  <p className="text-xs text-gray-400 font-semibold mb-1">Mức độ nghiêm trọng</p>
+                  <div className="flex items-center gap-1.5 font-bold text-gray-900 text-sm mt-0.5">
+                    <span className="w-2 h-2 rounded-full bg-red-500" />
+                    {incident.severity === "critical" ? "Nguy cấp" : incident.severity === "high" ? "Cao" : incident.severity === "medium" ? "Trung bình" : "Thấp"}
+                  </div>
+                </div>
+                <div className="border border-gray-100 rounded-xl p-4 bg-white shadow-sm">
+                  <p className="text-xs text-gray-400 font-semibold mb-1">Người xử lý</p>
+                  <div className="flex items-center gap-1.5 font-bold text-gray-900 text-sm mt-0.5">
+                    <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    <span>{incident.assigneeName || "Không rõ"}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tóm tắt xử lý */}
+              <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-4">
+                <div className="flex items-center gap-1.5 text-blue-700 font-bold text-xs uppercase tracking-wider mb-2">
+                  <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Tóm tắt xử lý
+                </div>
+                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                  {loadingDetail ? "Đang tải dữ liệu tóm tắt..." : staffReport.note}
+                </p>
+              </div>
+
+              {/* Bằng chứng hoàn thành */}
+              {!loadingDetail && staffReport.images.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Bằng chứng hoàn thành</p>
+                  <div className="space-y-3">
+                    {staffReport.images.map((src, i) => (
+                      <div key={i} className="rounded-xl overflow-hidden border border-gray-100 shadow-sm max-h-[300px] flex items-center justify-center bg-gray-50">
+                        <img src={src} alt={`evidence-${i + 1}`} className="w-full object-cover" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              {/* Info grid */}
+              <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
+                <div>
+                  <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-1">Mã sự cố</p>
+                  <p className="font-bold text-blue-600">{shortCode}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-1">Nhà ga</p>
+                  <p className="font-medium text-gray-800 break-all text-xs">{incident.stationId || "—"}</p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-1">Tên sự cố</p>
+                  <p className="font-semibold text-gray-900">{incident.title}</p>
+                </div>
+              </div>
+
+              {/* Description */}
+              {incident.description && (
+                <div>
+                  <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-1.5">Mô tả chi tiết</p>
+                  <p className="text-sm text-gray-700 bg-gray-50 rounded-xl px-4 py-3 leading-relaxed">
+                    {incident.description}
+                  </p>
+                </div>
+              )}
+
+              {/* Severity + Status */}
+              <div className="flex items-center gap-8">
+                <div>
+                  <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-1.5">Mức độ</p>
+                  <SeverityBadge severity={incident.severity} />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-1.5">Trạng thái hiện tại</p>
+                  <StatusBadge status={incident.status} />
+                </div>
+              </div>
+
+              <hr className="border-gray-100" />
+
+              {/* Staff assignment */}
+              <div>
+                <p className="text-sm font-semibold text-gray-700 mb-2">Nhân viên xử lý</p>
                 <select
                   value={selectedStaffId}
                   onChange={(e) => setSelectedStaffId(e.target.value)}
-                  className="w-full appearance-none bg-white border border-gray-200 text-gray-900 text-sm rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition pr-10"
+                  className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition cursor-pointer"
                 >
                   <option value="">Chọn nhân viên...</option>
-                  {MOCK_STAFF.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} — {s.email}
+                  {staffList.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name}
                     </option>
                   ))}
                 </select>
-                <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-                  <svg
-                    className="w-4 h-4 text-gray-400"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </div>
-              </div>
-              {selectedStaffId && (
-                <div className="mt-2 flex items-center gap-2 text-xs text-green-700 bg-green-50 rounded-lg px-3 py-2">
-                  <svg
-                    className="w-3.5 h-3.5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                  Sẽ phân công cho:{" "}
-                  <span className="font-semibold">
-                    {MOCK_STAFF.find((s) => s.id === selectedStaffId)?.name}
-                  </span>
-                </div>
-              )}
-            </div>
-          )}{" "}
-          {/* end !isResolved assign */}
-          {/* Ảnh bằng chứng — đọc từ localStorage do staff lưu */}
-          {isResolved && evidenceImages.length > 0 && (
-            <>
-              <div className="border-t border-gray-100" />
-              <div className="space-y-2">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <svg
-                    className="w-3.5 h-3.5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                    />
-                  </svg>
-                  Hình ảnh bằng chứng xử lý
-                </p>
-                {evidenceImages.map((src, idx) => (
-                  <div
-                    key={idx}
-                    className="rounded-xl overflow-hidden border border-gray-100 shadow-sm"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={src}
-                      alt={`Bằng chứng ${idx + 1}`}
-                      className="w-full object-cover max-h-52"
-                    />
-                  </div>
-                ))}
+                {incident.assigneeName && (
+                  <p className="text-xs text-gray-400 mt-1.5">
+                    Hiện tại:{" "}
+                    <span className="font-semibold text-gray-600">{incident.assigneeName}</span>
+                  </p>
+                )}
               </div>
             </>
           )}
-          {isResolved && evidenceImages.length === 0 && (
-            <div className="flex items-center gap-2 text-xs text-gray-400 bg-gray-50 rounded-xl px-4 py-3 border border-dashed border-gray-200">
-              <svg
-                className="w-4 h-4 shrink-0"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
-              </svg>
-              Nhân viên chưa tải ảnh bằng chứng hoàn thành
-            </div>
-          )}
         </div>
 
-        <div className="px-6 py-4 border-t border-gray-50 flex items-center justify-end gap-3">
-          <button
-            onClick={onClose}
-            className="px-5 py-2 text-sm font-semibold text-gray-600 hover:text-gray-800 transition"
-          >
-            {isResolved ? "Đóng" : "Hủy"}
-          </button>
-          {!isResolved && (
+        {/* Footer */}
+        {incident.status === "Resolved" ? (
+          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50/60 flex-nowrap overflow-x-auto">
             <button
-              onClick={handleSave}
-              disabled={saving}
-              className="flex items-center gap-2 px-5 py-2 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-50 transition"
+              onClick={onClose}
+              disabled={actionLoading}
+              className="px-4 py-2.5 text-sm font-semibold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-50 transition whitespace-nowrap"
             >
-              {saving ? (
-                <>
-                  <svg
-                    className="animate-spin w-4 h-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                    />
-                  </svg>
-                  Đang lưu...
-                </>
-              ) : (
-                <>
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                  Lưu thay đổi
-                </>
-              )}
+              Hủy
             </button>
-          )}{" "}
-          {/* end !isResolved save button */}
-        </div>
+            <button
+              onClick={() => onReopenIncident(incident.id)}
+              disabled={actionLoading}
+              className="px-4 py-2.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl disabled:opacity-50 transition whitespace-nowrap"
+            >
+              Nghiệm thu lỗi - Yêu cầu sửa lại
+            </button>
+            <button
+              onClick={() => onCloseIncident(incident.id)}
+              disabled={actionLoading}
+              className="px-4 py-2.5 text-sm font-bold text-white bg-green-600 hover:bg-green-700 rounded-xl disabled:opacity-50 transition whitespace-nowrap"
+            >
+              Nghiệm thu đạt - Đóng sự cố
+            </button>
+          </div>
+        ) : incident.status === "Closed" ? (
+          <div className="flex items-center justify-end px-6 py-4 border-t border-gray-100 bg-gray-50/60">
+            <button
+              onClick={onClose}
+              className="px-6 py-2.5 text-sm font-bold text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition"
+            >
+              Đóng
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50/60">
+            <button
+              onClick={onClose}
+              disabled={actionLoading}
+              className="px-5 py-2 text-sm font-semibold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-50 transition"
+            >
+              Hủy
+            </button>
+            <button
+              onClick={() => onSave(incident.id, selectedStaffId)}
+              disabled={actionLoading}
+              className="flex items-center gap-2 px-5 py-2 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-60 transition"
+            >
+              {actionLoading ? (
+                <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              )}
+              Lưu thay đổi
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-// ── Main Dashboard ────────────────────────────────────────────────────────────
+// ── Main Component ─────────────────────────────────────────────────────────────
 export default function AdminIncidentDashboard() {
   const [incidents, setIncidents] = useState<IncidentRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [selectedIncident, setSelectedIncident] =
-    useState<IncidentRecord | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [severityFilter, setSeverityFilter] = useState<string>("all");
+  const [appliedSearch, setAppliedSearch] = useState("");
+  const [selectedIncident, setSelectedIncident] = useState<IncidentRecord | null>(null);
+  const [staffList, setStaffList] = useState<User[]>([]);
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/immutability
     loadIncidents();
+    userApi
+      .getUsers()
+      .then((users) => setStaffList(users.filter((u) => u.role === "staff" || u.role === "admin")))
+      .catch(() => setStaffList([]));
   }, []);
 
-  // TODO: thay bằng admin API khi BE sẵn sàng
   async function loadIncidents() {
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 300));
-    setIncidents(MOCK_INCIDENTS);
-    setLoading(false);
+    try {
+      const data = await incidentApi.getIncidents({} as any);
+      setIncidents(data);
+    } catch (e) {
+      console.error("Failed to load incidents", e);
+    } finally {
+      setLoading(false);
+    }
   }
 
-  const stats = useMemo(
-    () => ({
-      total: incidents.length,
-      pending: incidents.filter((i) => i.status === "Open").length,
-      inProgress: incidents.filter((i) =>
-        ["InProgress", "Escalated", "Assigned"].includes(i.status),
-      ).length,
-      resolved: incidents.filter((i) =>
-        ["Resolved", "Closed"].includes(i.status),
-      ).length,
-    }),
-    [incidents],
-  );
+  // Lưu thay đổi: gọi approve API (PATCH /staff/incidents/{id}/approve)
+  // Backend tự gán nhân viên, trả về assigneeName trong response
+  const handleSave = useCallback(async (incidentId: string, _staffId: string) => {
+    void _staffId;
+    setActionLoading(true);
+    try {
+      const updated = await incidentApi.approveIncident(incidentId);
+      toast.success("Đã phê duyệt sự cố thành công!");
+
+      // Update local list with response data
+      setIncidents((prev) =>
+        prev.map((i) =>
+          i.id === incidentId
+            ? {
+                ...i,
+                status: updated.status ?? ("Approved" as any),
+                assigneeName: updated.assigneeName ?? i.assigneeName,
+              }
+            : i,
+        ),
+      );
+      setSelectedIncident(null);
+    } catch (e: any) {
+      toast.error(e.message || "Lỗi phê duyệt sự cố!");
+    } finally {
+      setActionLoading(false);
+    }
+  }, []);
+
+  const handleCloseIncident = useCallback(async (id: string) => {
+    setActionLoading(true);
+    try {
+      await incidentApi.closeIncident(id);
+      toast.success("Nghiệm thu đạt - Đã đóng sự cố!");
+      setIncidents((prev) =>
+        prev.map((i) => (i.id === id ? { ...i, status: "Closed" as any } : i))
+      );
+      setSelectedIncident(null);
+    } catch (e: any) {
+      toast.error(e.message || "Lỗi đóng sự cố!");
+    } finally {
+      setActionLoading(false);
+    }
+  }, []);
+
+  const handleReopenIncident = useCallback(async (id: string) => {
+    setActionLoading(true);
+    try {
+      await incidentApi.reopenIncident(id);
+      toast.success("Nghiệm thu lỗi - Yêu cầu sửa lại!");
+      setIncidents((prev) =>
+        prev.map((i) => (i.id === id ? { ...i, status: "Approved" as any } : i))
+      );
+      setSelectedIncident(null);
+    } catch (e: any) {
+      toast.error(e.message || "Lỗi yêu cầu sửa lại!");
+    } finally {
+      setActionLoading(false);
+    }
+  }, []);
+
+  const stats = useMemo(() => {
+    const total = incidents.length;
+    const pending = incidents.filter((i) => i.status === "Open").length;
+    const inProgress = incidents.filter(
+      (i) => i.status === "InProgress" || i.status === "Escalated" || i.status === "Assigned",
+    ).length;
+    const resolved = incidents.filter(
+      (i) => i.status === "Resolved" || i.status === "Closed",
+    ).length;
+    return { total, pending, inProgress, resolved };
+  }, [incidents]);
 
   const filtered = useMemo(() => {
     let list = incidents;
-    if (statusFilter === "open") list = list.filter((i) => i.status === "Open");
-    else if (statusFilter === "active")
-      list = list.filter((i) =>
-        ["InProgress", "Assigned", "Escalated"].includes(i.status),
-      );
-    else if (statusFilter === "done")
-      list = list.filter((i) => ["Resolved", "Closed"].includes(i.status));
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
+    if (statusFilter !== "all") list = list.filter((i) => i.status === statusFilter);
+    if (severityFilter !== "all") list = list.filter((i) => i.severity === severityFilter);
+    if (appliedSearch.trim()) {
+      const q = appliedSearch.toLowerCase();
       list = list.filter(
         (i) =>
           toShortCode(i.id).toLowerCase().includes(q) ||
@@ -606,45 +507,14 @@ export default function AdminIncidentDashboard() {
       );
     }
     return list;
-  }, [incidents, searchQuery, statusFilter]);
-
-  // Callback khi modal lưu phân công
-  const handleSaved = (id: string, assigneeName: string, status: string) => {
-    setIncidents((prev) =>
-      prev.map((inc) =>
-        inc.id === id
-          ? {
-              ...inc,
-              assigneeName: assigneeName || inc.assigneeName,
-              status: status as any,
-            }
-          : inc,
-      ),
-    );
-    // Cập nhật selectedIncident nếu đang mở
-    setSelectedIncident((prev) =>
-      prev?.id === id
-        ? {
-            ...prev,
-            assigneeName: assigneeName || prev.assigneeName,
-            status: status as any,
-          }
-        : prev,
-    );
-  };
+  }, [incidents, appliedSearch, statusFilter, severityFilter]);
 
   return (
     <div className="flex flex-col space-y-6 w-full">
       {/* Breadcrumb */}
       <div className="flex items-center gap-1.5 text-sm text-gray-500 font-medium">
         <span>Admin</span>
-        <svg
-          className="w-4 h-4"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2}
-        >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
         </svg>
         <span className="text-blue-600 font-semibold">Duyệt sự cố</span>
@@ -652,142 +522,80 @@ export default function AdminIncidentDashboard() {
 
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
-        <h1 className="text-3xl font-black text-gray-900 tracking-tight">
-          Duyệt sự cố
-        </h1>
-        <button
-          onClick={loadIncidents}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition"
-        >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-            />
-          </svg>
-          Làm mới
-        </button>
+        <h1 className="text-3xl font-black text-gray-900 tracking-tight">Duyệt sự cố</h1>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          {
-            label: "Tổng sự cố",
-            value: stats.total,
-            colorBase: "blue",
-            icon: "M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
-          },
-          {
-            label: "Mới mở",
-            value: stats.pending,
-            colorBase: "gray",
-            icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z",
-          },
-          {
-            label: "Đang xử lý",
-            value: stats.inProgress,
-            colorBase: "orange",
-            icon: "M13 10V3L4 14h7v7l9-11h-7z",
-          },
-          {
-            label: "Đã xử lý",
-            value: stats.resolved,
-            colorBase: "green",
-            icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z",
-          },
+          { label: "Tổng sự cố",  value: stats.total,      color: "blue",   icon: "M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" },
+          { label: "Chờ xử lý",  value: stats.pending,    color: "gray",   icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" },
+          { label: "Đang xử lý", value: stats.inProgress, color: "orange", icon: "M13 10V3L4 14h7v7l9-11h-7z" },
+          { label: "Hoàn thành", value: stats.resolved,   color: "green",  icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" },
         ].map((s) => (
-          <div
-            key={s.label}
-            className="bg-white rounded-2xl border border-gray-100 p-5 flex items-center gap-4 shadow-sm"
-          >
-            <div
-              className={`w-10 h-10 rounded-full bg-${s.colorBase}-50 flex items-center justify-center shrink-0`}
-            >
-              <svg
-                className={`w-5 h-5 text-${s.colorBase}-500`}
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
+          <div key={s.label} className="bg-white rounded-2xl border border-gray-100 p-5 flex items-center gap-4 shadow-sm">
+            <div className={`w-10 h-10 rounded-full bg-${s.color}-50 flex items-center justify-center shrink-0`}>
+              <svg className={`w-5 h-5 text-${s.color}-500`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d={s.icon} />
               </svg>
             </div>
             <div>
-              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                {s.label}
-              </div>
-              <div className="text-2xl font-black text-gray-900">
-                {loading ? "—" : s.value}
-              </div>
+              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{s.label}</div>
+              <div className="text-2xl font-black text-gray-900">{loading ? "—" : s.value}</div>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Table card */}
+      {/* Filter Bar + Table */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        {/* Toolbar */}
-        <div className="px-5 py-4 border-b border-gray-50 flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <svg
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
+        <div className="px-5 py-4 border-b border-gray-50 flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[220px]">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Tìm kiếm mã SC, tên sự cố, nhân viên..."
-              className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition"
+              onKeyDown={(e) => { if (e.key === "Enter") setAppliedSearch(searchQuery); }}
+              placeholder="Tìm mã SC, tên sự cố, nhân viên..."
+              className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-xl outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition bg-gray-50"
             />
           </div>
-          <div className="flex flex-wrap items-center gap-1 rounded-xl bg-gray-50 p-1">
-            {[
-              { value: "all", label: "Tất cả", count: incidents.length },
-              { value: "open", label: "Mới mở", count: stats.pending },
-              { value: "active", label: "Đang xử lý", count: stats.inProgress },
-              { value: "done", label: "Đã xử lý", count: stats.resolved },
-            ].map((f) => (
-              <button
-                key={f.value}
-                onClick={() => setStatusFilter(f.value)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all whitespace-nowrap ${
-                  statusFilter === f.value
-                    ? "bg-white text-blue-600 shadow-sm"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                {f.label}
-                <span
-                  className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                    statusFilter === f.value
-                      ? "bg-blue-100 text-blue-700"
-                      : "bg-gray-200 text-gray-500"
-                  }`}
-                >
-                  {f.count}
-                </span>
-              </button>
-            ))}
-          </div>
+          <select
+            value={severityFilter}
+            onChange={(e) => setSeverityFilter(e.target.value)}
+            className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100 w-auto min-w-[130px]"
+          >
+            <option value="all">Mức độ</option>
+            <option value="critical">Nguy cấp</option>
+            <option value="high">Cao</option>
+            <option value="medium">Trung bình</option>
+            <option value="low">Thấp</option>
+          </select>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100 w-auto min-w-[140px]"
+          >
+            <option value="all">Trạng thái</option>
+            <option value="Open">Mới tạo</option>
+            <option value="Approved">Đã phê duyệt</option>
+            <option value="Assigned">Đã phân công</option>
+            <option value="InProgress">Đang xử lý</option>
+            <option value="Resolved">Đã hoàn thành</option>
+            <option value="Closed">Đã đóng</option>
+          </select>
+          <button
+            onClick={() => setAppliedSearch(searchQuery)}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition whitespace-nowrap"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            Tìm kiếm
+          </button>
         </div>
 
         {/* Table */}
@@ -795,96 +603,74 @@ export default function AdminIncidentDashboard() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-50">
-                {[
-                  "Mã SC",
-                  "Tên sự cố",
-                  "Nhà ga",
-                  "Mức độ",
-                  "Nhân viên",
-                  "Trạng thái",
-                  "Thao tác",
-                ].map((h) => (
-                  <th
-                    key={h}
-                    className="text-left text-xs font-bold text-gray-400 uppercase tracking-wider px-5 py-3"
-                  >
-                    {h}
-                  </th>
-                ))}
+                <th className="text-left text-xs font-bold text-gray-400 uppercase tracking-wider px-5 py-3">Mã SC</th>
+                <th className="text-left text-xs font-bold text-gray-400 uppercase tracking-wider px-4 py-3">Tên sự cố</th>
+                <th className="text-left text-xs font-bold text-gray-400 uppercase tracking-wider px-4 py-3">Nhà ga</th>
+                <th className="text-left text-xs font-bold text-gray-400 uppercase tracking-wider px-4 py-3">Mức độ</th>
+                <th className="text-left text-xs font-bold text-gray-400 uppercase tracking-wider px-4 py-3">Nhân viên</th>
+                <th className="text-left text-xs font-bold text-gray-400 uppercase tracking-wider px-4 py-3">Trạng thái</th>
+                <th className="text-left text-xs font-bold text-gray-400 uppercase tracking-wider px-4 py-3">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {loading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i}>
-                    {Array.from({ length: 7 }).map((__, j) => (
-                      <td key={j} className="px-5 py-4">
-                        <div className="h-4 bg-gray-100 rounded animate-pulse" />
+              {loading
+                ? Array.from({ length: 5 }).map((_, i) => (
+                    <tr key={i}>
+                      {Array.from({ length: 7 }).map((__, j) => (
+                        <td key={j} className="px-5 py-4">
+                          <div className="h-4 bg-gray-100 rounded animate-pulse" />
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                : filtered.length === 0
+                  ? (
+                    <tr>
+                      <td colSpan={7} className="text-center py-16 text-gray-400 text-sm">
+                        Không tìm thấy sự cố nào
                       </td>
-                    ))}
-                  </tr>
-                ))
-              ) : filtered.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={7}
-                    className="text-center py-16 text-gray-400 text-sm"
-                  >
-                    Không tìm thấy sự cố nào
-                  </td>
-                </tr>
-              ) : (
-                filtered.map((inc) => (
-                  <tr
-                    key={inc.id}
-                    className="hover:bg-blue-50/30 transition-colors"
-                  >
-                    <td className="px-5 py-4">
-                      <span className="font-bold text-blue-600">
-                        {toShortCode(inc.id)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 max-w-[200px]">
-                      <span className="font-semibold text-gray-900 truncate block">
-                        {inc.title}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 text-gray-500 text-xs">
-                      {inc.stationId || "—"}
-                    </td>
-                    <td className="px-4 py-4">
-                      <SeverityBadge severity={inc.severity} />
-                    </td>
-                    <td className="px-4 py-4">
-                      {inc.assigneeName ? (
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-[10px] font-bold text-blue-700 shrink-0">
-                            {inc.assigneeName.charAt(0).toUpperCase()}
-                          </div>
-                          <span className="text-gray-700 text-xs">
-                            {inc.assigneeName}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-gray-400 text-xs italic">
-                          Chưa phân công
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-4">
-                      <StatusBadge status={inc.status} />
-                    </td>
-                    <td className="px-4 py-4">
-                      <button
-                        onClick={() => setSelectedIncident(inc)}
-                        className="px-3 py-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition"
-                      >
-                        Chi tiết
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
+                    </tr>
+                  )
+                  : filtered.map((inc) => {
+                      const code = toShortCode(inc.id);
+                      return (
+                        <tr key={inc.id} className="hover:bg-blue-50/30 transition-colors">
+                          <td className="px-5 py-4">
+                            <span className="font-bold text-blue-600">{code}</span>
+                          </td>
+                          <td className="px-4 py-4 max-w-[200px]">
+                            <span className="font-semibold text-gray-900 truncate block">{inc.title}</span>
+                          </td>
+                          <td className="px-4 py-4 text-gray-500 text-xs max-w-[140px] truncate">{inc.stationId || "—"}</td>
+                          <td className="px-4 py-4">
+                            <SeverityBadge severity={inc.severity} />
+                          </td>
+                          <td className="px-4 py-4">
+                            {inc.assigneeName ? (
+                              <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-[10px] font-bold text-blue-700 shrink-0">
+                                  {inc.assigneeName.charAt(0).toUpperCase()}
+                                </div>
+                                <span className="text-gray-700 text-xs">{inc.assigneeName}</span>
+                              </div>
+                            ) : (
+                              <span className="text-gray-400 text-xs italic">Chưa phân công</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-4">
+                            <StatusBadge status={inc.status} />
+                          </td>
+                          <td className="px-4 py-4">
+                            <button
+                              onClick={() => setSelectedIncident(inc)}
+                              className="px-3 py-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition"
+                            >
+                              Chi tiết
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
             </tbody>
           </table>
         </div>
@@ -900,8 +686,12 @@ export default function AdminIncidentDashboard() {
       {selectedIncident && (
         <IncidentDetailModal
           incident={selectedIncident}
+          staffList={staffList}
           onClose={() => setSelectedIncident(null)}
-          onSaved={handleSaved}
+          onSave={handleSave}
+          onCloseIncident={handleCloseIncident}
+          onReopenIncident={handleReopenIncident}
+          actionLoading={actionLoading}
         />
       )}
     </div>
