@@ -1,13 +1,21 @@
 import Link from "next/link";
- 
+import { useSelector } from "react-redux";
+import type { RootState } from "@stores/index";
+
+const BUY_TICKET_PATH = "/passenger-page/buy-tickets-step-1";
+const LOGIN_TO_BUY_TICKET_PATH = `/auth/login?redirectTo=${encodeURIComponent(
+  BUY_TICKET_PATH,
+)}`;
 
 const NAV_ITEMS = [
   { label: "Tính năng", href: "#features" },
   { label: "Bảng giá", href: "#pricing" },
-  { label: "Demo", href: "#demo" },
+  { label: "Mua vé", href: BUY_TICKET_PATH, requiresAuth: true },
 ];
 
 export const UserHeader = () => {
+  const { isLoggedIn } = useSelector((state: RootState) => state.userReducer);
+
   return (
     <header className="w-full border-b border-slate-200 bg-neutral-100/80 backdrop-blur-[6px]">
       <div className="mx-auto flex w-full max-w-[1200px] items-center justify-between gap-4 px-6 py-3 md:px-10">
@@ -47,7 +55,11 @@ export const UserHeader = () => {
             {NAV_ITEMS.map((item) => (
               <li key={item.label}>
                 <Link
-                  href={item.href}
+                  href={
+                    item.requiresAuth && !isLoggedIn
+                      ? LOGIN_TO_BUY_TICKET_PATH
+                      : item.href
+                  }
                   className="text-sm font-medium leading-5 text-neutral-900 transition-colors hover:text-blue-600"
                 >
                   {item.label}

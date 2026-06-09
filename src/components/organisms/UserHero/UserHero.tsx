@@ -1,10 +1,11 @@
 import Link from "next/link";
 
 type UserHeroProps = {
+  buyTicketHref: string;
   statsText?: string;
 };
 
-export const UserHero = ({ statsText }: UserHeroProps) => {
+export const UserHero = ({ buyTicketHref, statsText }: UserHeroProps) => {
   return (
     <section className="mx-auto inline-flex w-full max-w-[1120px] flex-col items-center justify-start gap-8 lg:flex-row">
       <div className="flex flex-1 flex-col items-start justify-center gap-6">
@@ -32,11 +33,11 @@ export const UserHero = ({ statsText }: UserHeroProps) => {
 
         <div className="inline-flex w-full flex-wrap items-start justify-start gap-4">
           <Link
-            href="#demo"
+            href={buyTicketHref}
             className="flex h-12 min-w-36 items-center justify-center rounded-3xl bg-blue-600 px-7 text-base font-bold leading-6 text-white transition-colors hover:bg-blue-700"
           >
             <span className="inline-flex flex-col items-center justify-start overflow-hidden">
-              <span className="h-6 w-20 text-center">Xem Demo</span>
+              <span className="h-6 w-20 text-center">Mua vé</span>
             </span>
           </Link>
 
