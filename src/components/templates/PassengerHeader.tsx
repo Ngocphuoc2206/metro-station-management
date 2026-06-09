@@ -88,7 +88,18 @@ export default function PassengerHeader({
 
         <span className="hidden h-8 w-px bg-slate-200 sm:block" aria-hidden="true" />
 
-        <div ref={menuRef} className="relative">
+        <div
+          ref={menuRef}
+          className="relative"
+          onMouseEnter={() => setIsProfileMenuOpen(true)}
+          onMouseLeave={() => setIsProfileMenuOpen(false)}
+          onFocus={() => setIsProfileMenuOpen(true)}
+          onBlur={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget)) {
+              setIsProfileMenuOpen(false);
+            }
+          }}
+        >
           <button
             type="button"
             onClick={() => setIsProfileMenuOpen((current) => !current)}
@@ -116,8 +127,28 @@ export default function PassengerHeader({
           {isProfileMenuOpen ? (
             <div
               role="menu"
-              className="absolute right-0 top-[calc(100%+0.75rem)] w-60 overflow-hidden rounded-2xl border border-slate-100 bg-white py-2 shadow-[0_16px_40px_rgba(15,23,42,0.14)]"
+              className="absolute right-0 top-full w-64 pt-3"
             >
+              <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white py-2 shadow-[0_16px_40px_rgba(15,23,42,0.14)]">
+                <div className="flex items-center gap-3 px-5 py-3">
+                  <span className="relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-teal-600 text-sm font-bold text-white">
+                    {avatarUrl ? (
+                      <img
+                        className="h-11 w-11 rounded-full object-cover"
+                        src={avatarUrl}
+                        alt="Ảnh đại diện hành khách"
+                      />
+                    ) : (
+                      initial
+                    )}
+                    <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-slate-900">{displayName}</p>
+                    <p className="text-xs font-medium text-slate-500">Hành khách</p>
+                  </div>
+                </div>
+                <div className="h-px bg-slate-100" />
               <Link
                 href="/passenger-page/account"
                 role="menuitem"
@@ -137,6 +168,7 @@ export default function PassengerHeader({
                 <LogOut className="h-4 w-4" />
                 <span>Đăng xuất</span>
               </button>
+              </div>
             </div>
           ) : null}
         </div>

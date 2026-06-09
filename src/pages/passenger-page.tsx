@@ -48,7 +48,6 @@ type TripRow = {
   status: string;
 };
 
-const PURCHASE_SUMMARY_KEY = "metro-passenger-purchase-summary";
 const QR_TTL_FALLBACK_SECONDS = 600;
 const VIETNAM_TIME_ZONE = "Asia/Ho_Chi_Minh";
 const EXPLICIT_TIME_ZONE_PATTERN = /(?:Z|[+-]\d{2}:?\d{2})$/i;
@@ -207,7 +206,6 @@ export default function PassengerPage() {
 
   const [tickets, setTickets] = useState<MyTicketDto[]>([]);
   const [trips, setTrips] = useState<TripDto[]>([]);
-  const [localPurchaseSpend, setLocalPurchaseSpend] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
   const [qrImageUrl, setQrImageUrl] = useState<string | null>(null);
@@ -248,25 +246,6 @@ export default function PassengerPage() {
     };
   }, []);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    try {
-      const rawSummary = window.localStorage.getItem(PURCHASE_SUMMARY_KEY);
-      const summaries = rawSummary ? JSON.parse(rawSummary) : [];
-      if (!Array.isArray(summaries)) return;
-
-      const total = summaries.reduce((sum, item) => {
-        if (!item || typeof item !== "object") return sum;
-        const value = Number((item as { total?: unknown }).total);
-        return Number.isFinite(value) ? sum + value : sum;
-      }, 0);
-      setLocalPurchaseSpend(total);
-    } catch {
-      setLocalPurchaseSpend(0);
-    }
-  }, []);
-
   const derivedStats: StatCard[] = useMemo(() => {
     const activeCount = tickets.filter(
       (t) => mapTicketStatus(t.status) === "Chưa dùng",
@@ -281,7 +260,7 @@ export default function PassengerPage() {
           sum + (typeof ticket.price === "number" ? ticket.price : 0),
         0,
       );
-    const spend = Math.max(apiSpend, localPurchaseSpend);
+    const spend = apiSpend;
 
     return [
       { label: "Vé đang hoạt động", value: String(activeCount), tone: "green" },
@@ -289,7 +268,7 @@ export default function PassengerPage() {
       { label: "Chi phí", value: formatMoneyVnd(spend), tone: "amber" },
       { label: "Thông báo", value: "0", subLabel: "mới", tone: "red" },
     ];
-  }, [localPurchaseSpend, tickets, trips]);
+  }, [tickets, trips]);
 
   const derivedRecentTickets: TicketCard[] = useMemo(() => {
     return tickets.slice(0, 3).map((t) => {
