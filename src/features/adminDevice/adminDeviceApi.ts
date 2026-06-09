@@ -126,4 +126,9 @@ export const adminDeviceApi = {
     );
     return normalizeDevice(unwrapApiResponse<RawDevice>(res.data));
   },
+
+  deleteDevice: async (id: string): Promise<boolean> => {
+    await apiClient.delete(withPathParam(API_ENDPOINTS.devices.admin, id));
+    return true;
+  },
 };

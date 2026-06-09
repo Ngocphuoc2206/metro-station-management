@@ -354,9 +354,7 @@ const toRouteOption = (route: MetroRoute): RouteDto => ({
 export default function PassengerLiveMapPage() {
   const [routes, setRoutes] = useState<RouteDto[]>([]);
   const [routeDetails, setRouteDetails] = useState<MetroRoute[]>([]);
-  const [requestedRouteDetailIds, setRequestedRouteDetailIds] = useState<
-    string[]
-  >([]);
+  const [requestedRouteDetailIds, setRequestedRouteDetailIds] = useState<string[]>([]);
   const [stationsApi, setStationsApi] = useState<StationDto[]>([]);
   const [schedules, setSchedules] = useState<ScheduleDto[]>([]);
   const [stationStatuses, setStationStatuses] = useState<
@@ -453,17 +451,13 @@ export default function PassengerLiveMapPage() {
 
   useEffect(() => {
     if (!selectedRouteId) return;
-    const currentRoute = routeDetails.find(
-      (route) => route.id === selectedRouteId,
-    );
+    const currentRoute = routeDetails.find((route) => route.id === selectedRouteId);
     if (currentRoute?.stations?.length) return;
     if (requestedRouteDetailIds.includes(selectedRouteId)) return;
 
     let cancelled = false;
     setRequestedRouteDetailIds((current) =>
-      current.includes(selectedRouteId)
-        ? current
-        : [...current, selectedRouteId],
+      current.includes(selectedRouteId) ? current : [...current, selectedRouteId],
     );
 
     routeApi
@@ -599,16 +593,12 @@ export default function PassengerLiveMapPage() {
 
     scheduleLines.forEach((line) => {
       if (!selectedRouteId || line.routeId === selectedRouteId) {
-        line.stops.forEach((schedule) =>
-          pushUnique(stationIds, schedule.stationId),
-        );
+        line.stops.forEach((schedule) => pushUnique(stationIds, schedule.stationId));
       }
     });
 
     if (!selectedRouteId || stationIds.length === 0) {
-      stationStatuses.forEach((station) =>
-        pushUnique(stationIds, getStationId(station)),
-      );
+      stationStatuses.forEach((station) => pushUnique(stationIds, getStationId(station)));
     }
 
     if (stationIds.length === 0 && !selectedRouteId) {
@@ -620,22 +610,15 @@ export default function PassengerLiveMapPage() {
     const statusById = new Map(
       stationStatuses.map((station) => [getStationId(station), station]),
     );
-    const catalogById = new Map(
-      stationsApi.map((station) => [station.id, station]),
-    );
+    const catalogById = new Map(stationsApi.map((station) => [station.id, station]));
     const stationCoordinates = stationIds
       .map((stationId) => catalogById.get(stationId))
       .filter(
         (station): station is StationDto =>
-          Number.isFinite(station?.latitude) &&
-          Number.isFinite(station?.longitude),
+          Number.isFinite(station?.latitude) && Number.isFinite(station?.longitude),
       );
-    const latitudes = stationCoordinates.map((station) =>
-      Number(station.latitude),
-    );
-    const longitudes = stationCoordinates.map((station) =>
-      Number(station.longitude),
-    );
+    const latitudes = stationCoordinates.map((station) => Number(station.latitude));
+    const longitudes = stationCoordinates.map((station) => Number(station.longitude));
     const minLat = Math.min(...latitudes);
     const maxLat = Math.max(...latitudes);
     const minLng = Math.min(...longitudes);
@@ -649,18 +632,11 @@ export default function PassengerLiveMapPage() {
       const fallback = fallbackPosition(index, stationIds.length);
       const geoX =
         hasGeoBounds && catalogStation?.longitude !== undefined
-          ? 82 +
-            ((Number(catalogStation.longitude) - minLng) /
-              Math.max(0.000001, maxLng - minLng)) *
-              868
+          ? 82 + ((Number(catalogStation.longitude) - minLng) / Math.max(0.000001, maxLng - minLng)) * 868
           : undefined;
       const geoY =
         hasGeoBounds && catalogStation?.latitude !== undefined
-          ? 100 +
-            (1 -
-              (Number(catalogStation.latitude) - minLat) /
-                Math.max(0.000001, maxLat - minLat)) *
-              255
+          ? 100 + (1 - (Number(catalogStation.latitude) - minLat) / Math.max(0.000001, maxLat - minLat)) * 255
           : undefined;
       const congestionLevel = Math.min(
         100,
@@ -718,26 +694,19 @@ export default function PassengerLiveMapPage() {
             const direction = normalizeDirection(train.direction);
             const matchingLine =
               scheduleLines.find((line) => {
-                const matchesRoute =
-                  !train.routeId || line.routeId === train.routeId;
+                const matchesRoute = !train.routeId || line.routeId === train.routeId;
                 const matchesDirection =
-                  !direction ||
-                  normalizeDirection(line.direction) === direction;
+                  !direction || normalizeDirection(line.direction) === direction;
                 const matchesStation =
                   !train.nextStationId ||
-                  line.stops.some(
-                    (stop) => stop.stationId === train.nextStationId,
-                  );
+                  line.stops.some((stop) => stop.stationId === train.nextStationId);
                 return matchesRoute && matchesDirection && matchesStation;
               }) ??
               scheduleLines.find((line) => {
-                const matchesRoute =
-                  !train.routeId || line.routeId === train.routeId;
+                const matchesRoute = !train.routeId || line.routeId === train.routeId;
                 return (
                   matchesRoute &&
-                  line.stops.some(
-                    (stop) => stop.stationId === train.nextStationId,
-                  )
+                  line.stops.some((stop) => stop.stationId === train.nextStationId)
                 );
               });
             const schedulePosition = matchingLine
@@ -750,8 +719,7 @@ export default function PassengerLiveMapPage() {
                   getNowSeconds(currentTime),
                 )
               : null;
-            const nextStationId =
-              schedulePosition?.nextStationId ?? train.nextStationId;
+            const nextStationId = schedulePosition?.nextStationId ?? train.nextStationId;
             const fallback =
               (nextStationId ? stationById.get(nextStationId) : undefined) ??
               fallbackTrains[index] ??
@@ -760,10 +728,9 @@ export default function PassengerLiveMapPage() {
             const inferredStatus =
               schedulePosition?.status === "delayed"
                 ? "delayed"
-                : apiStatus === "on-time" &&
-                    schedulePosition?.status === "arriving"
-                  ? "arriving"
-                  : apiStatus;
+                : apiStatus === "on-time" && schedulePosition?.status === "arriving"
+                ? "arriving"
+                : apiStatus;
 
             return {
               id: train.id,
@@ -1262,18 +1229,8 @@ export default function PassengerLiveMapPage() {
                           rx="4"
                           fill="white"
                         />
-                        <circle
-                          cx={train.x - 4}
-                          cy={train.y - 3}
-                          r="1.8"
-                          fill="#0B6EAD"
-                        />
-                        <circle
-                          cx={train.x + 4}
-                          cy={train.y - 3}
-                          r="1.8"
-                          fill="#0B6EAD"
-                        />
+                        <circle cx={train.x - 4} cy={train.y - 3} r="1.8" fill="#0B6EAD" />
+                        <circle cx={train.x + 4} cy={train.y - 3} r="1.8" fill="#0B6EAD" />
                         <path
                           d={`M${train.x - 5} ${train.y + 5}H${train.x + 5}M${train.x - 4} ${train.y + 10}L${train.x - 8} ${train.y + 14}M${train.x + 4} ${train.y + 10}L${train.x + 8} ${train.y + 14}`}
                           fill="none"
@@ -1281,7 +1238,7 @@ export default function PassengerLiveMapPage() {
                           strokeWidth="2"
                           strokeLinecap="round"
                         />
-                        {isSelected || displayTrains.length <= 2 ? (
+                        {(isSelected || displayTrains.length <= 2) ? (
                           <foreignObject
                             x={train.x - 68}
                             y={train.y - 62}
@@ -1351,8 +1308,7 @@ export default function PassengerLiveMapPage() {
                         Trạng thái theo lịch
                       </p>
                       <p className="mt-1 text-sm font-black text-slate-950">
-                        {selectedTrain.previousStation} → đang tới{" "}
-                        {selectedTrain.nextStation}
+                        {selectedTrain.previousStation} → đang tới {selectedTrain.nextStation}
                       </p>
                       {selectedTrain.arrivalClock ? (
                         <p className="mt-1 text-xs font-semibold text-sky-700">
@@ -1548,8 +1504,7 @@ export default function PassengerLiveMapPage() {
                         <span className="block truncate text-xs font-semibold text-slate-500">
                           {train.previousStation
                             ? `${train.previousStation} → ${train.nextStation}`
-                            : train.nextStation}{" "}
-                          · {train.eta}
+                            : train.nextStation} · {train.eta}
                         </span>
                       </span>
                     </div>
@@ -1620,4 +1575,5 @@ export default function PassengerLiveMapPage() {
       </PassengerShell>
     </>
   );
+  
 }

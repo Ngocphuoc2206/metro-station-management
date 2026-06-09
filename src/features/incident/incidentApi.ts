@@ -107,6 +107,11 @@ function mapCommentToTimeline(comment: IncidentComment, index: number): Incident
   };
 }
 
+function cleanUuid(id: string): string {
+  const match = id.trim().match(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/);
+  return match ? match[0] : id.trim();
+}
+
 function mapIncident(item: BackendIncident): IncidentRecord {
   const priority = normalizePriority(item.priority);
   const backendStatus = normalizeBackendStatus(item.status);
@@ -119,7 +124,7 @@ function mapIncident(item: BackendIncident): IncidentRecord {
     );
 
   return {
-    id: item.id ?? "",
+    id: cleanUuid(item.id ?? ""),
     title: item.title ?? "Khong co tieu de",
     description: item.description ?? "",
     stationId: item.stationId ?? "",
@@ -169,8 +174,23 @@ export const incidentApi = {
   },
 
   getIncidentById: async (id: string): Promise<IncidentDetailRecord> => {
-    const res = await apiClient.get(withPathParam(API_ENDPOINTS.incidents.staff, id));
-    return toDetail(unwrapApiResponse<BackendIncident>(res.data));
+    // Backend doesn't have GET endpoint for detail, so we fetch all incidents and find the one we need
+    const incidents = await incidentApi.getIncidents({});
+    const found = incidents.find((i) => i.id === id);
+    if (!found) throw new Error("Incident not found");
+    return toDetail(
+      found as unknown as BackendIncident
+    );
+  },
+
+  getIncidentByIdAdmin: async (id: string): Promise<IncidentDetailRecord> => {
+    // Backend doesn't have GET endpoint for detail, so we fetch all incidents and find the one we need
+    const incidents = await incidentApi.getIncidents({});
+    const found = incidents.find((i) => i.id === id);
+    if (!found) throw new Error("Incident not found");
+    return toDetail(
+      found as unknown as BackendIncident
+    );
   },
 
   createIncident: async (data: IncidentFormData): Promise<IncidentRecord> => {
@@ -237,5 +257,28 @@ export const incidentApi = {
   assignIncident: async (id: string, staffId: string): Promise<IncidentRecord> => {
     void staffId;
     return incidentApi.approveIncident(id);
+  },
+
+  uploadMedia: async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const res = await apiClient.post(API_ENDPOINTS.media.upload, formData, {
+        headers: {
+          "Content-Type": undefined,
+        },
+      });
+      const data = unwrapApiResponse<unknown>(res.data);
+      if (typeof data === "string") return data;
+      if (data && typeof data === "object") {
+        const dataObj = data as Record<string, unknown>;
+        return String(dataObj.url ?? dataObj.path ?? data);
+      }
+      return "";
+    } catch (err) {
+      const axiosError = err as { response?: { data?: unknown } };
+      console.error("Upload Media Error Response:", axiosError.response?.data);
+      throw err;
+    }
   },
 };

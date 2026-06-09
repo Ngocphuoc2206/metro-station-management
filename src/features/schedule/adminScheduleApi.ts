@@ -84,4 +84,8 @@ export const adminScheduleApi = {
     if (!schedule) throw new Error("API không trả về lịch tàu hợp lệ.");
     return schedule;
   },
+
+  delete: async (id: string): Promise<void> => {
+    await apiClient.delete(withPathParam(API_ENDPOINTS.schedules.admin, id));
+  },
 };

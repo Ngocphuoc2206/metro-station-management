@@ -8,17 +8,13 @@ import { RootState } from "@/stores";
 import { useSelector } from "react-redux";
 import { publicApi } from "@features/public/publicApi";
 
-
 const BUY_TICKET_PATH = "/passenger-page/buy-tickets-step-1";
 const LOGIN_TO_BUY_TICKET_PATH = `/auth/login?redirectTo=${encodeURIComponent(
   BUY_TICKET_PATH,
 )}`;
 
-
 export default function HomePage() {
-  const { isLoggedIn } = useSelector(
-    (state: RootState) => state.userReducer,
-  );
+  const { isLoggedIn } = useSelector((state: RootState) => state.userReducer);
 
   const [landingCounts, setLandingCounts] = useState<{
     routes: number;

@@ -10,10 +10,11 @@ interface Props {
 }
 
 export default function StaffLayout({ children, wide = false }: Props) {
-  const { name, email } = useSelector((s: RootState) => s.userReducer);
+  const { name } = useSelector((s: RootState) => s.userReducer);
   const handleLogout = useLogout();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Display name: nếu là email thì lấy phần trước @
   const isNameEmail = name && name.includes("@");
@@ -36,8 +37,25 @@ export default function StaffLayout({ children, wide = false }: Props) {
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
   }, []);
+
+  const handleMouseEnter = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    setDropdownOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    timeoutRef.current = setTimeout(() => {
+      setDropdownOpen(false);
+    }, 200);
+  };
 
   return (
     <div className="flex min-h-screen w-full overflow-x-hidden bg-gray-50">
@@ -56,7 +74,12 @@ export default function StaffLayout({ children, wide = false }: Props) {
             </button>
 
             {/* Avatar dropdown */}
-            <div className="relative flex items-center gap-2 border-l pl-4 border-gray-100" ref={dropdownRef}>
+            <div 
+              className="relative flex items-center gap-2 border-l pl-4 border-gray-100" 
+              ref={dropdownRef}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+            >
               {/* Tên hiển thị */}
               <span className="hidden sm:block text-sm font-semibold text-gray-700 truncate max-w-[120px]">
                 {displayName}
@@ -74,26 +97,28 @@ export default function StaffLayout({ children, wide = false }: Props) {
 
               {/* Dropdown — chỉ 2 mục */}
               {dropdownOpen && (
-                <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 py-1.5 z-50 animate-fade-in">
-                  <button
-                    onClick={() => setDropdownOpen(false)}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left"
-                  >
-                    <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                    Quản lí hồ sơ
-                  </button>
-                  <div className="border-t border-gray-50 my-1" />
-                  <button
-                    onClick={() => { setDropdownOpen(false); handleLogout(); }}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition text-left font-semibold"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                    </svg>
-                    Đăng xuất
-                  </button>
+                <div className="absolute right-0 top-full pt-2 w-48 z-50 animate-fade-in">
+                  <div className="bg-white rounded-2xl shadow-xl border border-gray-100 py-1.5">
+                    <button
+                      onClick={() => setDropdownOpen(false)}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left"
+                    >
+                      <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      Quản lí hồ sơ
+                    </button>
+                    <div className="border-t border-gray-50 my-1" />
+                    <button
+                      onClick={() => { setDropdownOpen(false); handleLogout(); }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition text-left font-semibold"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                      Đăng xuất
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

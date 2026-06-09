@@ -89,15 +89,10 @@ export default function UserManagement() {
     }
   };
 
-  const handleResetPassword = async (user: User) => {
-    if (
-      confirm(
-        `Bạn có chắc chắn muốn đặt lại mật khẩu cho ${user.email}?\nMật khẩu mới sẽ được tạo ngẫu nhiên.`,
-      )
-    ) {
-      alert(
-        `Đã đặt lại mật khẩu cho ${user.email}. Một email hướng dẫn đã được gửi đi.`,
-      );
+  const handleDelete = async (user: User) => {
+    if (confirm(`Bạn có chắc chắn muốn xóa người dùng ${user.email}?`)) {
+      alert("Đã gửi yêu cầu xóa người dùng.");
+      // Tương tự, gọi userApi.deleteUser(user.id) nếu có
     }
   };
 
@@ -118,28 +113,6 @@ export default function UserManagement() {
           </nav>
         </div>
 
-        <button
-          onClick={() => {
-            setEditingUser(null);
-            setIsModalOpen(true);
-          }}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-md sm:w-auto"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2.5}
-              d="M12 4v16m8-8H4"
-            />
-          </svg>
-          Thêm người dùng
-        </button>
       </div>
 
       {loading ? (
@@ -159,7 +132,11 @@ export default function UserManagement() {
             setEditingUser(u);
             setIsModalOpen(true);
           }}
-          onResetPassword={handleResetPassword}
+          onDelete={handleDelete}
+          onCreate={() => {
+            setEditingUser(null);
+            setIsModalOpen(true);
+          }}
         />
       )}
 

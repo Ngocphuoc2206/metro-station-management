@@ -1,5 +1,12 @@
 import axios from "axios";
 
+declare module "axios" {
+  export interface AxiosRequestConfig {
+    skipAuth?: boolean;
+    skipAuthRedirect?: boolean;
+  }
+}
+
 export const apiClient = axios.create({
   baseURL: process.env.NEXT_PUBLIC_BASE_API_ENDPOINT || "http://localhost:8080/api/v1",
   headers: {
@@ -39,8 +46,8 @@ function getStoredToken() {
 }
 
 apiClient.interceptors.request.use((config) => {
-  if (typeof window !== "undefined" && !isLoginRequest(config.url)) {
-    const token = getStoredToken();
+  if (typeof window !== "undefined" && !isLoginRequest(config.url) && !config.skipAuth) {
+    const token = localStorage.getItem("authToken");
     if (token) {
       config.headers["Authorization"] = `Bearer ${token}`;
     }
@@ -61,9 +68,11 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    const shouldHandleUnauthorized =
+      originalRequest && !originalRequest.skipAuthRedirect;
 
     // Nếu bị 401 và chưa retry lần nào
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && shouldHandleUnauthorized && !originalRequest._retry) {
       if (isRefreshing) {
         // Đang refresh rồi → logout luôn để tránh vòng lặp
         if (typeof window !== "undefined") {
