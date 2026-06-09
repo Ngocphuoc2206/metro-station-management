@@ -9,9 +9,9 @@ import {
   AlertTriangle,
   Loader2,
   ScanLine,
-  ShieldAlert,
   Ticket,
   Wifi,
+  ChevronDown,
 } from "lucide-react";
 import { staffGateApi } from "@features/staffGate/staffGateApi";
 import type {
@@ -381,7 +381,7 @@ function StaffScanPage() {
   const [station, setStation] = useState("");
   const [gate, setGate] = useState("");
   const [filterLoading, setFilterLoading] = useState(true);
-  const [gateLoading, setGateLoading] = useState(false);
+  const gateLoading = false;
   const [filterError, setFilterError] = useState<string | null>(null);
   const [token, setToken] = useState("");
   const [mode, setMode] = useState<TapMode>("TAP-IN");
@@ -1015,12 +1015,8 @@ function StaffScanPage() {
                           </option>
                         ))}
                       </select>
-                      <span className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2">
-                        <span
-                          className="absolute left-[6.3px] top-[8.4px] h-1 w-2 border-b-2 border-r-2 border-gray-500"
-                          style={{ transform: "rotate(45deg)" }}
-                          aria-hidden="true"
-                        />
+                      <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400">
+                        <ChevronDown className="h-4 w-4" />
                       </span>
                     </div>
                   </label>
@@ -1050,7 +1046,7 @@ function StaffScanPage() {
                                 setGate(item.gateId);
                                 setMode(itemMode);
                               }}
-                              className={`rounded-lg px-3 py-2 text-left text-xs font-semibold outline outline-1 outline-offset-[-1px] transition ${
+                              className={`rounded-lg px-3 py-2 text-center text-xs font-bold uppercase outline outline-1 outline-offset-[-1px] transition ${
                                 isSelected
                                   ? itemMode === "TAP-IN"
                                     ? "bg-blue-50 text-blue-700 outline-blue-300"
@@ -1058,23 +1054,7 @@ function StaffScanPage() {
                                   : "bg-slate-50 text-slate-700 outline-slate-200 hover:bg-white hover:outline-slate-300"
                               }`}
                             >
-                              <span className="flex items-center justify-between gap-2">
-                                <span className="min-w-0 truncate">
-                                  {item.gateCode}
-                                  {item.name ? ` - ${item.name}` : ""}
-                                </span>
-                                <span
-                                  className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
-                                    isSelected
-                                      ? itemMode === "TAP-IN"
-                                        ? "bg-blue-100 text-blue-700"
-                                        : "bg-white/15 text-white"
-                                      : "bg-white text-slate-500"
-                                  }`}
-                                >
-                                  {itemMode === "TAP-IN" ? "Vào" : "Ra"}
-                                </span>
-                              </span>
+                              {itemMode === "TAP-IN" ? "Vào" : "Ra"}
                             </button>
                           );
                         })
@@ -1237,7 +1217,7 @@ function StaffScanPage() {
                     }`}
                   >
                     <div className="mx-auto mb-1.5 flex h-7 w-7 items-center justify-center rounded-lg bg-white shadow-sm">
-                      <ShieldAlert
+                      <ScanLine
                         className={`h-4 w-4 ${mode === "TAP-OUT" ? "text-slate-900" : "text-slate-500"}`}
                         aria-hidden="true"
                       />

@@ -85,11 +85,25 @@ const getNextArrival = (
 const getScheduleSeconds = (schedule: ScheduleDto) =>
   parseTimeToSeconds(schedule.arrivalTime || schedule.departureTime);
 
-const getDisplayTimeSeconds = (value?: string) =>
-  parseTimeToSeconds(value || "") ?? Number.MAX_SAFE_INTEGER;
-
 const getForwardOffsetSeconds = (fromSeconds: number, toSeconds: number) =>
   toSeconds >= fromSeconds ? toSeconds - fromSeconds : toSeconds + 86400 - fromSeconds;
+
+const getNowSeconds = (now: Date) =>
+  now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+
+const getSecondsUntilDisplayTime = (displayTime: string, now: Date) => {
+  const displaySeconds = parseTimeToSeconds(displayTime);
+  if (displaySeconds === null) return Number.MAX_SAFE_INTEGER;
+  return getForwardOffsetSeconds(getNowSeconds(now), displaySeconds);
+};
+
+const compareScheduleRows = (a: ScheduleDisplayRow, b: ScheduleDisplayRow) => {
+  if (a.arrivalState !== b.arrivalState) {
+    return a.arrivalState === "upcoming" ? -1 : 1;
+  }
+
+  return a.sortSeconds - b.sortSeconds;
+};
 
 const buildLineRealtimeRows = (
   lineSchedules: ScheduleDto[],
@@ -115,8 +129,7 @@ const buildLineRealtimeRows = (
 
   const frequencySeconds =
     Math.max(1, Number(sortedStops[0].frequencyMinutes || 0)) * 60;
-  const nowSeconds =
-    now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+  const nowSeconds = getNowSeconds(now);
   const stopOffsets = sortedStops.map((schedule) => {
     const stopSeconds = getScheduleSeconds(schedule);
     return stopSeconds === null
@@ -147,11 +160,11 @@ const buildLineRealtimeRows = (
           time: formatSecondsAsTime(arrivalSeconds),
           countdown: hasArrived ? "Đã đến" : formatCountdown(secondsUntilArrival),
         },
-        sortSeconds: arrivalSeconds,
+        sortSeconds: hasArrived ? arrivalSeconds : secondsUntilArrival,
         arrivalState: hasArrived ? "arrived" as const : "upcoming" as const,
       };
     })
-    .sort((a, b) => a.sortSeconds - b.sortSeconds);
+    .sort(compareScheduleRows);
 };
 
 export default function PassengerSchedulePage() {
@@ -301,11 +314,11 @@ export default function PassengerSchedulePage() {
           return {
             schedule,
             nextArrival,
-            sortSeconds: getDisplayTimeSeconds(nextArrival.time),
+            sortSeconds: getSecondsUntilDisplayTime(nextArrival.time, currentTime),
             arrivalState: "upcoming" as const,
           };
         })
-        .sort((a, b) => b.sortSeconds - a.sortSeconds);
+        .sort(compareScheduleRows);
     }
 
     const groupedSchedules = new Map<string, ScheduleDto[]>();
@@ -316,7 +329,7 @@ export default function PassengerSchedulePage() {
 
     return Array.from(groupedSchedules.values())
       .flatMap((items) => buildLineRealtimeRows(items, currentTime))
-      .sort((a, b) => getDisplayTimeSeconds(b.nextArrival.time) - getDisplayTimeSeconds(a.nextArrival.time));
+      .sort(compareScheduleRows);
   }, [currentTime, schedules, selectedStationId]);
 
   const applyFilters = async () => {

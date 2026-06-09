@@ -9,10 +9,10 @@ import { toast } from "react-hot-toast";
 // ── Badges ─────────────────────────────────────────────────────────────────────
 function SeverityBadge({ severity }: { severity: string }) {
   const map: Record<string, { label: string; cls: string }> = {
-    critical: { label: "Nguy cấp",  cls: "bg-red-100 text-red-700 border border-red-200" },
-    high:     { label: "Cao",        cls: "bg-orange-100 text-orange-700 border border-orange-200" },
-    medium:   { label: "Trung bình", cls: "bg-yellow-100 text-yellow-700 border border-yellow-200" },
-    low:      { label: "Thấp",       cls: "bg-gray-100 text-gray-600 border border-gray-200" },
+    critical: { label: "Nguy cấp", cls: "bg-red-100 text-red-700 border border-red-200" },
+    high: { label: "Cao", cls: "bg-orange-100 text-orange-700 border border-orange-200" },
+    medium: { label: "Trung bình", cls: "bg-yellow-100 text-yellow-700 border border-yellow-200" },
+    low: { label: "Thấp", cls: "bg-gray-100 text-gray-600 border border-gray-200" },
   };
   const v = map[severity] ?? map.low;
   return (
@@ -24,13 +24,13 @@ function SeverityBadge({ severity }: { severity: string }) {
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; dot: string; cls: string }> = {
-    Open:       { label: "Mới tạo",      dot: "bg-gray-400",   cls: "text-gray-600" },
-    Approved:   { label: "Đã phê duyệt", dot: "bg-blue-400",   cls: "text-blue-700" },
-    Assigned:   { label: "Đã phân công", dot: "bg-blue-500",   cls: "text-blue-700" },
-    InProgress: { label: "Đang xử lý",  dot: "bg-orange-500", cls: "text-orange-700" },
-    Escalated:  { label: "Đang xử lý",  dot: "bg-orange-500", cls: "text-orange-700" },
-    Resolved:   { label: "Đã hoàn thành", dot: "bg-green-500", cls: "text-green-700" },
-    Closed:     { label: "Đã đóng",      dot: "bg-slate-500",  cls: "text-slate-600" },
+    Open: { label: "Mới tạo", dot: "bg-gray-400", cls: "text-gray-600" },
+    Approved: { label: "Đã phê duyệt", dot: "bg-blue-400", cls: "text-blue-700" },
+    Assigned: { label: "Đã phân công", dot: "bg-blue-500", cls: "text-blue-700" },
+    InProgress: { label: "Đang xử lý", dot: "bg-orange-500", cls: "text-orange-700" },
+    Escalated: { label: "Đang xử lý", dot: "bg-orange-500", cls: "text-orange-700" },
+    Resolved: { label: "Đã hoàn thành", dot: "bg-green-500", cls: "text-green-700" },
+    Closed: { label: "Đã đóng", dot: "bg-slate-500", cls: "text-slate-600" },
   };
   const v = map[status] ?? map.Open;
   return (
@@ -97,11 +97,11 @@ function IncidentDetailModal({
 
   const staffReport = useMemo(() => {
     if (!detail || !detail.comments) return { note: "Không có ghi chú.", images: [] as string[] };
-    
+
     // Tìm các bình luận từ comments list
     const comments = detail.comments || [];
     if (comments.length === 0) return { note: "Không có ghi chú.", images: [] as string[] };
-    
+
     // Tìm bình luận chứa thông tin báo cáo khắc phục của nhân viên
     // (Bỏ qua các bình luận hệ thống bắt đầu bằng "[")
     let reportComment = "";
@@ -120,7 +120,7 @@ function IncidentDetailModal({
     const lines = reportComment.split("\n");
     const imageUrls: string[] = [];
     const noteLines: string[] = [];
-    
+
     let parsingImages = false;
     for (const line of lines) {
       if (line.includes("Hình ảnh bằng chứng xử lý:")) {
@@ -138,7 +138,7 @@ function IncidentDetailModal({
         noteLines.push(line);
       }
     }
-    
+
     return {
       note: noteLines.join("\n").trim() || "Không có ghi chú.",
       images: imageUrls,
@@ -433,10 +433,10 @@ export default function AdminIncidentDashboard() {
         prev.map((i) =>
           i.id === incidentId
             ? {
-                ...i,
-                status: updated.status ?? ("Approved" as any),
-                assigneeName: updated.assigneeName ?? i.assigneeName,
-              }
+              ...i,
+              status: updated.status ?? ("Approved" as any),
+              assigneeName: updated.assigneeName ?? i.assigneeName,
+            }
             : i,
         ),
       );
@@ -528,10 +528,10 @@ export default function AdminIncidentDashboard() {
       {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: "Tổng sự cố",  value: stats.total,      color: "blue",   icon: "M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" },
-          { label: "Chờ xử lý",  value: stats.pending,    color: "gray",   icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" },
+          { label: "Tổng sự cố", value: stats.total, color: "blue", icon: "M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" },
+          { label: "Chờ xử lý", value: stats.pending, color: "gray", icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" },
           { label: "Đang xử lý", value: stats.inProgress, color: "orange", icon: "M13 10V3L4 14h7v7l9-11h-7z" },
-          { label: "Hoàn thành", value: stats.resolved,   color: "green",  icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" },
+          { label: "Hoàn thành", value: stats.resolved, color: "green", icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" },
         ].map((s) => (
           <div key={s.label} className="bg-white rounded-2xl border border-gray-100 p-5 flex items-center gap-4 shadow-sm">
             <div className={`w-10 h-10 rounded-full bg-${s.color}-50 flex items-center justify-center shrink-0`}>
@@ -615,14 +615,14 @@ export default function AdminIncidentDashboard() {
             <tbody className="divide-y divide-gray-50">
               {loading
                 ? Array.from({ length: 5 }).map((_, i) => (
-                    <tr key={i}>
-                      {Array.from({ length: 7 }).map((__, j) => (
-                        <td key={j} className="px-5 py-4">
-                          <div className="h-4 bg-gray-100 rounded animate-pulse" />
-                        </td>
-                      ))}
-                    </tr>
-                  ))
+                  <tr key={i}>
+                    {Array.from({ length: 7 }).map((__, j) => (
+                      <td key={j} className="px-5 py-4">
+                        <div className="h-4 bg-gray-100 rounded animate-pulse" />
+                      </td>
+                    ))}
+                  </tr>
+                ))
                 : filtered.length === 0
                   ? (
                     <tr>
@@ -632,45 +632,45 @@ export default function AdminIncidentDashboard() {
                     </tr>
                   )
                   : filtered.map((inc) => {
-                      const code = toShortCode(inc.id);
-                      return (
-                        <tr key={inc.id} className="hover:bg-blue-50/30 transition-colors">
-                          <td className="px-5 py-4">
-                            <span className="font-bold text-blue-600">{code}</span>
-                          </td>
-                          <td className="px-4 py-4 max-w-[200px]">
-                            <span className="font-semibold text-gray-900 truncate block">{inc.title}</span>
-                          </td>
-                          <td className="px-4 py-4 text-gray-500 text-xs max-w-[140px] truncate">{inc.stationId || "—"}</td>
-                          <td className="px-4 py-4">
-                            <SeverityBadge severity={inc.severity} />
-                          </td>
-                          <td className="px-4 py-4">
-                            {inc.assigneeName ? (
-                              <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-[10px] font-bold text-blue-700 shrink-0">
-                                  {inc.assigneeName.charAt(0).toUpperCase()}
-                                </div>
-                                <span className="text-gray-700 text-xs">{inc.assigneeName}</span>
+                    const code = toShortCode(inc.id);
+                    return (
+                      <tr key={inc.id} className="hover:bg-blue-50/30 transition-colors">
+                        <td className="px-5 py-4">
+                          <span className="font-bold text-blue-600">{code}</span>
+                        </td>
+                        <td className="px-4 py-4 max-w-[200px]">
+                          <span className="font-semibold text-gray-900 truncate block">{inc.title}</span>
+                        </td>
+                        <td className="px-4 py-4 text-gray-500 text-xs max-w-[140px] truncate">{inc.stationId || "—"}</td>
+                        <td className="px-4 py-4">
+                          <SeverityBadge severity={inc.severity} />
+                        </td>
+                        <td className="px-4 py-4">
+                          {inc.assigneeName ? (
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-[10px] font-bold text-blue-700 shrink-0">
+                                {inc.assigneeName.charAt(0).toUpperCase()}
                               </div>
-                            ) : (
-                              <span className="text-gray-400 text-xs italic">Chưa phân công</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-4">
-                            <StatusBadge status={inc.status} />
-                          </td>
-                          <td className="px-4 py-4">
-                            <button
-                              onClick={() => setSelectedIncident(inc)}
-                              className="px-3 py-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition"
-                            >
-                              Chi tiết
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                              <span className="text-gray-700 text-xs">{inc.assigneeName}</span>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 text-xs italic">Chưa phân công</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-4">
+                          <StatusBadge status={inc.status} />
+                        </td>
+                        <td className="px-4 py-4">
+                          <button
+                            onClick={() => setSelectedIncident(inc)}
+                            className="px-3 py-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition"
+                          >
+                            Chi tiết
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
             </tbody>
           </table>
         </div>
