@@ -4,6 +4,10 @@ import { unwrapApiResponse } from "@features/httpClient/unwrap";
 import type { RouteDto, StationDto, TicketTypeDto } from "./publicTypes";
 
 const USE_MOCK_PUBLIC = process.env.NEXT_PUBLIC_USE_MOCK_PUBLIC === "true";
+const PUBLIC_REQUEST_CONFIG = {
+  skipAuth: true,
+  skipAuthRedirect: true,
+};
 
 const coerceList = <T>(value: unknown): T[] => {
   if (Array.isArray(value)) return value as T[];
@@ -104,7 +108,7 @@ const normalizeTicketTypes = (raw: unknown): TicketTypeDto[] => {
 
 export const publicApi = {
   getStations: async (): Promise<StationDto[]> => {
-    const res = await apiClient.get(API_ENDPOINTS.stations.base);
+    const res = await apiClient.get(API_ENDPOINTS.stations.base, PUBLIC_REQUEST_CONFIG);
     return normalizeStations(unwrapApiResponse(res.data));
   },
 
@@ -116,18 +120,21 @@ export const publicApi = {
       ];
     }
 
-    const res = await apiClient.get(API_ENDPOINTS.routes.base);
+    const res = await apiClient.get(API_ENDPOINTS.routes.base, PUBLIC_REQUEST_CONFIG);
     return normalizeRoutes(unwrapApiResponse(res.data));
   },
 
   getRouteById: async (routeId: string): Promise<RouteDto> => {
-    const res = await apiClient.get(withPathParam(API_ENDPOINTS.routes.base, routeId));
+    const res = await apiClient.get(
+      withPathParam(API_ENDPOINTS.routes.base, routeId),
+      PUBLIC_REQUEST_CONFIG,
+    );
     const data = unwrapApiResponse<RouteDto>(res.data);
     return data;
   },
 
   getTicketTypes: async (): Promise<TicketTypeDto[]> => {
-    const res = await apiClient.get(API_ENDPOINTS.ticketTypes.base);
+    const res = await apiClient.get(API_ENDPOINTS.ticketTypes.base, PUBLIC_REQUEST_CONFIG);
     return normalizeTicketTypes(unwrapApiResponse(res.data));
   },
 };
