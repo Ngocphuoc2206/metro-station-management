@@ -113,6 +113,8 @@ public class ScheduleService {
         return ScheduleResponse.builder()
                 .id(schedule.getId())
                 .routeId(schedule.getRoute().getRouteId())
+                .routeName(schedule.getRoute().getRouteName())
+                .stationName(schedule.getStation().getName())
                 .stationId(schedule.getStation().getStationId())
                 .direction(schedule.getDirection().name())
                 .departureTime(schedule.getDepartureTime().format(TIME_FORMATTER))

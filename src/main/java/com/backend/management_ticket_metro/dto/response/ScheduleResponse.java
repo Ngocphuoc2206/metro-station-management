@@ -12,6 +12,8 @@ import lombok.NoArgsConstructor;
 public class ScheduleResponse {
     private String id;
     private String routeId;
+    private String routeName;
+    private String stationName;
     private String stationId;
     private String direction;
     private String departureTime;
