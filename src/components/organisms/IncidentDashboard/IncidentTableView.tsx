@@ -25,25 +25,25 @@ function getSeverityBadge(severity: string) {
   switch (severity) {
     case "critical":
       return (
-        <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-red-100 text-red-700">
+        <span className="inline-flex items-center whitespace-nowrap px-2.5 py-1 rounded-md text-xs font-bold bg-red-100 text-red-700">
           Nguy cấp
         </span>
       );
     case "high":
       return (
-        <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-orange-100 text-orange-700">
+        <span className="inline-flex items-center whitespace-nowrap px-2.5 py-1 rounded-md text-xs font-bold bg-orange-100 text-orange-700">
           Cao
         </span>
       );
     case "medium":
       return (
-        <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-yellow-100 text-yellow-700">
+        <span className="inline-flex items-center whitespace-nowrap px-2.5 py-1 rounded-md text-xs font-bold bg-yellow-100 text-yellow-700">
           Trung bình
         </span>
       );
     case "low":
       return (
-        <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-gray-100 text-gray-600">
+        <span className="inline-flex items-center whitespace-nowrap px-2.5 py-1 rounded-md text-xs font-bold bg-gray-100 text-gray-600">
           Thấp
         </span>
       );
@@ -56,14 +56,14 @@ function getStatusBadge(status: string) {
   switch (status) {
     case "Open":
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600 whitespace-nowrap">
           <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
           Tạo mới
         </span>
       );
     case "Assigned":
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-600">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-600 whitespace-nowrap">
           <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
           Đã phân công
         </span>
@@ -71,21 +71,21 @@ function getStatusBadge(status: string) {
     case "InProgress":
     case "Escalated":
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-50 text-orange-600">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-50 text-orange-600 whitespace-nowrap">
           <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
           Đang xử lý
         </span>
       );
     case "Resolved":
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700 whitespace-nowrap">
           <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
           Đã hoàn thành
         </span>
       );
     case "Closed":
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 whitespace-nowrap">
           <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
           Đã đóng
         </span>
@@ -181,7 +181,7 @@ export default function IncidentTableView({
               <th className="px-6 py-3.5 text-[11px] font-black text-gray-400 uppercase tracking-wider">Mức độ</th>
               <th className="px-6 py-3.5 text-[11px] font-black text-gray-400 uppercase tracking-wider">Nhân viên</th>
               <th className="px-6 py-3.5 text-[11px] font-black text-gray-400 uppercase tracking-wider">Trạng thái</th>
-              <th className="px-6 py-3.5 text-[11px] font-black text-gray-400 uppercase tracking-wider text-right">Thao tác</th>
+              <th className="px-6 py-3.5 text-[11px] font-black text-gray-400 uppercase tracking-wider text-right whitespace-nowrap">Thao tác</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
@@ -226,7 +226,7 @@ export default function IncidentTableView({
                     </td>
 
                     {/* Tên sự cố */}
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <span className="font-semibold text-gray-900">{incident.title}</span>
                     </td>
 
@@ -236,13 +236,13 @@ export default function IncidentTableView({
                     </td>
 
                     {/* Mức độ */}
-                    <td className="px-6 py-4">{getSeverityBadge(incident.severity)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{getSeverityBadge(incident.severity)}</td>
 
                     {/* Nhân viên */}
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         <AssigneeAvatar name={incident.assigneeName} />
-                        <span className="text-gray-700 font-medium text-sm">
+                        <span className="text-gray-700 font-medium text-sm whitespace-nowrap">
                           {incident.assigneeName ?? "—"}
                         </span>
                       </div>

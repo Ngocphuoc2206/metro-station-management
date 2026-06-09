@@ -2,18 +2,17 @@ import Head from "next/head";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import PassengerChatbotWidget from "@components/organisms/PassengerChatbot/PassengerChatbotWidget";
+import PassengerHeader from "@components/templates/PassengerHeader";
 import PassengerSidebar from "@components/templates/PassengerSidebar";
 import { publicApi } from "@features/public/publicApi";
 import type { RouteDto, StationDto } from "@features/public/publicTypes";
 import { scheduleApi, scheduleErrorMessage } from "@features/schedule/scheduleApi";
 import type { ScheduleDto } from "@features/schedule/scheduleTypes";
 import {
-  Bell,
   ChevronRight,
   Clock3,
   MapPinned,
   Search,
-  Settings,
   SlidersHorizontal,
   TrainFront,
 } from "lucide-react";
@@ -86,11 +85,25 @@ const getNextArrival = (
 const getScheduleSeconds = (schedule: ScheduleDto) =>
   parseTimeToSeconds(schedule.arrivalTime || schedule.departureTime);
 
-const getDisplayTimeSeconds = (value?: string) =>
-  parseTimeToSeconds(value || "") ?? Number.MAX_SAFE_INTEGER;
-
 const getForwardOffsetSeconds = (fromSeconds: number, toSeconds: number) =>
   toSeconds >= fromSeconds ? toSeconds - fromSeconds : toSeconds + 86400 - fromSeconds;
+
+const getNowSeconds = (now: Date) =>
+  now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+
+const getSecondsUntilDisplayTime = (displayTime: string, now: Date) => {
+  const displaySeconds = parseTimeToSeconds(displayTime);
+  if (displaySeconds === null) return Number.MAX_SAFE_INTEGER;
+  return getForwardOffsetSeconds(getNowSeconds(now), displaySeconds);
+};
+
+const compareScheduleRows = (a: ScheduleDisplayRow, b: ScheduleDisplayRow) => {
+  if (a.arrivalState !== b.arrivalState) {
+    return a.arrivalState === "upcoming" ? -1 : 1;
+  }
+
+  return a.sortSeconds - b.sortSeconds;
+};
 
 const buildLineRealtimeRows = (
   lineSchedules: ScheduleDto[],
@@ -116,8 +129,7 @@ const buildLineRealtimeRows = (
 
   const frequencySeconds =
     Math.max(1, Number(sortedStops[0].frequencyMinutes || 0)) * 60;
-  const nowSeconds =
-    now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+  const nowSeconds = getNowSeconds(now);
   const stopOffsets = sortedStops.map((schedule) => {
     const stopSeconds = getScheduleSeconds(schedule);
     return stopSeconds === null
@@ -148,11 +160,11 @@ const buildLineRealtimeRows = (
           time: formatSecondsAsTime(arrivalSeconds),
           countdown: hasArrived ? "Đã đến" : formatCountdown(secondsUntilArrival),
         },
-        sortSeconds: arrivalSeconds,
+        sortSeconds: hasArrived ? arrivalSeconds : secondsUntilArrival,
         arrivalState: hasArrived ? "arrived" as const : "upcoming" as const,
       };
     })
-    .sort((a, b) => a.sortSeconds - b.sortSeconds);
+    .sort(compareScheduleRows);
 };
 
 export default function PassengerSchedulePage() {
@@ -302,11 +314,11 @@ export default function PassengerSchedulePage() {
           return {
             schedule,
             nextArrival,
-            sortSeconds: getDisplayTimeSeconds(nextArrival.time),
+            sortSeconds: getSecondsUntilDisplayTime(nextArrival.time, currentTime),
             arrivalState: "upcoming" as const,
           };
         })
-        .sort((a, b) => b.sortSeconds - a.sortSeconds);
+        .sort(compareScheduleRows);
     }
 
     const groupedSchedules = new Map<string, ScheduleDto[]>();
@@ -317,7 +329,7 @@ export default function PassengerSchedulePage() {
 
     return Array.from(groupedSchedules.values())
       .flatMap((items) => buildLineRealtimeRows(items, currentTime))
-      .sort((a, b) => getDisplayTimeSeconds(b.nextArrival.time) - getDisplayTimeSeconds(a.nextArrival.time));
+      .sort(compareScheduleRows);
   }, [currentTime, schedules, selectedStationId]);
 
   const applyFilters = async () => {
@@ -365,26 +377,7 @@ export default function PassengerSchedulePage() {
           <PassengerSidebar />
 
           <main className="flex min-w-0 flex-1 flex-col">
-            <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-slate-200/80 bg-white/80 pl-16 pr-3 backdrop-blur sm:px-8">
-              <div className="relative min-w-0 flex-1 sm:max-w-md">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input
-                  className="w-full rounded-2xl bg-slate-100 py-2.5 pl-10 pr-4 text-sm text-neutral-900 outline-none placeholder:text-slate-500"
-                  placeholder="Tìm kiếm ga, chuyến tàu..."
-                  readOnly
-                />
-              </div>
-
-              <div className="flex shrink-0 items-center gap-2 sm:gap-4">
-                <button className="relative flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-600">
-                  <Bell className="h-5 w-5" />
-                  <span className="absolute right-2 top-2 h-2 w-2 rounded-full border-2 border-white bg-red-500" />
-                </button>
-                <button className="hidden h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-600 min-[380px]:flex">
-                  <Settings className="h-5 w-5" />
-                </button>
-              </div>
-            </header>
+            <PassengerHeader searchPlaceholder="Tìm kiếm ga, chuyến tàu..." />
 
             <section className="flex-1 p-4 sm:p-8">
               <div className="mx-auto max-w-[1400px] space-y-6">

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { User, UserRole } from "@features/user/userTypes";
 
 interface Props {
@@ -9,7 +10,8 @@ interface Props {
   statusFilter: string;
   onStatusFilterChange: (val: string) => void;
   onEdit: (u: User) => void;
-  onResetPassword: (u: User) => void;
+  onDelete: (u: User) => void;
+  onCreate: () => void;
 }
 
 export default function UserList({
@@ -21,8 +23,27 @@ export default function UserList({
   statusFilter,
   onStatusFilterChange,
   onEdit,
-  onResetPassword,
+  onDelete,
+  onCreate,
 }: Props) {
+  const [appliedSearch, setAppliedSearch] = useState(searchTerm);
+  const [appliedRole, setAppliedRole] = useState(roleFilter);
+  const [appliedStatus, setAppliedStatus] = useState(statusFilter);
+
+  const handleSearch = () => {
+    onSearchChange(appliedSearch);
+    onRoleFilterChange(appliedRole);
+    onStatusFilterChange(appliedStatus);
+  };
+
+  const handleRoleChange = (val: string) => {
+    setAppliedRole(val);
+  };
+
+  const handleStatusChange = (val: string) => {
+    setAppliedStatus(val);
+  };
+
   // Role Base Display Properties
   const getRoleBadge = (role: UserRole) => {
     switch (role) {
@@ -39,9 +60,9 @@ export default function UserList({
 
   const getInitials = (name: string) => {
     if (!name) return "U";
-    const parts = name.split(" ");
+    const parts = name.trim().split(/\s+/);
     if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-    return name.slice(0, 2).toUpperCase();
+    return name.trim().slice(0, 2).toUpperCase();
   };
 
   return (
@@ -56,20 +77,20 @@ export default function UserList({
           <input
             type="text"
             placeholder="Tìm theo tên hoặc email..."
-            value={searchTerm}
-            onChange={(e) => onSearchChange(e.target.value)}
+            value={appliedSearch}
+            onChange={(e) => setAppliedSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-colors"
           />
         </div>
 
-        {/* Dropdowns */}
-        <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
+        {/* Dropdowns & Buttons */}
+        <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto justify-end">
           {/* Vai trò */}
           <div className="relative w-full md:w-48 flex items-center bg-white border border-gray-200 rounded-xl pl-4 pr-1 focus-within:ring-2 focus-within:ring-blue-100 focus-within:border-blue-400 transition-colors">
             <span className="text-sm font-medium text-gray-500 whitespace-nowrap">Vai trò:</span>
             <select
-              value={roleFilter}
-              onChange={(e) => onRoleFilterChange(e.target.value)}
+              value={appliedRole}
+              onChange={(e) => handleRoleChange(e.target.value)}
               className="w-full py-2.5 pl-2 pr-8 bg-transparent text-sm font-bold text-gray-900 appearance-none focus:outline-none cursor-pointer"
             >
               <option value="all">Tất cả</option>
@@ -87,8 +108,8 @@ export default function UserList({
           <div className="relative w-full md:w-[210px] flex items-center bg-white border border-gray-200 rounded-xl pl-4 pr-1 focus-within:ring-2 focus-within:ring-blue-100 focus-within:border-blue-400 transition-colors">
             <span className="text-sm font-medium text-gray-500 whitespace-nowrap">Trạng thái:</span>
             <select
-              value={statusFilter}
-              onChange={(e) => onStatusFilterChange(e.target.value)}
+              value={appliedStatus}
+              onChange={(e) => handleStatusChange(e.target.value)}
               className="w-full py-2.5 pl-2 pr-8 bg-transparent text-sm font-bold text-gray-900 appearance-none focus:outline-none cursor-pointer"
             >
               <option value="all">Tất cả</option>
@@ -100,8 +121,26 @@ export default function UserList({
             </div>
           </div>
 
-          <button className="p-2.5 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 transition-colors text-gray-500 hidden md:block shrink-0" title="Bộ lọc nâng cao">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
+          {/* Search Button (replaces filter icon) */}
+          <button 
+            onClick={handleSearch}
+            className="p-2.5 bg-blue-600 hover:bg-blue-700 border border-blue-600 rounded-xl transition-colors text-white font-bold flex items-center gap-2 shrink-0 whitespace-nowrap" 
+            title="Tìm kiếm"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            Tìm kiếm
+          </button>
+          
+          <button
+            onClick={onCreate}
+            className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-md w-full md:w-auto shrink-0 whitespace-nowrap"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+            </svg>
+            Thêm người dùng
           </button>
         </div>
       </div>
@@ -112,12 +151,11 @@ export default function UserList({
           <thead>
             <tr className="bg-white border-b border-gray-100">
               <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider w-[25%]">Người dùng</th>
-              <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider w-[20%]">Email</th>
-              <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider w-[12%]">Vai trò</th>
-              <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider w-[13%]">Ga quản lý</th>
-              <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider w-[10%]">Trạng thái</th>
-              <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider w-[12%]">Đăng nhập cuối</th>
-              <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider w-[8%] text-center">Thao tác</th>
+              <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider w-[25%]">Email</th>
+              <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider w-[15%]">Vai trò</th>
+              <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider w-[12%]">Trạng thái</th>
+              <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider w-[13%]">Đăng nhập cuối</th>
+              <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider w-[120px] text-center">Thao tác</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
@@ -150,15 +188,6 @@ export default function UserList({
                     {getRoleBadge(user.role)}
                   </td>
 
-                  {/* GA QUẢN LÝ */}
-                  <td className="px-6 py-4">
-                    {user.assignedStationName ? (
-                      <span className="text-sm text-gray-600 line-clamp-2 max-w-[150px]">{user.assignedStationName}</span>
-                    ) : (
-                      <span className="text-sm text-gray-400">-</span>
-                    )}
-                  </td>
-
                   {/* TRẠNG THÁI */}
                   <td className="px-6 py-4">
                     {user.status === "active" ? (
@@ -180,24 +209,24 @@ export default function UserList({
                   </td>
 
                   {/* THAO TÁC */}
-                  <td className="px-6 py-4 text-center">
-                    <div className="flex items-center justify-center gap-1 opacity-50 group-hover:opacity-100 transition-opacity">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center justify-start gap-0">
                       <button
                         onClick={() => onEdit(user)}
-                        className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="Chỉnh sửa (Bật/Tắt hoạt động)"
+                        className="p-2.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors flex-shrink-0"
+                        title="Chỉnh sửa"
                       >
                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                         </svg>
                       </button>
                       <button
-                        onClick={() => onResetPassword(user)}
-                        className="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
-                        title="Reset mật khẩu"
+                        onClick={() => onDelete(user)}
+                        className="p-2.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+                        title="Xóa"
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
                       </button>
                     </div>
