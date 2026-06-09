@@ -23,7 +23,7 @@ export default function DashboardRedirect() {
     } else if (role && PORTAL_PATHS[role]) {
       router.replace(PORTAL_PATHS[role]);
     } else {
-      router.replace("/auth/login");
+      router.replace("/");
     }
   }, [urlRole, role, router]);
 
