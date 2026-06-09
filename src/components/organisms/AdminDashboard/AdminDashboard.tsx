@@ -116,7 +116,7 @@ export default function AdminDashboard() {
             <div className="lg:col-span-3 bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <h2 className="text-sm font-semibold text-gray-800">
-                  Biểu đồ doanh thu 7 ngày qua
+                  {timeRange === "7d" ? "Biểu đồ doanh thu 7 ngày qua" : "Biểu đồ doanh thu 30 ngày qua"}
                 </h2>
                 <TimeFilter value={timeRange} onChange={setTimeRange} />
               </div>

@@ -5,6 +5,7 @@ import IncidentTableView from "./IncidentTableView";
 import CreateIncidentModal from "./CreateIncidentModal";
 import IncidentDetailModal from "./IncidentDetailModal";
 import { incidentApi } from "@features/incident/incidentApi";
+import toast from "react-hot-toast";
 import type {
   IncidentFilterParams,
   IncidentRecord,
@@ -60,6 +61,19 @@ export default function IncidentDashboard() {
       setLoading(false);
     }
   }
+
+  const handleDelete = async (incident: IncidentRecord) => {
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa sự cố "${incident.title}"?`)) {
+      return;
+    }
+    try {
+      await incidentApi.deleteIncident(incident.id);
+      setIncidents((current) => current.filter((i) => i.id !== incident.id));
+      toast.success("Đã xóa sự cố.");
+    } catch {
+      toast.error("Không thể xóa sự cố.");
+    }
+  };
 
   const filteredIncidents = useMemo(() => {
     if (!searchQuery.trim()) return incidents;
@@ -172,6 +186,7 @@ export default function IncidentDashboard() {
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         onViewDetail={setSelectedIncident}
+        onDelete={handleDelete}
       />
 
       {/* Emergency Support Banner */}

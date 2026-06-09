@@ -375,76 +375,41 @@ export default function CreateIncidentModal({
                 </div>
               </div>
 
-              {/* Mức độ nghiêm trọng */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">
-                  Mức độ nghiêm trọng
-                </label>
-                <div className="grid grid-cols-2 gap-2 rounded-xl bg-gray-50 p-1 sm:grid-cols-4">
-                  {SEVERITY_OPTIONS.map((level: IncidentSeverity) => {
-                    const labels: Record<string, string> = {
-                      low: "Thấp",
-                      medium: "Trung bình",
-                      high: "Cao",
-                      critical: "Nghiêm trọng",
-                    };
-                    const activeClass =
-                      level === "low"
-                        ? "bg-white text-gray-900 shadow-sm"
-                        : level === "medium"
-                          ? "bg-white text-yellow-600 shadow-sm"
-                          : level === "high"
-                            ? "bg-white text-orange-600 shadow-sm"
-                            : "bg-white text-red-600 shadow-sm";
-
-                    return (
+              {images.length > 0 && (
+                <div className="flex flex-wrap gap-3 mt-4">
+                  {images.map((img: any, idx) => (
+                    <div
+                      key={idx}
+                      className="relative w-20 h-20 rounded-xl border border-gray-200 overflow-hidden group"
+                    >
+                      <img
+                        src={img.preview}
+                        alt="preview"
+                        className="w-full h-full object-cover"
+                      />
                       <button
-                        key={level}
                         type="button"
-                        onClick={() => setValue("severity", level)}
-                        className={`py-2 text-sm font-medium rounded-lg transition-all ${severity === level ? activeClass : "text-gray-500 hover:bg-gray-100"}`}
+                        onClick={() => removeImage(idx)}
+                        className="absolute top-1 right-1 bg-white/90 text-red-500 rounded-full p-1 opacity-0 group-hover:opacity-100 transition shadow-sm hover:bg-white"
                       >
-                        {labels[level]}
-                      </button>
-                    );
-                  })}
-                </div>
-                {images.length > 0 && (
-                  <div className="flex flex-wrap gap-3">
-                    {images.map((img: any, idx) => (
-                      <div
-                        key={idx}
-                        className="relative w-20 h-20 rounded-xl border border-gray-200 overflow-hidden group"
-                      >
-                        <img
-                          src={img.preview}
-                          alt="preview"
-                          className="w-full h-full object-cover"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeImage(idx)}
-                          className="absolute top-1 right-1 bg-white/90 text-red-500 rounded-full p-1 opacity-0 group-hover:opacity-100 transition shadow-sm hover:bg-white"
+                        <svg
+                          className="w-3.5 h-3.5"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
                         >
-                          <svg
-                            className="w-3.5 h-3.5"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={3}
-                              d="M6 18L18 6M6 6l12 12"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={3}
+                            d="M6 18L18 6M6 6l12 12"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </form>
         </div>

@@ -1,7 +1,6 @@
 import type { TimeRange } from "@features/admin/adminDashboardTypes";
 
 const OPTIONS: { label: string; value: TimeRange }[] = [
-  { label: "Hôm nay", value: "today" },
   { label: "7 ngày", value: "7d" },
   { label: "30 ngày", value: "30d" },
 ];

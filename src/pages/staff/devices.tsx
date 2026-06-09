@@ -9,7 +9,7 @@ function StaffDevicesPage() {
       <Head>
         <title>Quản lý thiết bị | MetroNext</title>
       </Head>
-      <StaffLayout>
+      <StaffLayout wide>
         <DeviceDashboard />
       </StaffLayout>
     </>

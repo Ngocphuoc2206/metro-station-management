@@ -5,6 +5,7 @@ import type { IncidentRecord } from "@features/incident/incidentTypes";
 import { userApi } from "@features/user/userApi";
 import type { User } from "@features/user/userTypes";
 import { toast } from "react-hot-toast";
+import CreateIncidentModal from "../IncidentDashboard/CreateIncidentModal";
 
 // ── Badges ─────────────────────────────────────────────────────────────────────
 function SeverityBadge({ severity }: { severity: string }) {
@@ -168,7 +169,22 @@ function IncidentDetailModal({
                   {incident.status === "Closed" ? "Chi tiết sự cố đã đóng" : "Chi tiết sự cố đã hoàn thành"} - {shortCode}
                 </h2>
                 <p className="text-[10px] text-gray-400">
-                  Hoàn thành lúc {incident.updatedAt ? new Date(incident.updatedAt).toLocaleString("vi-VN") : "14:30, 25/10/2023"}
+                  Hoàn thành lúc {incident.updatedAt ? (() => {
+                    const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(incident.updatedAt);
+                    const matchTime = incident.updatedAt.match(/^(\d{4})[./-](\d{2})[./-](\d{2})[T ](\d{2}):(\d{2}):(\d{2})/);
+                    if (matchTime && !hasTimezone) {
+                      const year = parseInt(matchTime[1], 10);
+                      const month = parseInt(matchTime[2], 10) - 1;
+                      const day = parseInt(matchTime[3], 10);
+                      const hour = parseInt(matchTime[4], 10);
+                      const minute = parseInt(matchTime[5], 10);
+                      const second = parseInt(matchTime[6], 10);
+                      const date = new Date(Date.UTC(year, month, day, hour, minute, second));
+                      return date.toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" });
+                    }
+                    const normalized = hasTimezone ? incident.updatedAt : `${incident.updatedAt}Z`;
+                    return new Date(normalized).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" });
+                  })() : "14:30, 25/10/2023"}
                 </p>
               </div>
             </div>
@@ -398,6 +414,7 @@ export default function AdminIncidentDashboard() {
   const [selectedIncident, setSelectedIncident] = useState<IncidentRecord | null>(null);
   const [staffList, setStaffList] = useState<User[]>([]);
   const [actionLoading, setActionLoading] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   useEffect(() => {
     loadIncidents();
@@ -479,6 +496,19 @@ export default function AdminIncidentDashboard() {
       setActionLoading(false);
     }
   }, []);
+
+  const handleDeleteIncident = async (incident: IncidentRecord) => {
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa sự cố "${incident.title}"?`)) {
+      return;
+    }
+    try {
+      await incidentApi.deleteIncident(incident.id);
+      setIncidents((current) => current.filter((i) => i.id !== incident.id));
+      toast.success("Đã xóa sự cố.");
+    } catch {
+      toast.error("Không thể xóa sự cố.");
+    }
+  };
 
   const stats = useMemo(() => {
     const total = incidents.length;
@@ -596,6 +626,16 @@ export default function AdminIncidentDashboard() {
             </svg>
             Tìm kiếm
           </button>
+          <button
+            type="button"
+            onClick={() => setIsCreateModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition shadow-sm shadow-blue-100 whitespace-nowrap"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            Tạo sự cố mới
+          </button>
         </div>
 
         {/* Table */}
@@ -609,7 +649,7 @@ export default function AdminIncidentDashboard() {
                 <th className="text-left text-xs font-bold text-gray-400 uppercase tracking-wider px-4 py-3">Mức độ</th>
                 <th className="text-left text-xs font-bold text-gray-400 uppercase tracking-wider px-4 py-3">Nhân viên</th>
                 <th className="text-left text-xs font-bold text-gray-400 uppercase tracking-wider px-4 py-3">Trạng thái</th>
-                <th className="text-left text-xs font-bold text-gray-400 uppercase tracking-wider px-4 py-3">Thao tác</th>
+                <th className="text-center text-xs font-bold text-gray-400 uppercase tracking-wider px-4 py-3 w-[120px]">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -660,13 +700,29 @@ export default function AdminIncidentDashboard() {
                         <td className="px-4 py-4">
                           <StatusBadge status={inc.status} />
                         </td>
-                        <td className="px-4 py-4">
-                          <button
-                            onClick={() => setSelectedIncident(inc)}
-                            className="px-3 py-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition"
-                          >
-                            Chi tiết
-                          </button>
+                        <td className="px-4 py-4 text-center">
+                          <div className="flex justify-center gap-3">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedIncident(inc)}
+                              className="text-gray-400 hover:text-blue-600 transition"
+                              title="Chi tiết / Duyệt"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                              </svg>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteIncident(inc)}
+                              className="text-gray-400 hover:text-red-500 transition"
+                              title="Xóa"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -692,6 +748,18 @@ export default function AdminIncidentDashboard() {
           onCloseIncident={handleCloseIncident}
           onReopenIncident={handleReopenIncident}
           actionLoading={actionLoading}
+        />
+      )}
+
+      {/* Create Modal */}
+      {isCreateModalOpen && (
+        <CreateIncidentModal
+          isOpen={isCreateModalOpen}
+          onClose={() => setIsCreateModalOpen(false)}
+          onSuccess={() => {
+            setIsCreateModalOpen(false);
+            loadIncidents();
+          }}
         />
       )}
     </div>

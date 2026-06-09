@@ -29,8 +29,13 @@ export default function DeviceTable({ devices, selectedId, onSelect }: Props) {
       <table className="app-table app-table-compact text-sm">
         <thead>
           <tr className="border-b border-gray-100">
-            {["MÃ THIẾT BỊ", "LOẠI", "TRẠNG THÁI", "LAST SEEN"].map((col) => (
-              <th key={col} className="px-4 py-3 text-left text-xs font-semibold text-gray-400 tracking-wider">
+            {["MÃ THIẾT BỊ", "LOẠI", "TRẠNG THÁI", "THAO TÁC"].map((col) => (
+              <th
+                key={col}
+                className={`px-4 py-3 text-xs font-semibold text-gray-400 tracking-wider ${
+                  col === "THAO TÁC" ? "text-center w-[120px]" : "text-left"
+                }`}
+              >
                 {col}
               </th>
             ))}
@@ -56,7 +61,23 @@ export default function DeviceTable({ devices, selectedId, onSelect }: Props) {
                     {s.label}
                   </span>
                 </td>
-                <td className="px-4 py-3.5 text-gray-500">{device.lastSeen}</td>
+                <td className="px-4 py-3.5 text-center">
+                  <div className="flex justify-center">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelect(device);
+                      }}
+                      className="text-gray-400 hover:text-blue-600 transition"
+                      title="Chi tiết"
+                    >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      </svg>
+                    </button>
+                  </div>
+                </td>
               </tr>
             );
           })}

@@ -41,7 +41,7 @@ export default function RevenueChart({ data, isLoading, error }: Props) {
 
   const W = 560;
   const H = 180;
-  const PADDING = { top: 16, right: 16, bottom: 32, left: 44 };
+  const PADDING = { top: 16, right: 16, bottom: 32, left: 60 };
   const chartW = W - PADDING.left - PADDING.right;
   const chartH = H - PADDING.top - PADDING.bottom;
 
@@ -62,10 +62,10 @@ export default function RevenueChart({ data, isLoading, error }: Props) {
     `${toX(data.length - 1)},${PADDING.top + chartH}`,
   ].join(" ");
 
-  // Y-axis labels
+  // Y-axis labels using standard local number formatting (e.g. 100.000)
   const yTicks = [0, maxVal / 2, maxVal].map((v) => ({
     value: v,
-    label: v >= 1000 ? `${(v / 1000).toFixed(0)}B` : `${v.toFixed(0)}M`,
+    label: v.toLocaleString("vi-VN"),
     y: toY(v),
   }));
 
@@ -124,22 +124,36 @@ export default function RevenueChart({ data, isLoading, error }: Props) {
           fill="#fff"
           stroke="#3b82f6"
           strokeWidth="2"
-        />
+          className="cursor-pointer"
+        >
+          <title>{`${d.label}: ${d.value.toLocaleString("vi-VN")} đ`}</title>
+        </circle>
       ))}
 
-      {/* X-axis labels */}
-      {data.map((d, i) => (
-        <text
-          key={i}
-          x={toX(i)}
-          y={H - 6}
-          textAnchor="middle"
-          fontSize="10"
-          fill="#9ca3af"
-        >
-          {d.label}
-        </text>
-      ))}
+      {/* X-axis labels: show all for <= 10 items, else space out to prevent overlapping */}
+      {data.map((d, i) => {
+        const showLabel =
+          data.length <= 10 ||
+          i === 0 ||
+          i === data.length - 1 ||
+          i % 5 === 0;
+
+        if (!showLabel) return null;
+
+        return (
+          <text
+            key={i}
+            x={toX(i)}
+            y={H - 6}
+            textAnchor="middle"
+            fontSize="10"
+            fill="#9ca3af"
+          >
+            {d.label}
+          </text>
+        );
+      })}
     </svg>
   );
 }
+
