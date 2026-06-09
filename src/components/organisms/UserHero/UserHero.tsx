@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { useState } from "react";
 
 type UserHeroProps = {
   buyTicketHref: string;
@@ -7,6 +8,8 @@ type UserHeroProps = {
 };
 
 export const UserHero = ({ buyTicketHref, statsText }: UserHeroProps) => {
+  const [heroImageSrc, setHeroImageSrc] = useState("/images/landing-metro-train.jpg");
+
   return (
     <section className="mx-auto inline-flex w-full max-w-[1120px] flex-col items-center justify-start gap-8 lg:flex-row">
       <div className="flex flex-1 flex-col items-start justify-center gap-6">
@@ -52,12 +55,13 @@ export const UserHero = ({ buyTicketHref, statsText }: UserHeroProps) => {
       <div className="flex flex-1 flex-col items-start justify-start">
         <div className="relative aspect-[4/3] w-full self-stretch overflow-hidden rounded-3xl bg-slate-200 shadow-2xl lg:aspect-[7/5]">
           <Image
-            src="/images/metro-bg.jpg"
+            src={heroImageSrc}
             alt="Tàu metro đang vào ga"
             fill
             priority
             sizes="(min-width: 1024px) 560px, 100vw"
             className="object-cover"
+            onError={() => setHeroImageSrc("/images/metro-bg.jpg")}
           />
         </div>
       </div>
