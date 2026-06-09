@@ -21,6 +21,30 @@ function isLoginRequest(url?: string) {
   return path?.endsWith("/auth/login") ?? false;
 }
 
+function cleanToken(token: string) {
+  return token.replace(/^"|"$/g, "");
+}
+
+function getStoredToken() {
+  if (typeof window === "undefined") return null;
+
+  const localToken = localStorage.getItem("authToken");
+  if (localToken) {
+    return cleanToken(localToken);
+  }
+
+  const persistedRoot = sessionStorage.getItem("persist:root");
+  if (!persistedRoot) return null;
+
+  try {
+    const root = JSON.parse(persistedRoot) as { userReducer?: string };
+    const user = JSON.parse(root.userReducer ?? "{}") as { token?: string | null };
+    return user.token ? cleanToken(user.token) : null;
+  } catch {
+    return null;
+  }
+}
+
 apiClient.interceptors.request.use((config) => {
   if (typeof window !== "undefined" && !isLoginRequest(config.url) && !config.skipAuth) {
     const token = localStorage.getItem("authToken");
