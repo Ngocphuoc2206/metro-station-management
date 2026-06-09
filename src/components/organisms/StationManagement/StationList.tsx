@@ -2,18 +2,23 @@ import { useState, useEffect } from "react";
 import { stationApi } from "@features/station/stationApi";
 import { Station, StationFilters } from "@features/station/stationTypes";
 import StationFormModal from "./StationFormModal";
-import DeactivateConfirmModal from "./DeactivateConfirmModal";
+import DeleteConfirmModal from "./DeleteConfirmModal";
 
 export default function StationList() {
   const [stations, setStations] = useState<Station[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  // Filters & Pagi
+  // Filter states
   const [search, setSearch] = useState("");
-  const [debounceSearch, setDebounceSearch] = useState("");
   const [filterLine, setFilterLine] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  
+  // Applied filters (deferred)
+  const [appliedSearch, setAppliedSearch] = useState("");
+  const [appliedLine, setAppliedLine] = useState("");
+  const [appliedStatus, setAppliedStatus] = useState("");
+  
   const [page, setPage] = useState(1);
   const limit = 10;
 
@@ -24,20 +29,22 @@ export default function StationList() {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [targetStation, setTargetStation] = useState<Station | null>(null);
 
-  // Debounce search
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounceSearch(search), 500);
-    return () => clearTimeout(timer);
-  }, [search]);
+  // Handle search button click
+  const handleSearch = () => {
+    setAppliedSearch(search);
+    setAppliedLine(filterLine);
+    setAppliedStatus(filterStatus);
+    setPage(1);
+  };
 
-  // Fetch data
+  // Fetch data based on applied filters
   const loadData = async () => {
     setLoading(true);
     try {
       const filters: StationFilters = {
-        search: debounceSearch,
-        line: filterLine,
-        status: filterStatus,
+        search: appliedSearch,
+        line: appliedLine,
+        status: appliedStatus,
       };
       const res = await stationApi.getStations(filters, page, limit);
       setStations(res.data);
@@ -52,7 +59,7 @@ export default function StationList() {
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debounceSearch, filterLine, filterStatus, page]);
+  }, [appliedSearch, appliedLine, appliedStatus, page]);
 
   // Actions
   const handleCreate = () => {
@@ -81,10 +88,9 @@ export default function StationList() {
     loadData(); // reload
   };
 
-  const handletoggleConfirm = async () => {
+  const handleDeleteConfirm = async () => {
     if (!targetStation) return;
-    const newStatus = targetStation.status === "active" ? "inactive" : "active";
-    await stationApi.toggleStatus(targetStation, newStatus);
+    await stationApi.deleteStation(targetStation.id);
     setIsConfirmOpen(false);
     loadData(); // update grid
   };
@@ -94,30 +100,11 @@ export default function StationList() {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Quản lý nhà ga</h1>
-        <button
-          onClick={handleCreate}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 sm:w-auto"
-        >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 4v16m8-8H4"
-            />
-          </svg>
-          Thêm ga
-        </button>
       </div>
 
       {/* Filter Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-wrap gap-4 items-center">
-        <div className="relative min-w-0 flex-1 basis-full sm:basis-auto">
+      <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[200px]">
           <svg
             className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
             fill="none"
@@ -136,17 +123,17 @@ export default function StationList() {
             placeholder="Tìm kiếm nhà ga, mã ga..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSearch();
+            }}
             className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
           />
         </div>
 
         <select
           value={filterLine}
-          onChange={(e) => {
-            setFilterLine(e.target.value);
-            setPage(1);
-          }}
-          className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100 sm:w-auto sm:min-w-[150px]"
+          onChange={(e) => setFilterLine(e.target.value)}
+          className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100 w-auto min-w-[140px]"
         >
           <option value="">Tất cả tuyến</option>
           <option value="L1">Tuyến 1</option>
@@ -155,16 +142,33 @@ export default function StationList() {
 
         <select
           value={filterStatus}
-          onChange={(e) => {
-            setFilterStatus(e.target.value);
-            setPage(1);
-          }}
-          className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100 sm:w-auto sm:min-w-[150px]"
+          onChange={(e) => setFilterStatus(e.target.value)}
+          className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100 w-auto min-w-[140px]"
         >
           <option value="">Trạng thái</option>
           <option value="active">Hoạt động</option>
           <option value="inactive">Tạm ngưng</option>
         </select>
+
+        <button
+          onClick={handleSearch}
+          className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 whitespace-nowrap"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          Tìm kiếm
+        </button>
+
+        <button
+          onClick={handleCreate}
+          className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 whitespace-nowrap"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Thêm ga
+        </button>
       </div>
 
       {/* Table */}
@@ -188,7 +192,7 @@ export default function StationList() {
                 <th className="px-6 py-4 font-medium tracking-wider text-xs">
                   TRẠNG THÁI
                 </th>
-                <th className="px-6 py-4 font-medium tracking-wider text-xs text-right">
+                <th className="px-6 py-4 font-medium tracking-wider text-xs text-center w-[120px]">
                   THAO TÁC
                 </th>
               </tr>
@@ -262,8 +266,8 @@ export default function StationList() {
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-3">
+                    <td className="px-6 py-4 text-center">
+                      <div className="flex justify-center gap-3">
                         <button
                           onClick={() => handleEdit(s)}
                           className="text-gray-400 hover:text-blue-600 transition"
@@ -285,10 +289,8 @@ export default function StationList() {
                         </button>
                         <button
                           onClick={() => handleToggleClick(s)}
-                          className={`transition ${s.status === "active" ? "text-gray-400 hover:text-red-600" : "text-gray-400 hover:text-green-600"}`}
-                          title={
-                            s.status === "active" ? "Tạm ngưng" : "Kích hoạt"
-                          }
+                          className="text-gray-400 hover:text-red-600 transition"
+                          title="Xóa"
                         >
                           <svg
                             className="w-4 h-4"
@@ -296,21 +298,7 @@ export default function StationList() {
                             viewBox="0 0 24 24"
                             stroke="currentColor"
                           >
-                            {s.status === "active" ? (
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
-                              />
-                            ) : (
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                              />
-                            )}
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                           </svg>
                         </button>
                       </div>
@@ -357,11 +345,11 @@ export default function StationList() {
         onSubmit={handleFormSubmit}
       />
 
-      <DeactivateConfirmModal
+      <DeleteConfirmModal
         isOpen={isConfirmOpen}
         onClose={() => setIsConfirmOpen(false)}
         station={targetStation}
-        onConfirm={handletoggleConfirm}
+        onConfirm={handleDeleteConfirm}
       />
     </div>
   );

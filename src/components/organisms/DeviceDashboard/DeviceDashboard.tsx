@@ -157,11 +157,10 @@ export default function DeviceDashboard() {
                   setSearch("");
                   setStatusFilter("all");
                 }}
-                className={`relative px-4 py-3 text-sm font-medium transition-colors flex items-center gap-2 ${
-                  active
-                    ? "text-blue-600 border-b-2 border-blue-600"
-                    : "text-gray-500 hover:text-gray-800"
-                }`}
+                className={`relative px-4 py-3 text-sm font-medium transition-colors flex items-center gap-2 ${active
+                  ? "text-blue-600 border-b-2 border-blue-600"
+                  : "text-gray-500 hover:text-gray-800"
+                  }`}
               >
                 {tab.label}
                 {cnt.total > 0 && (

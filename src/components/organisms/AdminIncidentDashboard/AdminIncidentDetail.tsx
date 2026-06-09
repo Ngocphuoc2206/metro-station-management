@@ -7,12 +7,10 @@ import type { IncidentDetailRecord, IncidentStatus } from "@features/incident/in
 import { userApi } from "@features/user/userApi";
 import type { User } from "@features/user/userTypes";
 import { toast } from "react-hot-toast";
-
 function toShortCode(id: string) {
   const match = id.match(/\d+/);
   return match ? `SC${String(parseInt(match[0], 10)).padStart(3, "0")}` : id.slice(0, 6).toUpperCase();
 }
-
 const SEVERITY_LABEL: Record<string, string> = {
   critical: "Nguy cấp", high: "Cao", medium: "Trung bình", low: "Thấp",
 };
@@ -23,29 +21,25 @@ const SEVERITY_CLS: Record<string, string> = {
   low:      "bg-gray-100 text-gray-600 border-gray-200",
 };
 const STATUS_LABEL: Record<string, string> = {
-  Open: "Mới tạo", Assigned: "Đã phân công", InProgress: "Đang xử lý",
+  Open: "Mới tạo", Approved: "Đã phê duyệt", Assigned: "Đã phân công", InProgress: "Đang xử lý",
   Escalated: "Đang xử lý", Resolved: "Đã hoàn thành", Closed: "Đã đóng",
 };
 const STATUS_CLS: Record<string, string> = {
-  Open: "bg-gray-100 text-gray-700", Assigned: "bg-blue-100 text-blue-700",
+  Open: "bg-gray-100 text-gray-700", Approved: "bg-blue-100 text-blue-700", Assigned: "bg-blue-100 text-blue-700",
   InProgress: "bg-orange-100 text-orange-700", Escalated: "bg-orange-100 text-orange-700",
   Resolved: "bg-green-100 text-green-700", Closed: "bg-slate-100 text-slate-600",
 };
-
 export default function AdminIncidentDetail() {
   const router = useRouter();
   const { id } = router.query;
-
   const [incident, setIncident] = useState<IncidentDetailRecord | null>(null);
   const [staffList, setStaffList] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [comment, setComment] = useState("");
-
   useEffect(() => {
     if (id && typeof id === "string") fetchIncident(id);
   }, [id]);
-
   useEffect(() => {
     userApi
       .getUsers()
@@ -58,18 +52,16 @@ export default function AdminIncidentDetail() {
         ] as User[]),
       );
   }, []);
-
   async function fetchIncident(incidentId: string) {
     try {
       setLoading(true);
-      setIncident(await incidentApi.getIncidentById(incidentId));
+      setIncident(await incidentApi.getIncidentByIdAdmin(incidentId));
     } catch (e: any) {
       toast.error(e.message || "Lỗi tải dữ liệu sự cố");
     } finally {
       setLoading(false);
     }
   }
-
   const handleAssign = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     if (!incident) return;
     const staffId = e.target.value;
@@ -86,7 +78,6 @@ export default function AdminIncidentDetail() {
       setActionLoading(false);
     }
   };
-
   const handleUpdateStatus = async (newStatus: IncidentStatus) => {
     if (!incident) return;
     try {
@@ -100,7 +91,28 @@ export default function AdminIncidentDetail() {
       setActionLoading(false);
     }
   };
-
+  const handleApprove = async () => {
+    if (!incident) return;
+    try {
+      setActionLoading(true);
+      const updated = await incidentApi.approveIncident(incident.id);
+      toast.success("Đã phê duyệt sự cố thành công!");
+      // Optimistically update local state so UI reflects immediately
+      setIncident((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: "Approved" as IncidentStatus,
+              assigneeName: updated.assigneeName || prev.assigneeName,
+            }
+          : prev
+      );
+    } catch (e: any) {
+      toast.error(e.message || "Lỗi phê duyệt sự cố!");
+    } finally {
+      setActionLoading(false);
+    }
+  };
   const handlePostComment = async () => {
     if (!incident || !comment.trim()) return;
     try {
@@ -115,7 +127,6 @@ export default function AdminIncidentDetail() {
       setActionLoading(false);
     }
   };
-
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -123,7 +134,6 @@ export default function AdminIncidentDetail() {
       </div>
     );
   }
-
   if (!incident) {
     return (
       <div className="text-center py-20">
@@ -134,10 +144,8 @@ export default function AdminIncidentDetail() {
       </div>
     );
   }
-
   const shortCode = toShortCode(incident.id);
   const canAssign = incident.status === "Open" || incident.status === "Assigned" || incident.status === "InProgress";
-
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       {/* Breadcrumb */}
@@ -148,7 +156,6 @@ export default function AdminIncidentDetail() {
         <span>›</span>
         <span className="font-semibold text-gray-900">{shortCode}</span>
       </div>
-
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -164,14 +171,13 @@ export default function AdminIncidentDetail() {
           </span>
         </div>
       </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* ── Left (2/3) ── */}
         <div className="lg:col-span-2 space-y-5">
           {/* Info card */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
             <h3 className="font-bold text-gray-900">Thông tin sự cố</h3>
-            <div className="grid grid-cols-1 gap-5 text-sm sm:grid-cols-2">
+            <div className="grid grid-cols-2 gap-5 text-sm">
               <div>
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Mã sự cố</p>
                 <p className="font-bold text-blue-600">{shortCode}</p>
@@ -196,7 +202,6 @@ export default function AdminIncidentDetail() {
               </p>
             </div>
           </div>
-
           {/* Timeline */}
           {incident.timeline && incident.timeline.length > 0 && (
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
@@ -221,7 +226,6 @@ export default function AdminIncidentDetail() {
               </div>
             </div>
           )}
-
           {/* Comment box */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <h3 className="font-bold text-gray-900 mb-3">Ghi chú / Phản hồi</h3>
@@ -243,7 +247,6 @@ export default function AdminIncidentDetail() {
             </div>
           </div>
         </div>
-
         {/* ── Right (1/3) ── */}
         <div className="space-y-5">
           {/* Assign card */}
@@ -264,7 +267,6 @@ export default function AdminIncidentDetail() {
                   </div>
                 </div>
               )}
-
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
                   {incident.assigneeName ? "Đổi nhân viên" : "Chọn nhân viên xử lý"}
@@ -288,7 +290,41 @@ export default function AdminIncidentDetail() {
               </div>
             </div>
           </div>
-
+          {/* Approve button - only when status is Open */}
+          {incident.status === "Open" && (
+            <div className="bg-white rounded-2xl border border-blue-100 shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-blue-50 bg-blue-50/60">
+                <h3 className="font-bold text-blue-900 text-sm flex items-center gap-2">
+                  <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Phê duyệt sự cố
+                </h3>
+              </div>
+              <div className="p-5">
+                <p className="text-xs text-gray-500 mb-4 leading-relaxed">
+                  Sự cố đang ở trạng thái <strong>Mới tạo</strong>. Admin cần phê duyệt để bắt đầu quy trình xử lý và phân công nhân viên.
+                </p>
+                <button
+                  onClick={handleApprove}
+                  disabled={actionLoading}
+                  className="w-full py-2.5 px-4 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-50 transition flex items-center justify-center gap-2"
+                >
+                  {actionLoading ? (
+                    <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  )}
+                  Phê duyệt sự cố
+                </button>
+              </div>
+            </div>
+          )}
           {/* Status actions */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-50 bg-gray-50/50">
@@ -313,7 +349,6 @@ export default function AdminIncidentDetail() {
               ))}
             </div>
           </div>
-
           {/* Emergency support */}
           <div className="bg-gray-900 rounded-2xl p-5 text-white">
             <div className="flex items-center gap-2 mb-2">

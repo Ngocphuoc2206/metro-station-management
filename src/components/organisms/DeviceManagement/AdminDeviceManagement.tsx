@@ -165,13 +165,9 @@ export default function AdminDeviceManagement() {
           <h1 className="text-2xl font-bold text-gray-900">Quản lý thiết bị</h1>
           <p className="mt-1 text-sm text-gray-500">Quản trị cổng, máy bán vé, máy nạp tiền và thiết bị quét.</p>
         </div>
-        <button type="button" onClick={openCreate} className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700 sm:w-auto">
-          <span className="text-lg leading-none">+</span>
-          Thêm thiết bị
-        </button>
       </div>
 
-      <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
         <input
           type="search"
           value={search}
@@ -179,18 +175,31 @@ export default function AdminDeviceManagement() {
           placeholder="Tìm theo mã, tên, ga..."
           className="min-w-0 flex-1 basis-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100 sm:basis-auto"
         />
-        <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-700 focus:outline-none sm:w-auto sm:min-w-[170px]">
+        <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-700 focus:outline-none sm:w-auto sm:min-w-[150px]">
           <option value="">Tất cả loại</option>
           {typeNames.map((type) => <option key={type} value={type}>{type}</option>)}
         </select>
-        <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-700 focus:outline-none sm:w-auto sm:min-w-[170px]">
+        <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-700 focus:outline-none sm:w-auto sm:min-w-[150px]">
           <option value="">Tất cả trạng thái</option>
           {statuses.map((status) => (
-            <option key={status} value={status}>
-              {statusLabel(status)}
-            </option>
+            <option key={status} value={status}>{statusLabel(status)}</option>
           ))}
         </select>
+        <button
+          type="button"
+          className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 whitespace-nowrap"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          Tìm kiếm
+        </button>
+        <button type="button" onClick={openCreate} className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 whitespace-nowrap">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Thêm thiết bị
+        </button>
       </div>
 
       <div className="app-table-shell min-h-[420px]">
