@@ -53,7 +53,7 @@ export default function KpiCards({ kpi, isLoading, error }: Props) {
                 <Banknote className="w-4 h-4 text-blue-600" />
               </div>
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                Doanh thu hôm nay
+                Doanh thu 7 ngày gần nhất
               </p>
             </div>
             <p className="text-3xl font-bold text-gray-900">

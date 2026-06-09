@@ -16,7 +16,7 @@ export default function AdminDashboard() {
   const { kpi, revenue, gates, alerts, kpiLoading, kpiError, revenueLoading, revenueError } =
     useDashboardData(timeRange);
 
-  const { name, email, role } = useSelector((s: RootState) => s.userReducer);
+  const { name, role } = useSelector((s: RootState) => s.userReducer);
   const handleLogout = useLogout();
 
   const isNameEmail = name && name.includes("@");

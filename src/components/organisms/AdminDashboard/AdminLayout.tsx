@@ -11,7 +11,7 @@ interface Props {
 }
 
 export default function AdminLayout({ children, title = "MetroNext Admin" }: Props) {
-  const { name, email, role } = useSelector((s: RootState) => s.userReducer);
+  const { name, role } = useSelector((s: RootState) => s.userReducer);
   const handleLogout = useLogout();
 
   const isNameEmail = name && name.includes("@");

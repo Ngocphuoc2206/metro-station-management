@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-explicit-any, @next/next/no-img-element */
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { incidentApi } from "@features/incident/incidentApi";
 import type { IncidentRecord } from "@features/incident/incidentTypes";
@@ -422,6 +422,7 @@ export default function AdminIncidentDashboard() {
   // Lưu thay đổi: gọi approve API (PATCH /staff/incidents/{id}/approve)
   // Backend tự gán nhân viên, trả về assigneeName trong response
   const handleSave = useCallback(async (incidentId: string, _staffId: string) => {
+    void _staffId;
     setActionLoading(true);
     try {
       const updated = await incidentApi.approveIncident(incidentId);
