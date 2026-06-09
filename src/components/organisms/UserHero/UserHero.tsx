@@ -1,4 +1,6 @@
+import Image from "next/image";
 import Link from "next/link";
+import { useState } from "react";
 
 type UserHeroProps = {
   buyTicketHref: string;
@@ -6,6 +8,8 @@ type UserHeroProps = {
 };
 
 export const UserHero = ({ buyTicketHref, statsText }: UserHeroProps) => {
+  const [heroImageSrc, setHeroImageSrc] = useState("/images/landing-metro-train.jpg");
+
   return (
     <section className="mx-auto inline-flex w-full max-w-[1120px] flex-col items-center justify-start gap-8 lg:flex-row">
       <div className="flex flex-1 flex-col items-start justify-center gap-6">
@@ -36,25 +40,29 @@ export const UserHero = ({ buyTicketHref, statsText }: UserHeroProps) => {
             href={buyTicketHref}
             className="flex h-12 min-w-36 items-center justify-center rounded-3xl bg-blue-600 px-7 text-base font-bold leading-6 text-white transition-colors hover:bg-blue-700"
           >
-            <span className="inline-flex flex-col items-center justify-start overflow-hidden">
-              <span className="h-6 w-20 text-center">Mua vé</span>
-            </span>
+            Mua vé
           </Link>
 
           <Link
             href="#about"
             className="flex h-12 min-w-36 items-center justify-center rounded-3xl bg-slate-200 px-6 text-base font-bold leading-6 text-neutral-900 transition-colors hover:bg-slate-300"
           >
-            <span className="inline-flex flex-col items-center justify-start overflow-hidden">
-              <span className="h-6 w-28 text-center">Tìm hiểu thêm</span>
-            </span>
+            Tìm hiểu thêm
           </Link>
         </div>
       </div>
 
       <div className="flex flex-1 flex-col items-start justify-start">
-        <div className="relative h-[22rem] w-full self-stretch overflow-hidden rounded-3xl bg-gradient-to-br from-slate-200 via-blue-100 to-blue-300 shadow-2xl lg:h-96">
-          <div className="absolute inset-0 rounded-3xl bg-white/0 shadow-2xl" />
+        <div className="relative aspect-[4/3] w-full self-stretch overflow-hidden rounded-3xl bg-slate-200 shadow-2xl lg:aspect-[7/5]">
+          <Image
+            src={heroImageSrc}
+            alt="Tàu metro đang vào ga"
+            fill
+            priority
+            sizes="(min-width: 1024px) 560px, 100vw"
+            className="object-cover"
+            onError={() => setHeroImageSrc("/images/metro-bg.jpg")}
+          />
         </div>
       </div>
     </section>
