@@ -43,107 +43,117 @@ export default function DeviceDetailPanel({ device, onClose }: Props) {
   const m = device.metrics;
 
   return (
-    <aside className="w-80 min-h-full bg-white border-l border-gray-100 flex flex-col">
-      {/* Header */}
-      <div className="px-5 py-4 border-b border-gray-100 flex items-start justify-between">
-        <div>
-          <h2 className="text-base font-bold text-gray-900">Chi tiết thiết bị</h2>
-          <p className="text-xs text-gray-400 mt-0.5">
-            Mã: {device.id} •{" "}
-            <span className={device.status === "online" ? "text-green-600" : device.status === "error" ? "text-red-500" : "text-gray-400"}>
-              {device.status === "online" ? "Online" : device.status === "error" ? "Error" : "Offline"}
-            </span>
-          </p>
-        </div>
-        <button
-          onClick={onClose}
-          className="text-gray-400 hover:text-gray-600 transition-colors p-0.5 rounded-lg hover:bg-gray-100"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
-        {/* Offline banner */}
-        {isOffline && (
-          <div className="flex items-center gap-2 bg-gray-100 border border-gray-200 rounded-xl px-4 py-3">
-            <span className="w-2.5 h-2.5 rounded-full bg-gray-400 flex-shrink-0" />
-            <p className="text-xs text-gray-500 font-medium">Thiết bị đang offline — dữ liệu không khả dụng</p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 animate-fade-in">
+      {/* Backdrop overlay */}
+      <div 
+        className="fixed inset-0 bg-black/45 backdrop-blur-sm transition-opacity" 
+        onClick={onClose}
+      />
+      
+      {/* Modal Content */}
+      <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden border border-gray-100 transform transition-all animate-scale-up">
+        {/* Header */}
+        <div className="px-6 py-5 border-b border-gray-100 flex items-start justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">Chi tiết thiết bị</h2>
+            <p className="text-xs text-gray-400 mt-1">
+              Mã: {device.id} •{" "}
+              <span className={device.status === "online" ? "text-green-600 font-semibold" : device.status === "error" ? "text-red-500 font-semibold" : "text-gray-400"}>
+                {device.status === "online" ? "Online" : device.status === "error" ? "Error" : "Offline"}
+              </span>
+            </p>
           </div>
-        )}
-
-        {/* Metrics */}
-        <div>
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Thông số kỹ thuật</p>
-          <div className="grid grid-cols-2 gap-2.5">
-            <MetricCard
-              offline={isOffline}
-              icon={<CpuIcon />}
-              label="CPU Usage"
-              value={`${m.cpuUsage}%`}
-              sub={m.cpuLabel}
-              subColor={m.cpuUsage > 80 ? "text-red-500" : m.cpuUsage > 50 ? "text-amber-500" : "text-green-600"}
-            />
-            <MetricCard
-              offline={isOffline}
-              icon={<TempIcon />}
-              label="Temp"
-              value={`${m.temperature}°C`}
-              sub={m.tempLabel}
-              subColor={m.temperature > 65 ? "text-red-500" : m.temperature > 50 ? "text-amber-500" : "text-green-600"}
-            />
-            <MetricCard
-              offline={isOffline}
-              icon={<MemoryIcon />}
-              label="Memory"
-              value={`${m.memoryUsed}`}
-              sub={`/ ${m.memoryTotal}GB`}
-              subColor="text-gray-400"
-            />
-            <MetricCard
-              offline={isOffline}
-              icon={<LatencyIcon />}
-              label="Latency"
-              value={`${m.latency}ms`}
-              sub={m.latencyLabel}
-              subColor={m.latency > 200 ? "text-red-500" : m.latency > 80 ? "text-amber-500" : "text-green-600"}
-            />
-          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors p-1.5 rounded-xl hover:bg-gray-100"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
 
-        {/* Activity log */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Nhật ký hoạt động</p>
-            <button className="text-xs text-blue-600 hover:underline">Xem tất cả</button>
-          </div>
-          {device.activityLog.length === 0 ? (
-            <p className="text-xs text-gray-400">Không có nhật ký</p>
-          ) : (
-            <ul className="space-y-3">
-              {device.activityLog.map((log) => (
-                <li key={log.id} className="flex gap-2.5">
-                  <span className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${LOG_DOT[log.color]}`} />
-                  <div>
-                    <p className="text-xs font-medium text-gray-800">{log.message}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{log.time} {log.detail}</p>
-                  </div>
-                </li>
-              ))}
-            </ul>
+        {/* Scrollable Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+          {/* Offline banner */}
+          {isOffline && (
+            <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3">
+              <span className="w-2.5 h-2.5 rounded-full bg-gray-400 flex-shrink-0" />
+              <p className="text-xs text-gray-500 font-medium">Thiết bị đang offline — dữ liệu không khả dụng</p>
+            </div>
           )}
+
+          {/* Metrics */}
+          <div>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Thông số kỹ thuật</p>
+            <div className="grid grid-cols-2 gap-4">
+              <MetricCard
+                offline={isOffline}
+                icon={<CpuIcon />}
+                label="CPU Usage"
+                value={`${m.cpuUsage}%`}
+                sub={m.cpuLabel}
+                subColor={m.cpuUsage > 80 ? "text-red-500" : m.cpuUsage > 50 ? "text-amber-500" : "text-green-600"}
+              />
+              <MetricCard
+                offline={isOffline}
+                icon={<TempIcon />}
+                label="Temp"
+                value={`${m.temperature}°C`}
+                sub={m.tempLabel}
+                subColor={m.temperature > 65 ? "text-red-500" : m.temperature > 50 ? "text-amber-500" : "text-green-600"}
+              />
+              <MetricCard
+                offline={isOffline}
+                icon={<MemoryIcon />}
+                label="Memory"
+                value={`${m.memoryUsed}`}
+                sub={`/ ${m.memoryTotal}GB`}
+                subColor="text-gray-400"
+              />
+              <MetricCard
+                offline={isOffline}
+                icon={<LatencyIcon />}
+                label="Latency"
+                value={`${m.latency}ms`}
+                sub={m.latencyLabel}
+                subColor={m.latency > 200 ? "text-red-500" : m.latency > 80 ? "text-amber-500" : "text-green-600"}
+              />
+            </div>
+          </div>
+
+          {/* Activity log */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Nhật ký hoạt động</p>
+              <button className="text-xs text-blue-600 font-medium hover:underline">Xem tất cả</button>
+            </div>
+            {device.activityLog.length === 0 ? (
+              <p className="text-xs text-gray-400">Không có nhật ký</p>
+            ) : (
+              <ul className="space-y-3">
+                {device.activityLog.map((log) => (
+                  <li key={log.id} className="flex gap-2.5">
+                    <span className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${LOG_DOT[log.color]}`} />
+                    <div>
+                      <p className="text-xs font-medium text-gray-800">{log.message}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{log.time} {log.detail}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50">
+          <button className="w-full py-3 bg-gray-900 hover:bg-gray-800 text-white text-sm font-semibold rounded-2xl transition-all shadow-sm hover:shadow-md active:scale-[0.98]">
+            Xuất báo cáo kỹ thuật
+          </button>
         </div>
       </div>
-
-      {/* Footer button */}
-      <div className="px-5 py-4 border-t border-gray-100">
-        <button className="w-full py-3 bg-gray-900 hover:bg-gray-700 text-white text-sm font-semibold rounded-xl transition-colors">
-          Xuất báo cáo kỹ thuật
-        </button>
-      </div>
-    </aside>
+    </div>
   );
 }
 
