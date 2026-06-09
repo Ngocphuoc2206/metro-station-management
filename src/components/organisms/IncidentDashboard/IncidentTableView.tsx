@@ -56,14 +56,14 @@ function getStatusBadge(status: string) {
   switch (status) {
     case "Open":
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600 whitespace-nowrap">
           <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
           Tạo mới
         </span>
       );
     case "Assigned":
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-600">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-600 whitespace-nowrap">
           <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
           Đã phân công
         </span>
@@ -71,21 +71,21 @@ function getStatusBadge(status: string) {
     case "InProgress":
     case "Escalated":
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-50 text-orange-600">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-50 text-orange-600 whitespace-nowrap">
           <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
           Đang xử lý
         </span>
       );
     case "Resolved":
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700 whitespace-nowrap">
           <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
           Đã hoàn thành
         </span>
       );
     case "Closed":
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 whitespace-nowrap">
           <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
           Đã đóng
         </span>

@@ -1,15 +1,19 @@
 /* eslint-disable @next/next/no-img-element */
-import React, { useState, useRef, useEffect } from "react";
-import type { IncidentRecord } from "@features/incident/incidentTypes";
+import React, { useState, useRef, useEffect, useMemo } from "react";
+import type { IncidentRecord, IncidentComment } from "@features/incident/incidentTypes";
 import { incidentApi } from "@features/incident/incidentApi";
 import toast from "react-hot-toast";
+import { useSelector } from "react-redux";
+import type { RootState } from "@stores/index";
+import { getMyProfile, type BackendUser } from "@features/user/userApi";
+
 interface Props {
   incident: IncidentRecord;
   onClose: () => void;
   onStatusUpdated: () => void;
-  /** Base64 data URLs đã lưu từ lần xử lý trước (persist qua đóng/mở modal) */
+  /** Base64 data URLs hoặc HTTP URLs đã lưu từ lần xử lý trước (persist qua đóng/mở modal) */
   evidenceImages: string[];
-  /** Gọi khi hoàn thành — lưu base64 lên IncidentDashboard để persist */
+  /** Gọi khi hoàn thành — lưu URL lên IncidentDashboard để persist */
   onEvidenceSaved: (incidentId: string, dataUrls: string[]) => void;
 }
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -18,15 +22,7 @@ function toShortCode(id: string): string {
   if (match) return `SC${String(parseInt(match[0], 10)).padStart(3, "0")}`;
   return id.slice(0, 6).toUpperCase();
 }
-/** Đọc File → base64 data URL (không bị expire như Object URL) */
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
+
 // ── Shared Badge Components ───────────────────────────────────────────────────
 function SeverityBadge({ severity }: { severity: string }) {
   const map: Record<string, { label: string; cls: string }> = {
@@ -47,13 +43,15 @@ function SeverityBadge({ severity }: { severity: string }) {
     </span>
   );
 }
+
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; cls: string }> = {
     Open: { label: "Tạo mới", cls: "bg-gray-100 text-gray-600 border border-gray-200" },
+    Approved: { label: "Đã phê duyệt", cls: "bg-indigo-50 text-indigo-600 border border-indigo-200" },
     Assigned: { label: "Đã phân công", cls: "bg-blue-50 text-blue-600 border border-blue-200" },
     InProgress: { label: "Đang xử lý", cls: "bg-orange-50 text-orange-600 border border-orange-200" },
     Escalated: { label: "Đang xử lý", cls: "bg-orange-50 text-orange-600 border border-orange-200" },
-    Resolved: { label: "Đã hoàn thành", cls: "bg-green-50 text-green-700 border border-green-200" },
+    Resolved: { label: "Đã khắc phục", cls: "bg-green-50 text-green-700 border border-green-200" },
     Closed: { label: "Đã đóng", cls: "bg-slate-100 text-slate-600 border border-slate-200" },
   };
   const v = map[status] ?? map.Open;
@@ -64,27 +62,79 @@ function StatusBadge({ status }: { status: string }) {
     </span>
   );
 }
+
 // ── View Modal ────────────────────────────────────────────────────────────────
 function ViewModal({
   incident,
   shortCode,
   onClose,
   evidenceImages,
+  isAssignee,
+  onStartRepair,
+  isStarting,
 }: {
   incident: IncidentRecord;
   shortCode: string;
   onClose: () => void;
   evidenceImages: string[];
+  isAssignee: boolean;
+  onStartRepair: () => void;
+  isStarting: boolean;
 }) {
   const [detailDesc, setDetailDesc] = useState<string | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(true);
+  const [apiImages, setApiImages] = useState<string[]>([]);
+
   useEffect(() => {
-    incidentApi
-      .getIncidentById(incident.id)
-      .then((d) => setDetailDesc(d.description ?? incident.description ?? null))
-      .catch(() => setDetailDesc(incident.description ?? null))
-      .finally(() => setLoadingDetail(false));
+    let active = true;
+    async function fetchDetail() {
+      setLoadingDetail(true);
+      try {
+        const d = await incidentApi.getIncidentById(incident.id);
+        if (active) {
+          setDetailDesc(d.description ?? incident.description ?? null);
+          const comments = d.comments || [];
+          const foundWithImages = [...comments].reverse().find((c: IncidentComment) => c.content.includes("Hình ảnh bằng chứng xử lý:"));
+          if (foundWithImages) {
+            const lines = (foundWithImages.content || "").split("\n");
+            const parsedUrls: string[] = [];
+            let parsingImages = false;
+            for (const line of lines) {
+              if (line.includes("Hình ảnh bằng chứng xử lý:")) {
+                parsingImages = true;
+                continue;
+              }
+              if (parsingImages) {
+                const trimmed = line.trim();
+                if (trimmed.startsWith("http") || trimmed.startsWith("data:")) {
+                  parsedUrls.push(trimmed);
+                }
+              }
+            }
+            setApiImages(parsedUrls);
+          }
+        }
+      } catch (err) {
+        console.warn("Lỗi lấy chi tiết sự cố:", err);
+        if (active) setDetailDesc(incident.description ?? null);
+      } finally {
+        if (active) setLoadingDetail(false);
+      }
+    }
+    fetchDetail();
+    return () => {
+      active = false;
+    };
   }, [incident.id, incident.description]);
+
+  const displayImages = useMemo(() => {
+    const combined = [...evidenceImages];
+    apiImages.forEach((img) => {
+      if (!combined.includes(img)) combined.push(img);
+    });
+    return combined;
+  }, [evidenceImages, apiImages]);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-[2px]">
       <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh]">
@@ -129,14 +179,14 @@ function ViewModal({
             <span className="text-gray-500 font-medium">Trạng thái hiện tại:</span>
             <div><StatusBadge status={incident.status} /></div>
           </div>
-          {/* Ảnh bằng chứng xử lý (base64 – persist qua đóng/mở) */}
-          {evidenceImages.length > 0 && (
+          {/* Ảnh bằng chứng xử lý */}
+          {displayImages.length > 0 && (
             <div className="space-y-2 pt-1">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Hình ảnh bằng chứng xử lý
               </p>
               <div className="space-y-2">
-                {evidenceImages.map((src, i) => (
+                {displayImages.map((src, i) => (
                   <div key={i} className="rounded-xl overflow-hidden border border-gray-100">
                     <img src={src} alt={`evidence-${i + 1}`} className="w-full object-cover max-h-56" />
                   </div>
@@ -146,18 +196,38 @@ function ViewModal({
           )}
         </div>
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-50 flex justify-end">
+        <div className="px-6 py-4 border-t border-gray-50 flex justify-end gap-3">
           <button
             onClick={onClose}
-            className="px-5 py-2 text-sm font-semibold text-blue-600 hover:text-blue-700 transition"
+            className="px-5 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition"
           >
             Hủy
           </button>
+          {incident.status === "Approved" && isAssignee && (
+            <button
+              onClick={onStartRepair}
+              disabled={isStarting}
+              className="px-5 py-2 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-50 transition flex items-center gap-1.5"
+            >
+              {isStarting ? (
+                <>
+                  <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth={4} />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Đang khởi động...
+                </>
+              ) : (
+                "Bắt đầu sửa chữa"
+              )}
+            </button>
+          )}
         </div>
       </div>
     </div>
   );
 }
+
 // ── Processing Modal ──────────────────────────────────────────────────────────
 function ProcessingModal({
   incident,
@@ -168,21 +238,22 @@ function ProcessingModal({
   incident: IncidentRecord;
   shortCode: string;
   onClose: () => void;
-  onCompleted: (base64Urls: string[]) => void;
+  onCompleted: (urls: string[]) => void;
 }) {
   const [note, setNote] = useState("");
-  // Simpan sebagai {file, preview objectURL, dataUrl base64}
+  // Simpan sebagai {file, preview objectURL}
   const [files, setFiles] = useState<{ file: File; objectUrl: string }[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
   // Cleanup object URLs on unmount
   useEffect(() => {
     return () => {
       files.forEach((f) => URL.revokeObjectURL(f.objectUrl));
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [files]);
+
   const addFiles = (incoming: File[]) => {
     const valid = incoming.filter(
       (f) => f.type.startsWith("image/") && f.size <= 10 * 1024 * 1024,
@@ -191,27 +262,59 @@ function ProcessingModal({
     const entries = valid.map((f) => ({ file: f, objectUrl: URL.createObjectURL(f) }));
     setFiles((prev) => [...prev, ...entries]);
   };
+
   const removeFile = (idx: number) => {
     setFiles((prev) => {
       URL.revokeObjectURL(prev[idx].objectUrl);
       return prev.filter((_, i) => i !== idx);
     });
   };
+
   const handleComplete = async () => {
     setIsSubmitting(true);
     try {
-      if (note.trim()) await incidentApi.addTimelineComment(incident.id, note.trim());
-      await incidentApi.updateIncidentStatus(incident.id, "Resolved");
-      toast.success("Đã hoàn thành xử lý sự cố!");
-      // Chuyển sang base64 để persist qua đóng/mở modal
-      const dataUrls = await Promise.all(files.map((f) => readFileAsDataUrl(f.file)));
-      onCompleted(dataUrls);
+      // 1. Upload files to /media/upload one by one
+      const uploadedUrls: string[] = [];
+      if (files.length > 0) {
+        for (const fileObj of files) {
+          try {
+            const url = await incidentApi.uploadMedia(fileObj.file);
+            uploadedUrls.push(url);
+          } catch (uploadErr) {
+            console.error("Upload error for file:", fileObj.file.name, uploadErr);
+            toast.error(`Không thể tải lên ảnh: ${fileObj.file.name}`);
+            throw uploadErr;
+          }
+        }
+      }
+
+      // 2. Submit comment containing both note and image URLs (if any)
+      let commentText = "";
+      if (note.trim()) {
+        commentText += note.trim();
+      }
+      if (uploadedUrls.length > 0) {
+        if (commentText) commentText += "\n\n";
+        commentText += "Hình ảnh bằng chứng xử lý:\n" + uploadedUrls.join("\n");
+      }
+
+      if (commentText.trim()) {
+        await incidentApi.addTimelineComment(incident.id, commentText.trim());
+      }
+
+      // 3. Call resolve incident API (PATCH /resolve)
+      await incidentApi.resolveIncident(incident.id);
+      toast.success("Đã báo cáo hoàn thành sửa chữa!");
+
+      // 4. Callback to store URLs locally
+      onCompleted(uploadedUrls);
     } catch (e) {
       console.error(e);
       toast.error("Có lỗi xảy ra, vui lòng thử lại!");
       setIsSubmitting(false);
     }
   };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-[2px]">
       <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh]">
@@ -358,6 +461,7 @@ function ProcessingModal({
     </div>
   );
 }
+
 // ── Main Router ───────────────────────────────────────────────────────────────
 export default function IncidentDetailModal({
   incident,
@@ -368,33 +472,73 @@ export default function IncidentDetailModal({
 }: Props) {
   const shortCode = toShortCode(incident.id);
   const [justCompleted, setJustCompleted] = useState(false);
-  const isProcessing =
-    !justCompleted &&
-    (incident.status === "InProgress" ||
-      incident.status === "Escalated" ||
-      incident.status === "Assigned");
-  const handleCompleted = (base64Urls: string[]) => {
-    // Lưu lên IncidentDashboard (persist qua đóng/mở modal)
-    onEvidenceSaved(incident.id, base64Urls);
+  const [localStatus, setLocalStatus] = useState<IncidentRecord["status"]>(incident.status);
+  const [isStarting, setIsStarting] = useState(false);
+
+  const { name } = useSelector((state: RootState) => state.userReducer);
+  const [profile, setProfile] = useState<BackendUser | null>(null);
+
+  useEffect(() => {
+    getMyProfile()
+      .then((p) => setProfile(p))
+      .catch((err) => console.warn("Lỗi lấy thông tin cá nhân:", err));
+  }, []);
+
+  const isAssignee = useMemo(() => {
+    if (!incident.assigneeName) return false;
+    const nameMatch = incident.assigneeName === name;
+    const profileIdMatch = profile && (incident.assigneeName === profile.userId || incident.assigneeName === profile.fullName);
+    return !!(nameMatch || profileIdMatch);
+  }, [incident.assigneeName, name, profile]);
+
+  const handleStartRepair = async () => {
+    setIsStarting(true);
+    try {
+      await incidentApi.startIncident(incident.id);
+      toast.success("Đã bắt đầu sửa chữa!");
+      setLocalStatus("InProgress");
+      onStatusUpdated();
+    } catch (err) {
+      console.error(err);
+      toast.error("Có lỗi xảy ra khi bắt đầu sửa chữa!");
+    } finally {
+      setIsStarting(false);
+    }
+  };
+
+  const handleCompleted = (urls: string[]) => {
+    onEvidenceSaved(incident.id, urls);
     setJustCompleted(true);
+    setLocalStatus("Resolved");
     onStatusUpdated();
   };
+
+  const isProcessing =
+    !justCompleted &&
+    (localStatus === "InProgress" ||
+      localStatus === "Escalated" ||
+      localStatus === "Assigned");
+
   if (isProcessing) {
     return (
       <ProcessingModal
-        incident={incident}
+        incident={{ ...incident, status: localStatus }}
         shortCode={shortCode}
         onClose={onClose}
         onCompleted={handleCompleted}
       />
     );
   }
+
   return (
     <ViewModal
-      incident={justCompleted ? { ...incident, status: "Resolved" } : incident}
+      incident={justCompleted ? { ...incident, status: "Resolved" } : { ...incident, status: localStatus }}
       shortCode={shortCode}
       onClose={onClose}
       evidenceImages={evidenceImages}
+      isAssignee={isAssignee}
+      onStartRepair={handleStartRepair}
+      isStarting={isStarting}
     />
   );
 }

@@ -95,10 +95,18 @@ function CustomSelect({
   );
 }
 
-export default function ReportFilter() {
-  const [date, setDate] = useState("oct_2023");
+export default function ReportFilter({ 
+  onSearch 
+}: { 
+  onSearch?: (filters: { date: string; station: string; channel: string }) => void 
+}) {
+  const [date, setDate] = useState("30d");
   const [station, setStation] = useState("all");
   const [channel, setChannel] = useState("all");
+
+  const handleSearch = () => {
+    onSearch?.({ date, station, channel });
+  };
 
   return (
     <div className="bg-white border border-gray-100 rounded-2xl p-5 flex flex-col md:flex-row items-end gap-5 shadow-sm">
@@ -126,8 +134,9 @@ export default function ReportFilter() {
             </svg>
           }
           options={[
-            { value: "oct_2023", label: "01/10/2023 - 31/10/2023" },
-            { value: "nov_2023", label: "01/11/2023 - 30/11/2023" },
+            { value: "today", label: "Hôm nay" },
+            { value: "7d", label: "7 ngày" },
+            { value: "30d", label: "30 ngày" },
           ]}
         />
       </div>
@@ -156,7 +165,7 @@ export default function ReportFilter() {
             </svg>
           }
           options={[
-            { value: "all", label: "Tất cả nhà ga (11)" },
+            { value: "all", label: "Tất cả nhà ga" },
             { value: "btn", label: "Bến Thành" },
             { value: "bsn", label: "Ba Son" },
           ]}
@@ -188,16 +197,33 @@ export default function ReportFilter() {
           }
           options={[
             { value: "all", label: "Tất cả kênh" },
-            { value: "cash", label: "Tiền mặt mặt" },
+            { value: "cash", label: "Tiền mặt" },
             { value: "app", label: "Ứng dụng MetroNext" },
           ]}
         />
       </div>
 
-      {/* Button */}
-      <button className="w-full md:w-auto px-6 py-2.5 bg-gray-50 hover:bg-gray-100 text-gray-800 font-bold border border-gray-200 text-sm rounded-xl shadow-sm transition-colors flex items-center justify-center flex-shrink-0">
-        Áp dụng lọc
-      </button>
+      {/* Actions */}
+      <div className="w-full md:w-auto flex items-center gap-3 flex-shrink-0">
+        <button 
+          onClick={handleSearch}
+          className="flex-1 md:flex-none px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold border border-blue-600 text-sm rounded-xl shadow-sm transition-colors flex items-center justify-center"
+        >
+          <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          Tìm kiếm
+        </button>
+        <button 
+          onClick={() => alert("Đang xuất báo cáo định dạng: EXCEL")}
+          className="flex-1 md:flex-none px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl shadow-sm transition-colors flex items-center justify-center"
+        >
+          <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          Xuất báo cáo
+        </button>
+      </div>
     </div>
   );
 }

@@ -15,7 +15,6 @@ const NAV_GROUPS = [
       { label: "Tuyến", href: "/admin/routes", icon: RouteIcon },
       { label: "Lịch tàu", href: "/admin/schedules", icon: ScheduleIcon },
       { label: "Loại vé", href: "/admin/ticket-types", icon: TicketIcon },
-      { label: "Bảng giá", href: "/admin/fares", icon: PriceIcon },
       { label: "Duyệt sự cố", href: "/admin/incidents", icon: IncidentIcon },
     ],
   },
@@ -25,7 +24,6 @@ const NAV_GROUPS = [
       { label: "Người dùng", href: "/admin/users", icon: UsersIcon },
       { label: "Phân quyền", href: "/admin/permissions", icon: ShieldIcon },
       { label: "Báo cáo", href: "/admin/reports", icon: ReportIcon },
-      { label: "Audit Logs", href: "/admin/audit-logs", icon: LogIcon },
       {
         label: "Cài đặt",
         href: "/dashboard/admin/settings",
@@ -106,31 +104,7 @@ export default function AdminSidebar() {
         </nav>
       </div>
 
-      {/* User */}
-      <div className="border-t border-gray-100 px-3 py-4 sm:px-4">
-        <div className="mb-3 flex items-center justify-center gap-2.5 sm:justify-start">
-          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-            <span className="text-blue-700 text-xs font-bold">
-              {displayName ? displayName.charAt(0).toUpperCase() : "A"}
-            </span>
-          </div>
-          <div className="hidden min-w-0 sm:block">
-            <p className="text-xs font-semibold text-gray-900 truncate">
-              {displayName || "Admin User"}
-            </p>
-            <p className="text-xs text-gray-400 truncate">
-              {email || "Super Admin"}
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={handleLogout}
-          className="w-full rounded-lg py-1.5 text-xs text-gray-500 transition-colors hover:bg-red-50 hover:text-red-500"
-        >
-          <span className="hidden sm:inline">Đăng xuất</span>
-          <span className="sm:hidden">Thoát</span>
-        </button>
-      </div>
+      {/* User section moved to header */}
     </aside>
 
     <div className="lg:hidden">

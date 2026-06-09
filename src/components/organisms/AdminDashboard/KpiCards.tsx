@@ -1,4 +1,5 @@
 import type { KpiData } from "@features/admin/adminDashboardTypes";
+import { Banknote, Activity, Clock, Wrench } from "lucide-react";
 
 function formatVND(n: number): string {
   if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1)}B`;
@@ -47,9 +48,14 @@ export default function KpiCards({ kpi, isLoading, error }: Props) {
           <Skeleton />
         ) : (
           <>
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
-              Doanh thu hôm nay
-            </p>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+                <Banknote className="w-4 h-4 text-blue-600" />
+              </div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                Doanh thu hôm nay
+              </p>
+            </div>
             <p className="text-3xl font-bold text-gray-900">
               {formatVND(kpi.revenue)}
             </p>
@@ -67,9 +73,14 @@ export default function KpiCards({ kpi, isLoading, error }: Props) {
           <Skeleton />
         ) : (
           <>
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
-              Tổng chuyến (Hôm nay)
-            </p>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
+                <Activity className="w-4 h-4 text-indigo-600" />
+              </div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                Tổng chuyến (Hôm nay)
+              </p>
+            </div>
             <p className="text-3xl font-bold text-gray-900">
               {formatTrips(kpi.totalTrips)}
             </p>
@@ -84,9 +95,14 @@ export default function KpiCards({ kpi, isLoading, error }: Props) {
           <Skeleton />
         ) : (
           <>
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
-              Peak hour (Giờ cao điểm)
-            </p>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center">
+                <Clock className="w-4 h-4 text-amber-600" />
+              </div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                Giờ cao điểm
+              </p>
+            </div>
             <p className="text-3xl font-bold text-gray-900">
               {kpi.peakStart} – {kpi.peakEnd}
             </p>
@@ -101,16 +117,17 @@ export default function KpiCards({ kpi, isLoading, error }: Props) {
           <Skeleton />
         ) : (
           <>
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
-              Cảnh báo hệ thống
-            </p>
-            <div className="flex items-center gap-2 mt-1">
-              <p className="text-3xl font-bold text-red-600">
-                {kpi.criticalAlerts} Critical
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center">
+                <Wrench className="w-4 h-4 text-red-600" />
+              </div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                Thiết bị đang bảo trì
               </p>
-              <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
             </div>
-            <p className="text-sm text-red-400 mt-0.5">Yêu cầu xử lý ngay</p>
+            <p className="text-3xl font-bold text-gray-900 mt-1">
+              {kpi.criticalAlerts}
+            </p>
           </>
         )}
       </div>

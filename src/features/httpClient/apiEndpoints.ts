@@ -45,6 +45,7 @@ export const API_ENDPOINTS = {
   },
   incidents: {
     staff: endpoint(process.env.NEXT_PUBLIC_STAFF_INCIDENTS_ENDPOINT, "/staff/incidents"),
+    admin: endpoint(process.env.NEXT_PUBLIC_ADMIN_INCIDENTS_ENDPOINT, "/admin/incidents"),
   },
   shifts: {
     staff: endpoint(process.env.NEXT_PUBLIC_STAFF_SHIFTS_ENDPOINT, "/staff/shifts"),
@@ -103,6 +104,16 @@ export const API_ENDPOINTS = {
   media: {
     upload: endpoint(process.env.NEXT_PUBLIC_MEDIA_UPLOAD_ENDPOINT, "/media/upload"),
   },
+  admin: {
+    dashboardSummary: endpoint(process.env.NEXT_PUBLIC_ADMIN_DASHBOARD_SUMMARY, "/admin/dashboard/summary"),
+    reports: {
+      revenue: endpoint(process.env.NEXT_PUBLIC_ADMIN_REPORTS_REVENUE, "/admin/reports/revenue"),
+      ticketSales: endpoint(process.env.NEXT_PUBLIC_ADMIN_REPORTS_TICKET_SALES, "/admin/reports/ticket-sales"),
+      trips: endpoint(process.env.NEXT_PUBLIC_ADMIN_REPORTS_TRIPS, "/admin/reports/trips"),
+      gateActivity: endpoint(process.env.NEXT_PUBLIC_ADMIN_REPORTS_GATE_ACTIVITY, "/admin/reports/gate-activity"),
+      deviceAlerts: endpoint(process.env.NEXT_PUBLIC_ADMIN_REPORTS_DEVICE_ALERTS, "/admin/reports/device-alerts"),
+    },
+  },
 };
 
 export type ApiResponse<T> = {
@@ -112,4 +123,4 @@ export type ApiResponse<T> = {
 };
 
 export const withPathParam = (path: string, value: string | number) =>
-  `${path.replace(/\/$/, "")}/${encodeURIComponent(String(value))}`;
+  `${path.replace(/\/$/, "")}/${encodeURIComponent(String(value).trim())}`;
