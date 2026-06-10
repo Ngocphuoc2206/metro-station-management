@@ -13,11 +13,11 @@ const QR_TTL_FALLBACK_SECONDS = 600;
 const VIETNAM_TIME_ZONE = "Asia/Ho_Chi_Minh";
 const EXPLICIT_TIME_ZONE_PATTERN = /(?:Z|[+-]\d{2}:?\d{2})$/i;
 
-const parseApiDate = (value: string) => {
+const parseApiDate = (value: string, timezoneLessMode: "utc" | "vietnam" = "utc") => {
   const trimmed = value.trim();
   const normalized =
     /\d{2}:\d{2}/.test(trimmed) && !EXPLICIT_TIME_ZONE_PATTERN.test(trimmed)
-      ? `${trimmed.replace(" ", "T")}Z`
+      ? `${trimmed.replace(" ", "T")}${timezoneLessMode === "vietnam" ? "+07:00" : "Z"}`
       : trimmed;
   return new Date(normalized);
 };
@@ -30,16 +30,19 @@ const formatTime = (value?: string) => {
     : date.toLocaleString("vi-VN", { timeZone: VIETNAM_TIME_ZONE });
 };
 
-const formatDateTime = (value?: string) => {
+const formatDateTime = (value?: string, timezoneLessMode: "utc" | "vietnam" = "utc") => {
   if (!value) return "--";
-  const date = parseApiDate(value);
+  const date = parseApiDate(value, timezoneLessMode);
   return Number.isNaN(date.getTime())
     ? value
     : date.toLocaleString("vi-VN", { timeZone: VIETNAM_TIME_ZONE });
 };
 
-const ticketStatus = (value: string) => {
+const formatExpiryDateTime = (value?: string) => formatDateTime(value, "vietnam");
+
+const ticketStatus = (value: string, activatedAt?: string) => {
   const status = value.toUpperCase();
+  if (status === "ACTIVE" && activatedAt) return "Đang sử dụng";
   if (["USED", "COMPLETED", "CONSUMED", "FINISHED", "CHECKED_OUT", "TAP_OUT", "EXITED"].some((item) => status.includes(item))) return "Đã dùng";
   if (["READY", "ACTIVE", "VALID", "IN_USE", "CHECKED_IN", "TAP_IN", "ENTERED"].some((item) => status.includes(item))) return "Chưa dùng";
   if (["EXPIRED", "INVALID", "CANCELLED", "INACTIVE"].some((item) => status.includes(item))) return "Hết hạn";
@@ -142,7 +145,7 @@ export default function MyTicketsPage() {
   const visibleTickets = useMemo(() => {
     const keyword = query.trim().toLowerCase();
     return tickets.filter((ticket) => {
-      const status = ticketStatus(ticket.status);
+      const status = ticketStatus(ticket.status, ticket.activatedAt);
       const type = typeName(ticket);
       const currentRouteName = resolveRouteName(ticket);
       const matchesQuery = !keyword ||
@@ -153,9 +156,9 @@ export default function MyTicketsPage() {
 
   const stats = useMemo(() => ({
     total: tickets.length,
-    unused: tickets.filter((ticket) => ticketStatus(ticket.status) === "Chưa dùng").length,
-    used: tickets.filter((ticket) => ticketStatus(ticket.status) === "Đã dùng").length,
-    expired: tickets.filter((ticket) => ticketStatus(ticket.status) === "Hết hạn").length,
+    unused: tickets.filter((ticket) => ticketStatus(ticket.status, ticket.activatedAt) === "Chưa dùng").length,
+    used: tickets.filter((ticket) => ticketStatus(ticket.status, ticket.activatedAt) === "Đã dùng").length,
+    expired: tickets.filter((ticket) => ticketStatus(ticket.status, ticket.activatedAt) === "Hết hạn").length,
   }), [tickets]);
 
   const statCards = [
@@ -253,7 +256,7 @@ export default function MyTicketsPage() {
           <section className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:flex-row sm:flex-wrap">
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm mã vé hoặc chặng đi" className="h-11 w-full min-w-0 flex-1 rounded-xl border border-slate-200 px-3 sm:min-w-64" />
             <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 px-3 sm:w-auto">
-              <option value="">Tất cả trạng thái</option><option>Chưa dùng</option><option>Đã dùng</option><option>Hết hạn</option>
+              <option value="">Tất cả trạng thái</option><option>Chưa dùng</option><option>Đang sử dụng</option><option>Đã dùng</option><option>Hết hạn</option>
             </select>
             <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 px-3 sm:w-auto">
               <option value="">Tất cả loại vé</option><option>Vé lượt</option><option>Vé ngày</option><option>Vé tháng</option>
@@ -267,8 +270,8 @@ export default function MyTicketsPage() {
           {loading ? <p className="flex items-center justify-center gap-2 rounded-2xl bg-white p-10 text-slate-500"><Loader2 className="h-5 w-5 animate-spin" />Đang tải vé</p> : (
             <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
               {visibleTickets.map((ticket) => {
-                const currentStatus = ticketStatus(ticket.status);
-                const isActive = ticket.status.toUpperCase() === "ACTIVE";
+                const currentStatus = ticketStatus(ticket.status, ticket.activatedAt);
+                const isActive = currentStatus === "Đang sử dụng";
                 const isUsed = currentStatus === "Đã dùng";
                 
                 return (
@@ -277,7 +280,7 @@ export default function MyTicketsPage() {
                     <div className="space-y-4 p-5">
                       <div className="flex justify-between gap-2">
                         <span className="text-xs font-bold text-slate-400">#{ticket.code}</span>
-                        <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${currentStatus === "Chưa dùng" ? "bg-amber-50 text-amber-700" : isUsed ? "bg-slate-100 text-slate-700" : currentStatus === "Hết hạn" ? "bg-red-50 text-red-700" : "bg-slate-100"}`}>
+                        <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${isActive ? "bg-green-50 text-green-700" : currentStatus === "Chưa dùng" ? "bg-amber-50 text-amber-700" : isUsed ? "bg-slate-100 text-slate-700" : currentStatus === "Hết hạn" ? "bg-red-50 text-red-700" : "bg-slate-100"}`}>
                           {currentStatus}
                         </span>
                       </div>
@@ -294,7 +297,7 @@ export default function MyTicketsPage() {
                         {isActive ? (
                           <>
                             <p className="text-green-600 font-medium">Giờ vào ga: {formatDateTime(ticket.activatedAt)}</p>
-                            <p className="text-red-500 font-medium">Hạn rời ga: {formatDateTime(ticket.expiredAt)}</p>
+                            <p className="text-red-500 font-medium">Hạn rời ga: {formatExpiryDateTime(ticket.expiredAt)}</p>
                           </>
                         ) : isUsed ? (
                           <>
@@ -306,7 +309,7 @@ export default function MyTicketsPage() {
                             <p className="text-amber-600 font-medium">Trạng thái: Chưa dùng</p>
                             {ticket.expiredAt && (
                               <p className="text-amber-600 font-medium">
-                                Hạn sử dụng: Đến {formatDateTime(ticket.expiredAt)}
+                                Hạn sử dụng: Đến {formatExpiryDateTime(ticket.expiredAt)}
                               </p>
                             )}
                           </>
@@ -358,16 +361,16 @@ export default function MyTicketsPage() {
               <p><span className="text-slate-500">Loại vé:</span> {typeName(selectedTicket)}</p>
               <p><span className="text-slate-500">Chặng:</span> {resolveRouteName(selectedTicket)}</p>
               {selectedTicket.orderId && <p><span className="text-slate-500">Mã đơn hàng:</span> {selectedTicket.orderId}</p>}
-              <p><span className="text-slate-500">Trạng thái:</span> {ticketStatus(selectedTicket.status)}</p>
+              <p><span className="text-slate-500">Trạng thái:</span> {ticketStatus(selectedTicket.status, selectedTicket.activatedAt)}</p>
               
               <div className="border-t border-slate-200 pt-3 space-y-2 text-xs text-slate-600">
                 <p><span className="text-slate-500 font-normal">Thời gian mua:</span> {formatDateTime(selectedTicket.issuedAt)}</p>
                 {selectedTicket.activatedAt && <p><span className="text-slate-500 font-normal">Thời gian vào ga:</span> {formatDateTime(selectedTicket.activatedAt)}</p>}
                 {selectedTicket.usedAt && <p><span className="text-slate-500 font-normal">Thời gian ra ga:</span> {formatDateTime(selectedTicket.usedAt)}</p>}
-                <p><span className="text-slate-500 font-normal">Thời gian hết hạn:</span> {formatDateTime(selectedTicket.expiredAt)}</p>
+                <p><span className="text-slate-500 font-normal">Thời gian hết hạn:</span> {formatExpiryDateTime(selectedTicket.expiredAt)}</p>
               </div>
 
-              {ticketStatus(selectedTicket.status) !== "Đã dùng" && ticketStatus(selectedTicket.status) !== "Hết hạn" ? (
+              {ticketStatus(selectedTicket.status, selectedTicket.activatedAt) !== "Đã dùng" && ticketStatus(selectedTicket.status, selectedTicket.activatedAt) !== "Hết hạn" ? (
                 <button
                   type="button"
                   onClick={() => {

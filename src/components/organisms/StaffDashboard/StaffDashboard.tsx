@@ -77,8 +77,8 @@ function sevColor(sev: string) {
 }
 function statusColor(st: string) {
   const v = st.toUpperCase().replace(/[_\s]/g, "");
-  if (v === "OPEN" || v === "NEW" || v === "PENDING") return "bg-blue-100 text-blue-700";
-  if (v.includes("PROGRESS")) return "bg-yellow-100 text-yellow-700";
+  if (v === "OPEN" || v === "NEW" || v === "PENDING" || v === "APPROVED") return "bg-blue-100 text-blue-700";
+  if (v.includes("PROGRESS") || v === "ASSIGNED" || v === "ESCALATED") return "bg-yellow-100 text-yellow-700";
   if (v === "RESOLVED" || v === "CLOSED") return "bg-green-100 text-green-700";
   return "bg-gray-100 text-gray-700";
 }
@@ -86,8 +86,9 @@ function statusLabel(st: string) {
   const v = st.toUpperCase().replace(/[_\s]/g, "");
   if (v === "OPEN" || v === "NEW") return "MỚI";
   if (v === "PENDING") return "CHỜ XỬ LÝ";
+  if (v === "APPROVED") return "ĐÃ PHÊ DUYỆT";
   if (v === "ASSIGNED") return "ĐÃ PHÂN CÔNG";
-  if (v.includes("PROGRESS")) return "ĐANG XỬ LÝ";
+  if (v.includes("PROGRESS") || v === "ESCALATED") return "ĐANG XỬ LÝ";
   if (v === "RESOLVED") return "ĐÃ XONG";
   if (v === "CLOSED") return "ĐÃ ĐÓNG";
   return v;

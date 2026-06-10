@@ -6,6 +6,8 @@ import { userApi } from "@features/user/userApi";
 import type { User } from "@features/user/userTypes";
 import { toast } from "react-hot-toast";
 import CreateIncidentModal from "../IncidentDashboard/CreateIncidentModal";
+import { stationApi } from "@features/station/stationApi";
+import type { Station } from "@features/station/stationTypes";
 
 // ── Badges ─────────────────────────────────────────────────────────────────────
 function SeverityBadge({ severity }: { severity: string }) {
@@ -56,6 +58,7 @@ function IncidentDetailModal({
   onCloseIncident,
   onReopenIncident,
   actionLoading,
+  getStationName,
 }: {
   incident: IncidentRecord;
   staffList: User[];
@@ -64,6 +67,7 @@ function IncidentDetailModal({
   onCloseIncident: (incidentId: string) => Promise<void>;
   onReopenIncident: (incidentId: string) => Promise<void>;
   actionLoading: boolean;
+  getStationName: (stationId: string) => string;
 }) {
   const [selectedStaffId, setSelectedStaffId] = useState("");
   const [detail, setDetail] = useState<any>(null);
@@ -219,7 +223,7 @@ function IncidentDetailModal({
                 <div className="border border-gray-100 rounded-xl p-4 bg-white shadow-sm">
                   <p className="text-xs text-gray-400 font-semibold mb-1">Vị trí & Thiết bị</p>
                   <p className="font-semibold text-gray-900 text-sm leading-snug">
-                    {incident.stationName || incident.stationId || "Ga Bến Thành"}
+                    {incident.stationName || getStationName(incident.stationId)}
                     {incident.deviceId ? ` - Thiết bị: ${incident.deviceId}` : ""}
                   </p>
                 </div>
@@ -278,7 +282,7 @@ function IncidentDetailModal({
                 </div>
                 <div>
                   <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-1">Nhà ga</p>
-                  <p className="font-medium text-gray-800 break-all text-xs">{incident.stationId || "—"}</p>
+                  <p className="font-medium text-gray-800 break-all text-xs">{getStationName(incident.stationId)}</p>
                 </div>
                 <div className="col-span-2">
                   <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-1">Tên sự cố</p>
@@ -416,13 +420,24 @@ export default function AdminIncidentDashboard() {
   const [actionLoading, setActionLoading] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
+  const [stations, setStations] = useState<Station[]>([]);
+
   useEffect(() => {
     loadIncidents();
     userApi
       .getUsers()
       .then((users) => setStaffList(users.filter((u) => u.role === "staff" || u.role === "admin")))
       .catch(() => setStaffList([]));
+    stationApi
+      .getAdminStations()
+      .then((data) => setStations(data))
+      .catch((err) => console.error("Failed to load stations", err));
   }, []);
+
+  const getStationName = useCallback((stationId: string) => {
+    const station = stations.find((s) => s.id === stationId);
+    return station ? station.name : stationId || "—";
+  }, [stations]);
 
   async function loadIncidents() {
     setLoading(true);
@@ -681,7 +696,7 @@ export default function AdminIncidentDashboard() {
                         <td className="px-4 py-4 max-w-[200px]">
                           <span className="font-semibold text-gray-900 truncate block">{inc.title}</span>
                         </td>
-                        <td className="px-4 py-4 text-gray-500 text-xs max-w-[140px] truncate">{inc.stationId || "—"}</td>
+                        <td className="px-4 py-4 text-gray-500 text-xs max-w-[140px] truncate">{getStationName(inc.stationId)}</td>
                         <td className="px-4 py-4">
                           <SeverityBadge severity={inc.severity} />
                         </td>
@@ -705,8 +720,13 @@ export default function AdminIncidentDashboard() {
                             <button
                               type="button"
                               onClick={() => setSelectedIncident(inc)}
-                              className="text-gray-400 hover:text-blue-600 transition"
-                              title="Chi tiết / Duyệt"
+                              disabled={inc.status === "Approved"}
+                              className={`${
+                                inc.status === "Approved"
+                                  ? "text-gray-200 cursor-not-allowed"
+                                  : "text-gray-400 hover:text-blue-600"
+                              } transition`}
+                              title={inc.status === "Approved" ? "Sự cố đã được duyệt" : "Chi tiết / Duyệt"}
                             >
                               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -748,6 +768,7 @@ export default function AdminIncidentDashboard() {
           onCloseIncident={handleCloseIncident}
           onReopenIncident={handleReopenIncident}
           actionLoading={actionLoading}
+          getStationName={getStationName}
         />
       )}
 

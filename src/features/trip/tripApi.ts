@@ -39,6 +39,69 @@ const firstText = (...values: unknown[]) => {
   return "";
 };
 
+const normalizeTripStatus = (value: string) => {
+  const status = value.trim();
+  const normalized = status
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+
+  if (!normalized) return "";
+  if (
+    normalized.includes("COMPLETED") ||
+    normalized.includes("SUCCESS") ||
+    normalized.includes("FINISHED") ||
+    normalized.includes("CHECKED_OUT") ||
+    normalized.includes("TAP_OUT") ||
+    normalized.includes("EXITED") ||
+    normalized.includes("DONE")
+  ) {
+    return "Đã hoàn thành";
+  }
+  if (normalized.includes("PROGRESS")) {
+    return "Đang trong chuyến";
+  }
+  if (
+    normalized.includes("IN_USE") ||
+    normalized.includes("CHECKED_IN") ||
+    normalized.includes("TAP_IN") ||
+    normalized.includes("ENTERED")
+  ) {
+    return "Đang di chuyển";
+  }
+  if (
+    normalized.includes("FAILED") ||
+    normalized.includes("FAIL") ||
+    normalized.includes("REJECT") ||
+    normalized.includes("DENIED") ||
+    normalized.includes("CANCEL") ||
+    normalized.includes("ERROR") ||
+    normalized.includes("INVALID")
+  ) {
+    return "Không thành công";
+  }
+  if (
+    normalized.includes("PENDING") ||
+    normalized.includes("READY") ||
+    normalized.includes("CREATED") ||
+    normalized.includes("NEW")
+  ) {
+    return "Chờ xử lý";
+  }
+  return status.replaceAll("_", " ");
+};
+
+const normalizeStationName = (value: string) => {
+  const stationName = value.trim();
+  const normalized = stationName
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+
+  if (!normalized || normalized.includes("TRANSIT")) return "";
+  return stationName;
+};
+
 const normalizeTrip = (raw: unknown): TripDto | null => {
   if (!raw || typeof raw !== "object") return null;
   const item = raw as Record<string, unknown>;
@@ -79,7 +142,7 @@ const normalizeTrip = (raw: unknown): TripDto | null => {
     id,
     ticketId,
     ticketCode,
-    originStationName: firstText(
+    originStationName: normalizeStationName(firstText(
       item.originStationName,
       item.entryStationName,
       item.checkInStationName,
@@ -89,8 +152,8 @@ const normalizeTrip = (raw: unknown): TripDto | null => {
       item.from,
       originStation.name,
       originStation.stationName,
-    ),
-    destinationStationName: firstText(
+    )),
+    destinationStationName: normalizeStationName(firstText(
       item.destinationStationName,
       item.exitStationName,
       item.checkOutStationName,
@@ -100,10 +163,10 @@ const normalizeTrip = (raw: unknown): TripDto | null => {
       item.to,
       destinationStation.name,
       destinationStation.stationName,
-    ),
+    )),
     checkInAt: checkInAt || undefined,
     checkOutAt: checkOutAt || undefined,
-    status: firstText(item.status, item.tripStatus, item.result),
+    status: normalizeTripStatus(firstText(item.status, item.tripStatus, item.result)),
     fare: optionalNumber(item.fare ?? item.price ?? item.amount ?? item.totalFare),
     entryGate: firstText(item.entryGate, item.entryGateCode, item.gateInCode, item.checkInGateCode) || undefined,
     exitGate: firstText(item.exitGate, item.exitGateCode, item.gateOutCode, item.checkOutGateCode) || undefined,
