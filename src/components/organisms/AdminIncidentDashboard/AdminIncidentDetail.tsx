@@ -217,7 +217,22 @@ export default function AdminIncidentDetail() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-baseline gap-2 flex-wrap">
                         <span className="text-sm font-semibold text-gray-900">{ev.actorName}</span>
-                        <span className="text-xs text-gray-400">{ev.timestamp ? new Date(ev.timestamp).toLocaleString("vi-VN") : ""}</span>
+                        <span className="text-xs text-gray-400">{ev.timestamp ? (() => {
+                          const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(ev.timestamp);
+                          const matchTime = ev.timestamp.match(/^(\d{4})[./-](\d{2})[./-](\d{2})[T ](\d{2}):(\d{2}):(\d{2})/);
+                          if (matchTime && !hasTimezone) {
+                            const year = parseInt(matchTime[1], 10);
+                            const month = parseInt(matchTime[2], 10) - 1;
+                            const day = parseInt(matchTime[3], 10);
+                            const hour = parseInt(matchTime[4], 10);
+                            const minute = parseInt(matchTime[5], 10);
+                            const second = parseInt(matchTime[6], 10);
+                            const date = new Date(Date.UTC(year, month, day, hour, minute, second));
+                            return date.toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" });
+                          }
+                          const normalized = hasTimezone ? ev.timestamp : `${ev.timestamp}Z`;
+                          return new Date(normalized).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" });
+                        })() : ""}</span>
                       </div>
                       {ev.content && <p className="text-sm text-gray-600 mt-0.5">{ev.content}</p>}
                     </div>

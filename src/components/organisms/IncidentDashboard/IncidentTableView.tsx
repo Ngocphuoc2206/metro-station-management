@@ -7,6 +7,7 @@ interface Props {
   searchQuery: string;
   onSearchChange: (q: string) => void;
   onViewDetail: (incident: IncidentRecord) => void;
+  onDelete?: (incident: IncidentRecord) => void;
 }
 
 const PAGE_SIZE = 10;
@@ -59,6 +60,13 @@ function getStatusBadge(status: string) {
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600 whitespace-nowrap">
           <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
           Tạo mới
+        </span>
+      );
+    case "Approved":
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-600 border border-indigo-200 whitespace-nowrap">
+          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+          Đã phê duyệt
         </span>
       );
     case "Assigned":
@@ -136,6 +144,7 @@ export default function IncidentTableView({
   searchQuery,
   onSearchChange,
   onViewDetail,
+  onDelete,
 }: Props) {
   const [page, setPage] = useState(1);
   const totalPages = Math.max(1, Math.ceil(incidents.length / PAGE_SIZE));
@@ -181,7 +190,7 @@ export default function IncidentTableView({
               <th className="px-6 py-3.5 text-[11px] font-black text-gray-400 uppercase tracking-wider">Mức độ</th>
               <th className="px-6 py-3.5 text-[11px] font-black text-gray-400 uppercase tracking-wider">Nhân viên</th>
               <th className="px-6 py-3.5 text-[11px] font-black text-gray-400 uppercase tracking-wider">Trạng thái</th>
-              <th className="px-6 py-3.5 text-[11px] font-black text-gray-400 uppercase tracking-wider text-right whitespace-nowrap">Thao tác</th>
+              <th className="px-6 py-3.5 text-[11px] font-black text-gray-400 uppercase tracking-wider text-center w-[120px] whitespace-nowrap">Thao tác</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
@@ -252,13 +261,29 @@ export default function IncidentTableView({
                     <td className="px-6 py-4">{getStatusBadge(incident.status)}</td>
 
                     {/* Thao tác */}
-                    <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={() => onViewDetail(incident)}
-                        className="text-blue-600 font-semibold hover:text-blue-800 transition-colors text-sm"
-                      >
-                        Chi tiết
-                      </button>
+                    <td className="px-6 py-4 text-center">
+                      <div className="flex justify-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => onViewDetail(incident)}
+                          className="text-gray-400 hover:text-blue-600 transition"
+                          title="Chi tiết"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onDelete?.(incident)}
+                          className="text-gray-400 hover:text-red-500 transition"
+                          title="Xóa"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );

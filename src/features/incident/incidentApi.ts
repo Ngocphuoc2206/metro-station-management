@@ -281,4 +281,9 @@ export const incidentApi = {
       throw err;
     }
   },
+
+  deleteIncident: async (id: string): Promise<boolean> => {
+    await apiClient.delete(withPathParam(API_ENDPOINTS.incidents.admin, id));
+    return true;
+  },
 };
