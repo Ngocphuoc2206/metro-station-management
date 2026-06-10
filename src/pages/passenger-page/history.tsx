@@ -365,10 +365,29 @@ export default function PassengerHistoryPage() {
       </PassengerShell>
 
       {selected ? (
-        <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/40">
-          <aside className="h-full w-full max-w-md bg-white p-6 shadow-xl">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold">Chi tiết chuyến đi</h2>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="trip-detail-title"
+          onClick={() => setSelected(null)}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl shadow-slate-900/20"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2
+                  id="trip-detail-title"
+                  className="text-xl font-bold text-slate-950"
+                >
+                  Chi tiết chuyến đi
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  {formatDate(selected.checkInAt)}
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => setSelected(null)}
@@ -378,39 +397,49 @@ export default function PassengerHistoryPage() {
                 <X />
               </button>
             </div>
-            <div className="mt-8 space-y-4 rounded-2xl bg-slate-50 p-5 text-sm">
-              <p>
+            <div className="mt-6 space-y-4 rounded-xl bg-slate-50 p-5 text-sm">
+              <p className="flex justify-between gap-4">
                 <span className="text-slate-500">Mã vé:</span>{" "}
                 <strong>
                   {selected.ticketCode || selected.ticketId || "--"}
                 </strong>
               </p>
-              <p>
+              <p className="flex justify-between gap-4">
                 <span className="text-slate-500">Ga vào:</span>{" "}
-                {selected.originStationName || "--"}
+                <strong className="text-right text-slate-900">
+                  {selected.originStationName || "--"}
+                </strong>
               </p>
-              <p>
+              <p className="flex justify-between gap-4">
                 <span className="text-slate-500">Thời gian vào:</span>{" "}
-                {formatDateTime(selected.checkInAt)}
+                <strong className="text-right text-slate-900">
+                  {formatDateTime(selected.checkInAt)}
+                </strong>
               </p>
-              <p>
+              <p className="flex justify-between gap-4">
                 <span className="text-slate-500">Ga ra:</span>{" "}
-                {selected.destinationStationName || "--"}
+                <strong className="text-right text-slate-900">
+                  {selected.destinationStationName || "--"}
+                </strong>
               </p>
-              <p>
+              <p className="flex justify-between gap-4">
                 <span className="text-slate-500">Thời gian ra:</span>{" "}
-                {formatDateTime(selected.checkOutAt)}
+                <strong className="text-right text-slate-900">
+                  {formatDateTime(selected.checkOutAt)}
+                </strong>
               </p>
-              <p>
+              <p className="flex justify-between gap-4">
                 <span className="text-slate-500">Tổng tiền:</span>{" "}
                 <strong>{formatFare(selected.fare)}</strong>
               </p>
-              <p>
+              <p className="flex justify-between gap-4">
                 <span className="text-slate-500">Trạng thái:</span>{" "}
-                {selected.status || "--"}
+                <strong className="text-right text-slate-900">
+                  {selected.status || "--"}
+                </strong>
               </p>
             </div>
-          </aside>
+          </div>
         </div>
       ) : null}
     </>
