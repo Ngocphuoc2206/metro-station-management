@@ -96,9 +96,11 @@ function CustomSelect({
 }
 
 export default function ReportFilter({ 
-  onSearch 
+  onSearch,
+  onExportExcel,
 }: { 
-  onSearch?: (filters: { date: string; station: string; channel: string }) => void 
+  onSearch?: (filters: { date: string; station: string; channel: string }) => void;
+  onExportExcel?: () => void;
 }) {
   const [date, setDate] = useState("30d");
   const [station, setStation] = useState("all");
@@ -215,8 +217,8 @@ export default function ReportFilter({
           Tìm kiếm
         </button>
         <button 
-          onClick={() => alert("Đang xuất báo cáo định dạng: EXCEL")}
-          className="flex-1 md:flex-none px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl shadow-sm transition-colors flex items-center justify-center"
+          onClick={onExportExcel}
+          className="flex-1 md:flex-none px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl shadow-sm transition-colors flex items-center justify-center cursor-pointer"
         >
           <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />

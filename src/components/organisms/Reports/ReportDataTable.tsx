@@ -2,9 +2,10 @@ import type { ReportRow } from "@features/admin/useReportData";
 
 interface Props {
   rows: ReportRow[];
+  onExportCSV?: () => void;
 }
 
-export default function ReportDataTable({ rows }: Props) {
+export default function ReportDataTable({ rows, onExportCSV }: Props) {
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
@@ -28,10 +29,16 @@ export default function ReportDataTable({ rows }: Props) {
       <div className="px-6 py-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h3 className="text-lg font-bold text-gray-900">Tổng hợp dữ liệu theo ngày</h3>
         <div className="flex items-center gap-3">
-          <button className="px-4 py-2 text-sm font-semibold text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+          <button 
+            onClick={onExportCSV}
+            className="px-4 py-2 text-sm font-semibold text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer"
+          >
             Tải CSV
           </button>
-          <button className="px-4 py-2 text-sm font-semibold text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+          <button 
+            onClick={() => window.print()}
+            className="px-4 py-2 text-sm font-semibold text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer"
+          >
             In báo cáo
           </button>
         </div>
