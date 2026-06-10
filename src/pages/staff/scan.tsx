@@ -1351,7 +1351,7 @@ function StaffScanPage() {
 
               <div className="overflow-x-auto">
                 <div className="min-w-[864px]">
-                  <div className="grid grid-cols-[176px_144px_240px_192px_192px] border-b border-slate-200 bg-slate-50/90">
+                  <div className="grid grid-cols-[1.5fr_1.2fr_2fr_1.5fr_1.5fr] border-b border-slate-200 bg-slate-50/90">
                     <div className="px-6 py-3 text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">
                       Thời gian
                     </div>
@@ -1383,7 +1383,7 @@ function StaffScanPage() {
                         key={
                           row.id || `${row.scannedAt}-${row.ticketId}-${idx}`
                         }
-                        className={`grid grid-cols-[176px_144px_240px_192px_192px] bg-white transition hover:bg-slate-50/70 ${
+                        className={`grid grid-cols-[1.5fr_1.2fr_2fr_1.5fr_1.5fr] bg-white transition hover:bg-slate-50/70 ${
                           idx === 0 ? "" : "border-t border-slate-100"
                         }`}
                       >
@@ -1424,28 +1424,15 @@ function StaffScanPage() {
                                 row.result?.toUpperCase(),
                               )
                                 ? "bg-green-100 text-green-700"
-                                : ["DENY", "NOT_ALLOWED"].includes(
-                                      row.result?.toUpperCase(),
-                                    )
-                                  ? "bg-amber-100 text-amber-700"
-                                  : "bg-red-100 text-red-700"
+                                : "bg-red-100 text-red-700"
                             }`}
                           >
                             {["ALLOW", "SUCCESS", "ACCEPTED"].includes(
                               row.result?.toUpperCase(),
                             )
                               ? "Cho phép"
-                              : ["DENY", "NOT_ALLOWED"].includes(
-                                    row.result?.toUpperCase(),
-                                  )
-                                ? "Từ chối"
-                                : row.result || "-"}
+                              : "Từ chối"}
                           </span>
-                          {row.message ? (
-                            <div className="mt-1 text-xs font-medium leading-4 text-slate-500">
-                              {row.message}
-                            </div>
-                          ) : null}
                         </div>
                       </div>
                     ))
