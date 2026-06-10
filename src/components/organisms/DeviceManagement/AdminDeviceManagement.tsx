@@ -40,6 +40,39 @@ function getTypeName(typeId: string, typeOptions: AdminDeviceTypeOption[]) {
   return typeOptions.find((type) => type.id === typeId)?.name;
 }
 
+function normalizeLookup(value?: string) {
+  return value?.trim().toLowerCase() ?? "";
+}
+
+function resolveStation(device: AdminDeviceResponse, stations: Station[]) {
+  return stations.find((station) => station.id === device.stationId)
+    ?? stations.find((station) => normalizeLookup(station.name) === normalizeLookup(device.stationName))
+    ?? stations.find((station) => normalizeLookup(station.code) === normalizeLookup(device.stationName));
+}
+
+function resolveDeviceType(device: AdminDeviceResponse, typeOptions: AdminDeviceTypeOption[]) {
+  return typeOptions.find((type) => type.id === device.typeId)
+    ?? typeOptions.find((type) => normalizeLookup(type.name) === normalizeLookup(device.typeName))
+    ?? typeOptions.find((type) => normalizeLookup(type.id) === normalizeLookup(device.typeName));
+}
+
+function hydrateDevice(
+  device: AdminDeviceResponse,
+  stations: Station[],
+  typeOptions: AdminDeviceTypeOption[],
+): AdminDeviceResponse {
+  const station = resolveStation(device, stations);
+  const type = resolveDeviceType(device, typeOptions);
+
+  return {
+    ...device,
+    stationId: device.stationId || station?.id,
+    stationName: device.stationName || station?.name,
+    typeId: device.typeId || type?.id,
+    typeName: device.typeName || type?.name,
+  };
+}
+
 export default function AdminDeviceManagement() {
   const [devices, setDevices] = useState<AdminDeviceResponse[]>([]);
   const [stations, setStations] = useState<Station[]>([]);
@@ -62,14 +95,17 @@ export default function AdminDeviceManagement() {
       .then(([deviceResult, stationResult, deviceTypeResult]) => {
         if (cancelled) return;
 
-        if (deviceResult.status === "fulfilled") {
-          setDevices(deviceResult.value);
-        }
+        const stationList = stationResult.status === "fulfilled" ? stationResult.value : [];
+        const deviceTypeList = deviceTypeResult.status === "fulfilled" ? deviceTypeResult.value : [];
+
         if (stationResult.status === "fulfilled") {
-          setStations(stationResult.value);
+          setStations(stationList);
         }
         if (deviceTypeResult.status === "fulfilled") {
-          setTypeOptions(deviceTypeResult.value);
+          setTypeOptions(deviceTypeList);
+        }
+        if (deviceResult.status === "fulfilled") {
+          setDevices(deviceResult.value.map((device) => hydrateDevice(device, stationList, deviceTypeList)));
         }
 
         setError(deviceResult.status === "rejected" ? "Không thể tải danh sách thiết bị." : "");
@@ -102,25 +138,34 @@ export default function AdminDeviceManagement() {
   };
 
   const openEdit = (device: AdminDeviceResponse) => {
-    setEditingDevice(device);
+    setEditingDevice(hydrateDevice(device, stations, typeOptions));
     setIsFormOpen(true);
   };
 
   const submit = async (payload: AdminDeviceRequest) => {
     const typeName = getTypeName(payload.typeId, typeOptions);
     if (editingDevice) {
+      if (!editingDevice.id) {
+        throw new Error("Thiếu deviceId thiết bị để cập nhật.");
+      }
       const updated = await adminDeviceApi.updateDevice(editingDevice.id, payload);
       const stationName = stations.find((station) => station.id === payload.stationId)?.name;
-      const merged = {
+      const merged = hydrateDevice({
         ...editingDevice,
         ...updated,
+        id: updated.id || editingDevice.id,
+        deviceCode: updated.deviceCode || payload.deviceCode,
+        name: updated.name || payload.name,
+        ipAddress: updated.ipAddress ?? payload.ipAddress,
+        macAddress: updated.macAddress ?? payload.macAddress,
+        status: updated.status || payload.status,
         stationId: payload.stationId,
         stationName: stationName ?? updated.stationName ?? editingDevice.stationName,
         gateId: payload.gateId,
         gateName: updated.gateName ?? editingDevice.gateName,
         typeId: payload.typeId,
         typeName: updated.typeName ?? typeName ?? editingDevice.typeName,
-      };
+      }, stations, typeOptions);
       setDevices((current) => current.map((device) => device.id === editingDevice.id ? merged : device));
       toast.success("Đã cập nhật thiết bị.");
     } else {

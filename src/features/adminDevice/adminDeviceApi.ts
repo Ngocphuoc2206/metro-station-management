@@ -33,10 +33,11 @@ type RawGate = Partial<GateResponse> & {
 };
 
 function normalizeDevice(raw: RawDevice): AdminDeviceResponse {
+  const id = raw.deviceId ?? raw.id ?? "";
   return {
-    id: raw.id ?? raw.deviceId ?? "",
+    id,
     deviceCode: raw.deviceCode ?? raw.code ?? raw.id ?? raw.deviceId ?? "",
-    name: raw.name ?? raw.deviceName ?? raw.deviceCode ?? raw.deviceId ?? "",
+    name: raw.name ?? raw.deviceName ?? raw.deviceCode ?? raw.deviceId ?? id,
     ipAddress: raw.ipAddress,
     macAddress: raw.macAddress,
     status: raw.status ?? "INACTIVE",
@@ -111,7 +112,9 @@ export const adminDeviceApi = {
     id: string,
     payload: AdminDeviceRequest,
   ): Promise<AdminDeviceResponse> => {
-    const res = await apiClient.put(withPathParam(API_ENDPOINTS.devices.admin, id), payload);
+    const deviceId = id.trim();
+    if (!deviceId) throw new Error("Thiếu deviceId thiết bị để cập nhật.");
+    const res = await apiClient.put(withPathParam(API_ENDPOINTS.devices.admin, deviceId), payload);
     return normalizeDevice(unwrapApiResponse<RawDevice>(res.data));
   },
 
