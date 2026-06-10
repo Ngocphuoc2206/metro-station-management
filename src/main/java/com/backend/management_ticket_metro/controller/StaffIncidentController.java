@@ -39,7 +39,7 @@ public class StaffIncidentController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('STAFF')")
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
     public ApiResponse<IncidentResponse> create(@Valid @RequestBody IncidentRequest request) {
         return ApiResponse.<IncidentResponse>builder()
                 .results(incidentService.createIncident(request))

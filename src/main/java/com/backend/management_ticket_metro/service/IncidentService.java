@@ -53,7 +53,7 @@ public class IncidentService {
     }
 
     @Transactional
-    @PreAuthorize("hasAnyRole('STAFF')")
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
     public IncidentResponse createIncident(IncidentRequest request) {
         User reporter = getCurrentUser();
 
