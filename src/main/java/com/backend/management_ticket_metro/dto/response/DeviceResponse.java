@@ -10,7 +10,7 @@ import java.util.Map;
 @NoArgsConstructor
 @AllArgsConstructor
 public class DeviceResponse {
-    private String id;
+    private String deviceId;
     private String deviceCode;
     private String name;
     private String ipAddress;
