@@ -8,24 +8,37 @@ import { tripApi, tripErrorMessage } from "@features/trip/tripApi";
 import type { TripDto, TripPage } from "@features/trip/tripTypes";
 
 const LIMIT = 10;
+const VIETNAM_TIME_ZONE = "Asia/Ho_Chi_Minh";
+const EXPLICIT_TIME_ZONE_PATTERN = /(?:Z|[+-]\d{2}:?\d{2})$/i;
 
 const toStartDateTime = (value: string) =>
   value ? new Date(`${value}T00:00:00`).toISOString() : undefined;
 const toEndDateTime = (value: string) =>
   value ? new Date(`${value}T23:59:59.999`).toISOString() : undefined;
 
+const parseApiDate = (value: string) => {
+  const trimmed = value.trim();
+  const normalized =
+    /\d{2}:\d{2}/.test(trimmed) && !EXPLICIT_TIME_ZONE_PATTERN.test(trimmed)
+      ? `${trimmed.replace(" ", "T")}Z`
+      : trimmed;
+  return new Date(normalized);
+};
+
 const formatDate = (value?: string) => {
   if (!value) return "--";
-  const date = new Date(value);
+  const date = parseApiDate(value);
   return Number.isNaN(date.getTime())
     ? value
-    : date.toLocaleDateString("vi-VN");
+    : date.toLocaleDateString("vi-VN", { timeZone: VIETNAM_TIME_ZONE });
 };
 
 const formatDateTime = (value?: string) => {
   if (!value) return "--";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString("vi-VN");
+  const date = parseApiDate(value);
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleString("vi-VN", { timeZone: VIETNAM_TIME_ZONE });
 };
 
 const formatFare = (value?: number) =>
@@ -154,7 +167,7 @@ export default function PassengerHistoryPage() {
             <button
               type="button"
               onClick={exportCsv}
-              className="flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white"
+              className="flex items-center hidden gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white"
             >
               <Download className="h-4 w-4" />
               Xuất CSV trang hiện tại
@@ -193,7 +206,7 @@ export default function PassengerHistoryPage() {
                 onClick={applyFilters}
                 className="flex-1 rounded-xl bg-blue-600 px-3 text-sm font-bold text-white"
               >
-                Lọc
+                Tìm kiếm
               </button>
               <button
                 type="button"

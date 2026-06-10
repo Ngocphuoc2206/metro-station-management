@@ -30,7 +30,7 @@ type StatCard = {
 
 type TicketCard = {
   rawId?: string;
-  status: "Chưa dùng" | "Đã dùng" | "Hết hạn";
+  status: "Chưa dùng" | "Đang sử dụng" | "Đã dùng" | "Hết hạn";
   code: string;
   type: string;
   route: string;
@@ -82,8 +82,9 @@ const toneClass = {
   },
 };
 
-const mapTicketStatus = (status?: string): TicketCard["status"] => {
+const mapTicketStatus = (status?: string, activatedAt?: string): TicketCard["status"] => {
   const v = (status ?? "").toLowerCase();
+  if (v === "active" && activatedAt) return "Đang sử dụng";
   if (
     v.includes("used") ||
     v.includes("completed") ||
@@ -113,6 +114,7 @@ const mapTicketStatus = (status?: string): TicketCard["status"] => {
 };
 
 const mapTicketTone = (status: TicketCard["status"]): TicketCard["tone"] => {
+  if (status === "Đang sử dụng") return "green";
   if (status === "Chưa dùng") return "amber";
   if (status === "Đã dùng") return "red";
   return "red";
@@ -131,36 +133,73 @@ const formatMoneyVnd = (value?: number) => {
   }).format(value);
 };
 
-const parseApiDate = (value: string) => {
+const parseApiDate = (value: string, timezoneLessMode: "utc" | "vietnam" = "utc") => {
   const trimmed = value.trim();
   const normalized =
     /\d{2}:\d{2}/.test(trimmed) && !EXPLICIT_TIME_ZONE_PATTERN.test(trimmed)
-      ? `${trimmed.replace(" ", "T")}Z`
+      ? `${trimmed.replace(" ", "T")}${timezoneLessMode === "vietnam" ? "+07:00" : "Z"}`
       : trimmed;
   return new Date(normalized);
 };
 
-const formatDateTime = (value?: string) => {
+const formatDateTime = (value?: string, timezoneLessMode: "utc" | "vietnam" = "utc") => {
   if (!value) return "--";
-  const date = parseApiDate(value);
+  const date = parseApiDate(value, timezoneLessMode);
   return Number.isNaN(date.getTime())
     ? value
     : date.toLocaleString("vi-VN", { timeZone: VIETNAM_TIME_ZONE });
 };
+
+const formatExpiryDateTime = (value?: string) => formatDateTime(value, "vietnam");
 
 const statusTone = (status?: string) => {
   const value = (status ?? "").toLowerCase();
   if (
     value.includes("fail") ||
     value.includes("cancel") ||
-    value.includes("reject")
+    value.includes("reject") ||
+    value.includes("không") ||
+    value.includes("loi") ||
+    value.includes("lỗi")
   ) {
     return "bg-red-100 text-red-700";
   }
-  if (value.includes("pending") || value.includes("progress")) {
+  if (
+    value.includes("pending") ||
+    value.includes("progress") ||
+    value.includes("đang") ||
+    value.includes("dang") ||
+    value.includes("chờ") ||
+    value.includes("cho")
+  ) {
     return "bg-amber-100 text-amber-700";
   }
   return "bg-green-100 text-green-700";
+};
+
+const statusDotTone = (status?: string) => {
+  const value = (status ?? "").toLowerCase();
+  if (
+    value.includes("fail") ||
+    value.includes("cancel") ||
+    value.includes("reject") ||
+    value.includes("không") ||
+    value.includes("loi") ||
+    value.includes("lỗi")
+  ) {
+    return "bg-red-500";
+  }
+  if (
+    value.includes("pending") ||
+    value.includes("progress") ||
+    value.includes("đang") ||
+    value.includes("dang") ||
+    value.includes("chờ") ||
+    value.includes("cho")
+  ) {
+    return "bg-amber-500";
+  }
+  return "bg-green-500";
 };
 
 const isUsedTicketStatus = (status: TicketCard["status"]) => status === "Đã dùng";
@@ -248,7 +287,7 @@ export default function PassengerPage() {
 
   const derivedStats: StatCard[] = useMemo(() => {
     const activeCount = tickets.filter(
-      (t) => mapTicketStatus(t.status) === "Chưa dùng",
+      (t) => ["Chưa dùng", "Đang sử dụng"].includes(mapTicketStatus(t.status, t.activatedAt)),
     ).length;
     const apiSpend =
       trips.reduce(
@@ -272,7 +311,7 @@ export default function PassengerPage() {
 
   const derivedRecentTickets: TicketCard[] = useMemo(() => {
     return tickets.slice(0, 3).map((t) => {
-      const status = mapTicketStatus(t.status);
+      const status = mapTicketStatus(t.status, t.activatedAt);
       const tone = mapTicketTone(status);
       const route =
         t.routeName ||
@@ -486,7 +525,7 @@ export default function PassengerPage() {
                           <div className="flex items-start justify-between gap-2">
                             <span>Hạn sử dụng</span>
                             <span className="text-right font-semibold text-amber-600">
-                              Đến {formatDateTime(ticket.expiredAt)}
+                              Đến {formatExpiryDateTime(ticket.expiredAt)}
                             </span>
                           </div>
                         </div>
@@ -554,7 +593,7 @@ export default function PassengerPage() {
                               <span
                                 className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${statusTone(row.status)}`}
                               >
-                                <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                                <span className={`h-1.5 w-1.5 rounded-full ${statusDotTone(row.status)}`} />
                                 {row.status}
                               </span>
                             </div>
