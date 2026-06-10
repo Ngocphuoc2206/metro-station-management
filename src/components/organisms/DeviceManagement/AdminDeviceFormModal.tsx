@@ -109,6 +109,10 @@ function statusLabel(status: AdminDeviceStatus) {
   return "Bảo trì";
 }
 
+function normalizeDirectionMode(value?: string) {
+  return value === "OUT" ? "OUT" : "IN";
+}
+
 function requestErrorMessage(error: unknown) {
   if (axios.isAxiosError(error)) {
     const responseMessage = error.response?.data?.message;
@@ -118,6 +122,9 @@ function requestErrorMessage(error: unknown) {
     if (error.response?.status) {
       return `Backend trả về HTTP ${error.response.status}.`;
     }
+  }
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
   }
   return "Không thể lưu thiết bị. Vui lòng kiểm tra dữ liệu hoặc API backend.";
 }
@@ -159,7 +166,7 @@ export default function AdminDeviceFormModal({
         : "INACTIVE") as AdminDeviceStatus,
       lastMaintenance: formatDateTimeLocal(device.lastMaintenance),
       detailKind: inferDetailKind(device),
-      directionMode: detailValue(device, "directionMode") || "IN",
+      directionMode: normalizeDirectionMode(detailValue(device, "directionMode")),
       gateType: detailValue(device, "gateType"),
       emergencyMode: boolDetail(device, "emergencyMode"),
       passageCount: detailValue(device, "passageCount") || "0",
@@ -302,7 +309,7 @@ export default function AdminDeviceFormModal({
       return;
     }
     if (form.detailKind === "GATE" && (!form.directionMode || !form.gateType.trim())) {
-      setError("Thiết bị Gate cần Direction mode và Gate type.");
+      setError("Thiết bị cổng cần hướng cổng và loại cổng.");
       return;
     }
     const passageCount = optionalNumber(form.passageCount);
@@ -425,16 +432,15 @@ export default function AdminDeviceFormModal({
           {form.detailKind === "GATE" ? (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
               <label className="space-y-1.5">
-                <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500">Direction mode *</span>
+                <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500">Hướng cổng *</span>
                 <select value={form.directionMode} onChange={(event) => set("directionMode", event.target.value)} className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-blue-400 focus:outline-none">
-                  <option value="IN">IN</option>
-                  <option value="OUT">OUT</option>
-                  <option value="BI">BI</option>
+                  <option value="IN">Vào</option>
+                  <option value="OUT">Ra</option>
                 </select>
               </label>
-              <Field label="Gate type *" value={form.gateType} onChange={(value) => set("gateType", value)} placeholder="Swing Gate" />
-              <Field label="Passage count" value={form.passageCount} onChange={(value) => set("passageCount", value)} type="number" />
-              <Checkbox label="Emergency mode" checked={form.emergencyMode} onChange={(value) => set("emergencyMode", value)} />
+              <Field label="Loại cổng *" value={form.gateType} onChange={(value) => set("gateType", value)} placeholder="Swing Gate" />
+              <Field label="Số lượt qua" value={form.passageCount} onChange={(value) => set("passageCount", value)} type="number" />
+              <Checkbox label="Chế độ khẩn cấp" checked={form.emergencyMode} onChange={(value) => set("emergencyMode", value)} />
             </div>
           ) : form.detailKind === "TICKET_MACHINE" ? (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
