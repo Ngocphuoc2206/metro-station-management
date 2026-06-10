@@ -74,9 +74,13 @@ export default function DeviceDashboard() {
   const [activeTab, setActiveTab] = useState<DeviceCategory>("gate");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<DeviceStatus | "all">("all");
+  const [appliedSearch, setAppliedSearch] = useState("");
+  const [appliedStatusFilter, setAppliedStatusFilter] = useState<DeviceStatus | "all">("all");
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
   const [devices, setDevices] = useState<Device[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   useEffect(() => {
     const load = async () => {
@@ -97,9 +101,9 @@ export default function DeviceDashboard() {
   const filtered = useMemo(() => {
     return devices.filter((d) => {
       if (d.category !== activeTab) return false;
-      if (statusFilter !== "all" && d.status !== statusFilter) return false;
-      if (search) {
-        const q = search.toLowerCase();
+      if (appliedStatusFilter !== "all" && d.status !== appliedStatusFilter) return false;
+      if (appliedSearch) {
+        const q = appliedSearch.toLowerCase();
         if (
           !d.id.toLowerCase().includes(q) &&
           !d.station.toLowerCase().includes(q) &&
@@ -109,7 +113,12 @@ export default function DeviceDashboard() {
       }
       return true;
     });
-  }, [devices, activeTab, search, statusFilter]);
+  }, [devices, activeTab, appliedSearch, appliedStatusFilter]);
+
+  const paginatedDevices = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return filtered.slice(startIndex, startIndex + pageSize);
+  }, [filtered, currentPage]);
 
   const handleSelect = (device: Device) => {
     setSelectedDevice((prev) => (prev?.id === device.id ? null : device));
@@ -156,6 +165,9 @@ export default function DeviceDashboard() {
                   setSelectedDevice(null);
                   setSearch("");
                   setStatusFilter("all");
+                  setAppliedSearch("");
+                  setAppliedStatusFilter("all");
+                  setCurrentPage(1);
                 }}
                 className={`relative px-4 py-3 text-sm font-medium transition-colors flex items-center gap-2 ${active
                   ? "text-blue-600 border-b-2 border-blue-600"
@@ -198,6 +210,13 @@ export default function DeviceDashboard() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  setAppliedSearch(search);
+                  setAppliedStatusFilter(statusFilter);
+                  setCurrentPage(1);
+                }
+              }}
               placeholder="Lọc theo mã, vị trí..."
               className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition"
             />
@@ -213,6 +232,20 @@ export default function DeviceDashboard() {
               </option>
             ))}
           </select>
+          <button
+            type="button"
+            onClick={() => {
+              setAppliedSearch(search);
+              setAppliedStatusFilter(statusFilter);
+              setCurrentPage(1);
+            }}
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition shadow-sm shadow-blue-100"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            Tìm kiếm
+          </button>
         </div>
 
         {/* Table */}
@@ -230,11 +263,62 @@ export default function DeviceDashboard() {
               <span className="text-sm font-medium">Không có thiết bị nào</span>
             </div>
           ) : (
-            <DeviceTable
-              devices={filtered}
-              selectedId={selectedDevice?.id ?? null}
-              onSelect={handleSelect}
-            />
+            <>
+              <DeviceTable
+                devices={paginatedDevices}
+                selectedId={selectedDevice?.id ?? null}
+                onSelect={handleSelect}
+              />
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-gray-100 bg-white text-sm">
+                <div className="text-gray-500">
+                  Hiển thị {((currentPage - 1) * pageSize) + 1} - {Math.min(currentPage * pageSize, filtered.length)} trong tổng số {filtered.length} thiết bị
+                </div>
+                {filtered.length > pageSize && (
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-transparent transition cursor-pointer"
+                      title="Trang trước"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+                    {Array.from({ length: Math.ceil(filtered.length / pageSize) }).map((_, i) => {
+                      const p = i + 1;
+                      const isCurrent = p === currentPage;
+                      return (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setCurrentPage(p)}
+                          className={`min-w-[32px] h-8 rounded-lg text-sm font-semibold transition cursor-pointer flex items-center justify-center ${
+                            isCurrent
+                              ? "bg-blue-600 text-white shadow-sm shadow-blue-100"
+                              : "text-gray-600 hover:bg-gray-50 border border-transparent hover:border-gray-200"
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      );
+                    })}
+                    <button
+                      type="button"
+                      disabled={currentPage === Math.ceil(filtered.length / pageSize)}
+                      onClick={() => setCurrentPage((p) => Math.min(Math.ceil(filtered.length / pageSize), p + 1))}
+                      className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-transparent transition cursor-pointer"
+                      title="Trang sau"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
           )}
         </div>
       </div>

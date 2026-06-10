@@ -40,6 +40,39 @@ function getTypeName(typeId: string, typeOptions: AdminDeviceTypeOption[]) {
   return typeOptions.find((type) => type.id === typeId)?.name;
 }
 
+function normalizeLookup(value?: string) {
+  return value?.trim().toLowerCase() ?? "";
+}
+
+function resolveStation(device: AdminDeviceResponse, stations: Station[]) {
+  return stations.find((station) => station.id === device.stationId)
+    ?? stations.find((station) => normalizeLookup(station.name) === normalizeLookup(device.stationName))
+    ?? stations.find((station) => normalizeLookup(station.code) === normalizeLookup(device.stationName));
+}
+
+function resolveDeviceType(device: AdminDeviceResponse, typeOptions: AdminDeviceTypeOption[]) {
+  return typeOptions.find((type) => type.id === device.typeId)
+    ?? typeOptions.find((type) => normalizeLookup(type.name) === normalizeLookup(device.typeName))
+    ?? typeOptions.find((type) => normalizeLookup(type.id) === normalizeLookup(device.typeName));
+}
+
+function hydrateDevice(
+  device: AdminDeviceResponse,
+  stations: Station[],
+  typeOptions: AdminDeviceTypeOption[],
+): AdminDeviceResponse {
+  const station = resolveStation(device, stations);
+  const type = resolveDeviceType(device, typeOptions);
+
+  return {
+    ...device,
+    stationId: device.stationId || station?.id,
+    stationName: device.stationName || station?.name,
+    typeId: device.typeId || type?.id,
+    typeName: device.typeName || type?.name,
+  };
+}
+
 export default function AdminDeviceManagement() {
   const [devices, setDevices] = useState<AdminDeviceResponse[]>([]);
   const [stations, setStations] = useState<Station[]>([]);
@@ -51,6 +84,8 @@ export default function AdminDeviceManagement() {
   const [typeFilter, setTypeFilter] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingDevice, setEditingDevice] = useState<AdminDeviceResponse | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   useEffect(() => {
     let cancelled = false;
@@ -62,14 +97,17 @@ export default function AdminDeviceManagement() {
       .then(([deviceResult, stationResult, deviceTypeResult]) => {
         if (cancelled) return;
 
-        if (deviceResult.status === "fulfilled") {
-          setDevices(deviceResult.value);
-        }
+        const stationList = stationResult.status === "fulfilled" ? stationResult.value : [];
+        const deviceTypeList = deviceTypeResult.status === "fulfilled" ? deviceTypeResult.value : [];
+
         if (stationResult.status === "fulfilled") {
-          setStations(stationResult.value);
+          setStations(stationList);
         }
         if (deviceTypeResult.status === "fulfilled") {
-          setTypeOptions(deviceTypeResult.value);
+          setTypeOptions(deviceTypeList);
+        }
+        if (deviceResult.status === "fulfilled") {
+          setDevices(deviceResult.value.map((device) => hydrateDevice(device, stationList, deviceTypeList)));
         }
 
         setError(deviceResult.status === "rejected" ? "Không thể tải danh sách thiết bị." : "");
@@ -96,31 +134,45 @@ export default function AdminDeviceManagement() {
     });
   }, [devices, search, stations, statusFilter, typeFilter]);
 
+  const paginatedDevices = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return filteredDevices.slice(startIndex, startIndex + pageSize);
+  }, [filteredDevices, currentPage]);
+
   const openCreate = () => {
     setEditingDevice(null);
     setIsFormOpen(true);
   };
 
   const openEdit = (device: AdminDeviceResponse) => {
-    setEditingDevice(device);
+    setEditingDevice(hydrateDevice(device, stations, typeOptions));
     setIsFormOpen(true);
   };
 
   const submit = async (payload: AdminDeviceRequest) => {
     const typeName = getTypeName(payload.typeId, typeOptions);
     if (editingDevice) {
+      if (!editingDevice.id) {
+        throw new Error("Thiếu deviceId thiết bị để cập nhật.");
+      }
       const updated = await adminDeviceApi.updateDevice(editingDevice.id, payload);
       const stationName = stations.find((station) => station.id === payload.stationId)?.name;
-      const merged = {
+      const merged = hydrateDevice({
         ...editingDevice,
         ...updated,
+        id: updated.id || editingDevice.id,
+        deviceCode: updated.deviceCode || payload.deviceCode,
+        name: updated.name || payload.name,
+        ipAddress: updated.ipAddress ?? payload.ipAddress,
+        macAddress: updated.macAddress ?? payload.macAddress,
+        status: updated.status || payload.status,
         stationId: payload.stationId,
         stationName: stationName ?? updated.stationName ?? editingDevice.stationName,
         gateId: payload.gateId,
         gateName: updated.gateName ?? editingDevice.gateName,
         typeId: payload.typeId,
         typeName: updated.typeName ?? typeName ?? editingDevice.typeName,
-      };
+      }, stations, typeOptions);
       setDevices((current) => current.map((device) => device.id === editingDevice.id ? merged : device));
       toast.success("Đã cập nhật thiết bị.");
     } else {
@@ -172,15 +224,32 @@ export default function AdminDeviceManagement() {
         <input
           type="search"
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          onChange={(event) => {
+            setSearch(event.target.value);
+            setCurrentPage(1);
+          }}
           placeholder="Tìm theo mã, tên, ga..."
           className="min-w-0 flex-1 basis-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100 sm:basis-auto"
         />
-        <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-700 focus:outline-none sm:w-auto sm:min-w-[150px]">
+        <select
+          value={typeFilter}
+          onChange={(event) => {
+            setTypeFilter(event.target.value);
+            setCurrentPage(1);
+          }}
+          className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-700 focus:outline-none sm:w-auto sm:min-w-[150px]"
+        >
           <option value="">Tất cả loại</option>
           {typeNames.map((type) => <option key={type} value={type}>{type}</option>)}
         </select>
-        <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-700 focus:outline-none sm:w-auto sm:min-w-[150px]">
+        <select
+          value={statusFilter}
+          onChange={(event) => {
+            setStatusFilter(event.target.value);
+            setCurrentPage(1);
+          }}
+          className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-700 focus:outline-none sm:w-auto sm:min-w-[150px]"
+        >
           <option value="">Tất cả trạng thái</option>
           {statuses.map((status) => (
             <option key={status} value={status}>{statusLabel(status)}</option>
@@ -224,7 +293,7 @@ export default function AdminDeviceManagement() {
                 <tr><td colSpan={7} className="px-6 py-16 text-center text-red-600">{error}</td></tr>
               ) : filteredDevices.length === 0 ? (
                 <tr><td colSpan={7} className="px-6 py-16 text-center text-gray-500">Không tìm thấy thiết bị phù hợp.</td></tr>
-              ) : filteredDevices.map((device) => (
+              ) : paginatedDevices.map((device) => (
                 <tr key={device.id} className="transition hover:bg-gray-50/50">
                   <td className="px-6 py-4 font-semibold text-blue-600">{device.deviceCode || device.id}</td>
                   <td className="px-6 py-4 font-medium text-gray-900">{device.name}</td>
@@ -267,11 +336,60 @@ export default function AdminDeviceManagement() {
             </tbody>
           </table>
         </div>
-        {!loading && !error ? (
-          <div className="app-table-summary">
-            Hiển thị {filteredDevices.length} trong {devices.length} thiết bị
+        {!loading && !error && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-gray-100 bg-white text-sm">
+            <div className="text-gray-500">
+              {filteredDevices.length === 0
+                ? "Hiển thị 0 thiết bị"
+                : `Hiển thị ${((currentPage - 1) * pageSize) + 1} - ${Math.min(currentPage * pageSize, filteredDevices.length)} trong tổng số ${filteredDevices.length} thiết bị`
+              }
+            </div>
+            {filteredDevices.length > pageSize && (
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-transparent transition cursor-pointer"
+                  title="Trang trước"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                {Array.from({ length: Math.ceil(filteredDevices.length / pageSize) }).map((_, i) => {
+                  const p = i + 1;
+                  const isCurrent = p === currentPage;
+                  return (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setCurrentPage(p)}
+                      className={`min-w-[32px] h-8 rounded-lg text-sm font-semibold transition cursor-pointer flex items-center justify-center ${
+                        isCurrent
+                          ? "bg-blue-600 text-white shadow-sm shadow-blue-100"
+                          : "text-gray-600 hover:bg-gray-50 border border-transparent hover:border-gray-200"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  disabled={currentPage === Math.ceil(filteredDevices.length / pageSize)}
+                  onClick={() => setCurrentPage((p) => Math.min(Math.ceil(filteredDevices.length / pageSize), p + 1))}
+                  className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-transparent transition cursor-pointer"
+                  title="Trang sau"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+            )}
           </div>
-        ) : null}
+        )}
       </div>
 
       <AdminDeviceFormModal

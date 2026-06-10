@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { apiClient } from "@features/httpClient/ApiClient";
 import { API_ENDPOINTS, ApiResponse } from "@features/httpClient/apiEndpoints";
-import { reportApi, type TicketSalesReport } from "@features/admin/reportApi";
+import { reportApi, type TicketSalesReport, type RevenueReport } from "@features/admin/reportApi";
 import type {
   KpiData,
   RevenuePoint,
@@ -66,40 +66,32 @@ function filterByTimeRange<T extends { createdAt?: string; timestamp?: string; s
   });
 }
 
-function buildRevenueFromTicketSales(ticketSales: TicketSalesReport[], range: TimeRange): RevenuePoint[] {
-  if (ticketSales.length === 0) return [];
-
-  if (range === "today") {
-    // Nhóm theo giờ (giả lập vì API không cung cấp thời gian cụ thể)
-    const hourMap: Record<string, number> = {};
-    for (let h = 0; h < 24; h++) {
-      const label = `${String(h).padStart(2, "0")}h`;
-      hourMap[label] = 0;
-    }
-    // Phân phối dữ liệu theo giờ ngẫu nhiên
-    ticketSales.forEach((item) => {
-      const h = Math.floor(Math.random() * 24);
-      const label = `${String(h).padStart(2, "0")}h`;
-      hourMap[label] = (hourMap[label] ?? 0) + (item.amount ?? 0);
-    });
-    return Object.entries(hourMap)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([label, value]) => ({ label, value: +(value / 1_000_000).toFixed(2) }));
-  }
-
-  // 7d hoặc 30d → nhóm theo ngày
+function processTicketSales7d(ticketSales: TicketSalesReport[]): RevenuePoint[] {
   const dayMap: Record<string, number> = {};
-  ticketSales.forEach((item) => {
-    const d = new Date(item.date);
-    const label = range === "7d"
-      ? ["CN", "T2", "T3", "T4", "T5", "T6", "T7"][d.getDay()]
-      : `${d.getDate()}/${d.getMonth() + 1}`;
+  const sorted = [...ticketSales].sort((a, b) => a.date.localeCompare(b.date));
+  
+  sorted.forEach((item) => {
+    const parts = item.date.split("-");
+    const label = parts.length === 3 ? `${parts[2]}/${parts[1]}` : item.date;
     dayMap[label] = (dayMap[label] ?? 0) + (item.amount ?? 0);
   });
+
   return Object.entries(dayMap).map(([label, value]) => ({
     label,
-    value: +(value / 1_000_000).toFixed(2),
+    value,
   }));
+}
+
+function processRevenue30d(revenueReports: RevenueReport[]): RevenuePoint[] {
+  const sorted = [...revenueReports].sort((a, b) => a.date.localeCompare(b.date));
+  return sorted.map((item) => {
+    const parts = item.date.split("-");
+    const label = parts.length === 3 ? `${parts[2]}/${parts[1]}` : item.date;
+    return {
+      label,
+      value: item.revenue ?? 0,
+    };
+  });
 }
 
 function buildGateActivity(logs: BackendGateLog[]): GateActivity[] {
@@ -127,7 +119,7 @@ function buildAlerts(devices: BackendDevice[]): Alert[] {
       device: (d as Record<string, unknown>).name as string ?? d.deviceId ?? "Thiết bị",
       content: (d.status ?? "").toUpperCase() === "OFFLINE" ? "Mất kết nối" : "Cần bảo trì",
       severity: (d.status ?? "").toUpperCase() === "ERROR" ? "critical" : "warning" as const,
-      time: new Date().toLocaleTimeString("vi-VN"),
+      time: new Date().toLocaleTimeString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" }),
     }));
 }
 
@@ -161,19 +153,30 @@ export function useDashboardData(range: TimeRange): DashboardData {
     setKpiLoading(true);
     setRevenueLoading(true);
 
+    const revenueReportPromise = range === "30d"
+      ? reportApi.getRevenueReport("30d")
+      : reportApi.getTicketSalesReport("7d");
+
     Promise.all([
-      reportApi.getTicketSalesReport(range as "today" | "7d" | "30d"),
+      revenueReportPromise,
       safeFetch<BackendGateLog>(API_ENDPOINTS.gates.logs),
       safeFetch<BackendDevice>(API_ENDPOINTS.devices.staff),
       safeFetch<BackendIncident>(API_ENDPOINTS.incidents.staff),
-    ]).then(([ticketSales, gateLogs, devices, allIncidents]) => {
+    ]).then(([revenueReportData, gateLogs, devices, allIncidents]) => {
       // Filter theo time range
       const filteredLogs = filterByTimeRange(gateLogs, range);
 
-      // KPI: Revenue from ticket sales
-      const totalRevenue = ticketSales.reduce(
-        (sum, ts) => sum + (ts.amount ?? 0), 0
-      );
+      // KPI: Revenue from ticket sales or general revenue report
+      let totalRevenue = 0;
+      if (range === "30d") {
+        const reports = revenueReportData as RevenueReport[];
+        totalRevenue = reports.reduce((sum, r) => sum + (r.revenue ?? 0), 0);
+        setRevenue(processRevenue30d(reports));
+      } else {
+        const sales = revenueReportData as TicketSalesReport[];
+        totalRevenue = sales.reduce((sum, ts) => sum + (ts.amount ?? 0), 0);
+        setRevenue(processTicketSales7d(sales));
+      }
 
       // KPI: Trips = số log success
       const successLogs = filteredLogs.filter(
@@ -205,8 +208,7 @@ export function useDashboardData(range: TimeRange): DashboardData {
       });
       setKpiError(null);
 
-      // Revenue chart from ticket sales
-      setRevenue(buildRevenueFromTicketSales(ticketSales, range));
+      // Revenue chart error check
       setRevenueError(null);
 
       // Gate activity
@@ -226,12 +228,33 @@ export function useDashboardData(range: TimeRange): DashboardData {
         let timeStr = "--:--";
         if (inc.createdAt) {
           try {
-            timeStr = new Date(inc.createdAt).toLocaleTimeString("vi-VN", {
-              hour: "2-digit",
-              minute: "2-digit",
-              second: "2-digit",
-              hour12: false,
-            });
+            const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(inc.createdAt);
+            const matchTime = inc.createdAt.match(/^(\d{4})[./-](\d{2})[./-](\d{2})[T ](\d{2}):(\d{2}):(\d{2})/);
+            if (matchTime && !hasTimezone) {
+              const year = parseInt(matchTime[1], 10);
+              const month = parseInt(matchTime[2], 10) - 1;
+              const day = parseInt(matchTime[3], 10);
+              const hour = parseInt(matchTime[4], 10);
+              const minute = parseInt(matchTime[5], 10);
+              const second = parseInt(matchTime[6], 10);
+              const date = new Date(Date.UTC(year, month, day, hour, minute, second));
+              timeStr = date.toLocaleTimeString("vi-VN", {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+                hour12: false,
+                timeZone: "Asia/Ho_Chi_Minh",
+              });
+            } else {
+              const normalized = hasTimezone ? inc.createdAt : `${inc.createdAt}Z`;
+              timeStr = new Date(normalized).toLocaleTimeString("vi-VN", {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+                hour12: false,
+                timeZone: "Asia/Ho_Chi_Minh",
+              });
+            }
           } catch {
             timeStr = inc.createdAt;
           }

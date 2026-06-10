@@ -48,7 +48,22 @@ function getGateStatus(gate: ApiGate) {
 }
 function fmtTime(iso?: string) {
   if (!iso) return "—";
-  try { return new Date(iso).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }); }
+  try {
+    const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(iso);
+    const match = iso.match(/^(\d{4})[./-](\d{2})[./-](\d{2})[T ](\d{2}):(\d{2}):(\d{2})/);
+    if (match && !hasTimezone) {
+      const year = parseInt(match[1], 10);
+      const month = parseInt(match[2], 10) - 1;
+      const day = parseInt(match[3], 10);
+      const hour = parseInt(match[4], 10);
+      const minute = parseInt(match[5], 10);
+      const second = parseInt(match[6], 10);
+      const date = new Date(Date.UTC(year, month, day, hour, minute, second));
+      return date.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "Asia/Ho_Chi_Minh" });
+    }
+    const normalized = hasTimezone ? iso : `${iso}Z`;
+    return new Date(normalized).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "Asia/Ho_Chi_Minh" });
+  }
   catch { return iso; }
 }
 function getSev(inc: ApiIncident) {
