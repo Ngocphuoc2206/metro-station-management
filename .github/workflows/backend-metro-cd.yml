@@ -60,7 +60,7 @@ jobs:
             REDIS_HOST=${{ secrets.REDIS_HOST || 'redis' }}
             REDIS_PORT=${{ secrets.REDIS_PORT || '6379' }}
             EOF
-            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
+            echo "${{ github.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
             docker compose pull backend
             docker compose up -d backend
             docker image prune -f
