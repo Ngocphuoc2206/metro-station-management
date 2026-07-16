@@ -1,6 +1,7 @@
 package com.backend.management_ticket_metro.controller;
 
 import com.backend.management_ticket_metro.common.ApiResponse;
+import com.backend.management_ticket_metro.dto.request.GateRequest;
 import com.backend.management_ticket_metro.dto.request.ScanTicketRequest;
 import com.backend.management_ticket_metro.dto.request.UpdateGateStatusRequest;
 import com.backend.management_ticket_metro.dto.response.GateResponse;
